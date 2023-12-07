@@ -14,15 +14,8 @@ pub enum Expression<Span> {
     Literal(Literal<Span>),
     Identifier(Identifier<Span>),
     Parenthesis(Box<Expression<Span>>),
-    CallOrIndexing {
-        function: Box<Expression<Span>>,
-        arguments: Vec<Expression<Span>>,
-    },
-    Operation {
-        left: Box<Expression<Span>>,
-        operator: ExactMatch<Span>,
-        right: Box<Expression<Span>>,
-    },
+    CallOrIndexing(Box<CallOrIndexing<Span>>),
+    Operation(Box<Operation<Span>>),
     UnaryLeftOperation(Box<UnaryLeftOperation<Span>>),
     IndexRange(Box<IndexRange<Span>>),
     IfArithmetic(Box<IfArithmetic<Span>>),

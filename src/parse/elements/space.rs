@@ -48,3 +48,5 @@ pub struct EmptyLines {
 pub fn empty_lines<S: TextSource>() -> impl Parser<S, Token = EmptyLines> {
     fold_many((many(' ', 0..), nl()), || 0, |count, _| (count + 1, true), 1..).map(|count| EmptyLines { count })
 }
+
+// TODO tests

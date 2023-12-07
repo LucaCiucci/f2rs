@@ -43,3 +43,21 @@ pub fn variables_declaration<S: TextSource>() -> impl Parser<S, Token = Variable
         });
     (d, eol_or_comment()).map(|(vars, _)| VariablesDeclaration { vars })
 }
+
+#[cfg(test)]
+mod tests {
+    //use super::*;
+
+    // TODO ...
+    // integer i
+    // logical :: flag1, flag2
+    // double precision :: d
+    // integer(c_int) :: c
+    // integer*2 :: c2
+    // integer(4) :: c3
+    // double complex :: z
+    // integer :: some_vec(:, 2, 3), some_vec2(2, 3)
+    // type(integer) iii
+    // character*4 :: str
+    // integer dsnjf(1:10)
+}

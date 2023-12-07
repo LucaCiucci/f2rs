@@ -34,3 +34,5 @@ pub fn operator<S: TextSource>() -> impl Parser<S, Token = ExactMatch<S::Span>> 
         operators
     })
 }
+
+// TODO tests

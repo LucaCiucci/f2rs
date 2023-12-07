@@ -80,3 +80,18 @@ pub fn if_logical<S: TextSource>() -> impl Parser<S, Token = IfStatement<S::Span
 pub fn if_<S: TextSource>() -> impl Parser<S, Token = IfStatement<S::Span>> {
     if_statement().or(if_logical())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_if_statement() {
+        let _r = if_statement().parse(include_str!("if_statement/test_1.f90")).0.unwrap();
+    }
+
+    #[test]
+    fn test_if_logical() {
+        let _r = if_logical().parse(include_str!("if_statement/test_2.f90")).0.unwrap();
+    }
+}

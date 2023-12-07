@@ -3,6 +3,13 @@ use riddle::provided::common::chained;
 
 use super::*;
 
+#[derive(Debug, Clone)]
+pub struct Operation<Span> {
+    pub left: Expression<Span>,
+    pub operator: ExactMatch<Span>,
+    pub right: Expression<Span>,
+}
+
 pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>> {
     chained(spaced(expression_monome()), spaced(operator()))
         .map(|
@@ -65,11 +72,11 @@ pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>>
                 //    }
                 //}
 
-                *l_expr = Expression::Operation {
+                *l_expr = Expression::Operation(Box::new(Operation {
                     operator: op,
-                    left: Box::new(l_expr.clone()),
-                    right: Box::new(r_expr),
-                };
+                    left: l_expr.clone(),
+                    right: r_expr,
+                }));
 
                 //map_in_place(l_expr, |l_expr| Expression::Operation {
                 //    operator: op,
@@ -80,4 +87,59 @@ pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>>
 
             first
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_operation() {
+        let r = operation().parse("a + b * c - d / e ** f").0.unwrap();
+
+        assert_eq!(
+            r.as_operation().unwrap().operator.value,
+            "-"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().left.as_operation().unwrap().operator.value,
+            "+"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().left.as_operation().unwrap().left.as_identifier().unwrap().value,
+            "a"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            "*"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            "b"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().right.as_identifier().unwrap().value,
+            "c"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            "/"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            "d"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            "**"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            "e"
+        );
+        assert_eq!(
+            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().right.as_identifier().unwrap().value,
+            "f"
+        );
+    }
 }

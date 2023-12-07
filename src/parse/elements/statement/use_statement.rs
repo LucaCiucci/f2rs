@@ -28,3 +28,33 @@ pub fn use_statement<S: TextSource>() -> impl Parser<S, Token = UseStatement> {
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_use_statement() {
+        let r = use_statement().parse("use foo").0.unwrap();
+
+        assert_eq!(
+            r.module_name,
+            "foo"
+        );
+        assert_eq!(
+            r.only,
+            Vec::<String>::new()
+        );
+
+        let r = use_statement().parse("use foo, only: bar, baz").0.unwrap();
+
+        assert_eq!(
+            r.module_name,
+            "foo"
+        );
+        assert_eq!(
+            r.only,
+            vec!["bar", "baz"]
+        );
+    }
+}

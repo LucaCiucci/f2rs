@@ -93,3 +93,5 @@ pub fn type_<S: TextSource>() -> impl Parser<S, Token = Type<S::Span>> {
         (keyword("type"), spaced('('), type_(), spaced(')')).map(|(_, _, ty, _)| Type::Type(Box::new(ty))),
     )
 }
+
+// TODO tests

@@ -2,6 +2,8 @@ use riddle::prelude::*;
 
 use crate::parse::Item;
 
+use enum_as_inner::EnumAsInner;
+
 use super::*;
 
 mod use_statement; pub use use_statement::*;
@@ -12,19 +14,13 @@ mod if_statement; pub use if_statement::*;
 mod call_statement; pub use call_statement::*;
 mod implicit; pub use implicit::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum Statement<Span> {
     Implicit(Implicit<Span>),
     UseStatement(UseStatement),
     VariablesDeclaration(VariablesDeclaration<Span>),
     Expression(Expression<Span>),
-    DoLoop {
-        variable: String,
-        start: Expression<Span>,
-        end: Expression<Span>,
-        step: Option<Expression<Span>>,
-        body: Vec<Item<Span>>,
-    },
+    DoLoop(DoLoop<Span>),
     If(Box<IfStatement<Span>>),
     CallStatement(Expression<Span>),
     PrintStatement(SpecialFunction<Span>),
@@ -42,3 +38,5 @@ pub fn statement<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> 
         (expression(), eol_or_comment()).map(|(e, _)| e).map(Statement::Expression),
     }
 }
+
+// TODO tests
