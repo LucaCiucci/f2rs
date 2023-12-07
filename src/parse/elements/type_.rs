@@ -1,6 +1,8 @@
 use super::*;
 use riddle::{prelude::*, provided::text::rusty::Identifier};
 
+use enum_as_inner::EnumAsInner;
+
 // https://docs.oracle.com/cd/E19957-01/805-4939/index.html
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BasicType {
@@ -85,6 +87,20 @@ pub enum Type<Span> {
         ranges: Vec<Expression<Span>>,
     },
 }
+
+// TODO parse and use
+//#[derive(Debug, Clone)]
+//pub struct Modifiers {
+//    pub intent: Option<Intent>,
+//    // TODO ...
+//}
+//
+//#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+//pub enum Intent {
+//    In,
+//    Out,
+//    InOut,
+//}
 
 pub fn type_<S: TextSource>() -> impl Parser<S, Token = Type<S::Span>> {
     alt!(
