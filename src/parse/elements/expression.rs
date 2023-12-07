@@ -1,5 +1,6 @@
 
 use riddle::{prelude::*, provided::text::rusty::Identifier};
+use enum_as_inner::EnumAsInner;
 
 use super::*;
 
@@ -8,7 +9,7 @@ mod operation; pub use operation::*;
 mod monome; pub use monome::*;
 mod if_arithmetic; pub use if_arithmetic::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum Expression<Span> {
     Literal(Literal<Span>),
     Identifier(Identifier<Span>),
@@ -22,10 +23,7 @@ pub enum Expression<Span> {
         operator: ExactMatch<Span>,
         right: Box<Expression<Span>>,
     },
-    UnaryLeftOperation {
-        operator: ExactMatch<Span>,
-        right: Box<Expression<Span>>,
-    },
+    UnaryLeftOperation(Box<UnaryLeftOperation<Span>>),
     IndexRange(Box<IndexRange<Span>>),
     IfArithmetic(Box<IfArithmetic<Span>>),
 }

@@ -18,12 +18,12 @@
         ! definition of the "modulus"
               m = 10**8 + 1  ! original Lehmer implementation 1949 working on ENIAC 
                               ! which was indeed a 8-decimal digit number machine
-        c      m = 2147483647 ! 2^31 - 1  ! Park-Miller 1988, this is a Mersenne prime
+        !      m = 2147483647 ! 2^31 - 1  ! Park-Miller 1988, this is a Mersenne prime
           
         ! definition of the "multiplier"
               a = 23     ! original Lehmer implementation 1949 workin on ENIAC 
-        c      a = 16807  ! Park-Miller 1988
-        c      a = 48271  ! Park-Miller 1993
+        !      a = 16807  ! Park-Miller 1988
+        !      a = 48271  ! Park-Miller 1993
         
         ! definition of the "increment"
         ! when c = 0 the generator is called "multiplicative congruential generator"
@@ -53,7 +53,7 @@
                 write (*,*) x,y             ! try to plot the pairs [0,1]x[0,1] to see if they
                                             ! follow some regular structure. Lehmer implementation
                                             ! is ugly, Park-Miller looks much better
-        c      if (x.lt.0.001.and.y.lt.0.001) write (*,*) x,y  ! but if you try to zoom
+        !      if (x.lt.0.001.and.y.lt.0.001) write (*,*) x,y  ! but if you try to zoom
                                                                ! also Park-Miller shows regular  
                                                                ! structures, even if at much smaller
                                                                ! scales

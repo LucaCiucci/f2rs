@@ -1,6 +1,7 @@
 use riddle::{prelude::*, provided::text::rusty::{string_literal_impl, StringLiteral, NumericLiteral, numeric_literal}};
+use enum_as_inner::EnumAsInner;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum Literal<Span> {
     String(StringLiteral<Span>),
     Number(NumericLiteral<Span>),

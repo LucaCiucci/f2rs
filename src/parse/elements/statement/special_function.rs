@@ -32,7 +32,7 @@ pub fn special_function_name<S: TextSource>() -> impl Parser<S, Token = Identifi
 pub struct SpecialFunction<Span> {
     pub name: Identifier<Span>,
     pub special_args: Option<Vec<StarOrExpr<Span>>>,
-    pub items: Vec<Expression<Span>>,
+    pub items: Vec<StarOrExpr<Span>>,
 }
 
 pub fn special_function<S: TextSource>() -> impl Parser<S, Token = SpecialFunction<S::Span>> {
@@ -44,7 +44,7 @@ pub fn special_function<S: TextSource>() -> impl Parser<S, Token = SpecialFuncti
             spaced(')'),
         ).map(|(_, s, _)| s).optional(),
         spaced(',').optional(),
-        separated(expression(), spaced(','), 0..),
+        separated(star_or_expr(), spaced(','), 0..),
         eol_or_comment(),
     ).map(|(
         name,

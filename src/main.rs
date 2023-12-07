@@ -3,6 +3,7 @@ use std::{path::Path, io::Write};
 use riddle::prelude::*;
 
 mod parse;
+mod testing;
 
 fn main() {
     let src = load_file("in.f90");
