@@ -1,6 +1,6 @@
 use std::{path::Path, io::Write};
 
-use riddle::tokenization::TokenParser;
+use riddle::prelude::*;
 
 mod parse;
 
@@ -18,7 +18,7 @@ fn main() {
     //println!("{:#?}", '_'.is_alphanumeric());
 
     // write to file
-    let mut out = std::fs::File::create("out.rs").unwrap();
+    let out = std::fs::File::create("out.rs").unwrap();
     let mut out = std::io::BufWriter::new(out);
     let file = file.0.unwrap();
     write!(out, "{file:#?}").unwrap();
