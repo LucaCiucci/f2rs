@@ -4,7 +4,7 @@ use riddle::{prelude::*, provided::text::rusty::Identifier};
 use enum_as_inner::EnumAsInner;
 
 // https://docs.oracle.com/cd/E19957-01/805-4939/index.html
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumAsInner)]
 pub enum BasicType {
     Integer,
     Integer2,
