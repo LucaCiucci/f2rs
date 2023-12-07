@@ -4,6 +4,7 @@ use super::*;
 
 pub fn expression_monome<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>> {
     alt! {
+        if_arithmetic().map(|if_arithmetic| Expression::IfArithmetic(Box::new(if_arithmetic))),
         (spaced(operator()), expression_monome()).map(|(op, expr)| Expression::UnaryLeftOperation { operator: op, right: Box::new(expr) }),
         fortran_literal().map(Expression::Literal),
         identifier().map(Expression::Identifier),

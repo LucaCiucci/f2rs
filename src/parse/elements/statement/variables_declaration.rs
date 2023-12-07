@@ -32,17 +32,14 @@ pub fn variable_declaree<S: TextSource>(base_type: Type<S::Span>) -> impl Parser
 pub fn variables_declaration<S: TextSource>() -> impl Parser<S, Token = VariablesDeclaration<S::Span>> {
     let d = spaced(type_())
         .then(move |ty| {
-            variable_declaree(ty.clone()).map(|var| vec![var])
-            .or(
-                (
-                    spaced(ExactMatch::exact("::", false)),
-                    separated(
-                        variable_declaree(ty.clone()), // TODO not identifier
-                        spaced(ExactMatch::exact(",", false)),
-                        1..,
-                    ),
-                ).map(move |(_, vars)| vars)
-            )
+            (
+                spaced(ExactMatch::exact("::", false)).optional(),
+                separated(
+                    variable_declaree(ty.clone()), // TODO not identifier
+                    spaced(ExactMatch::exact(",", false)),
+                    1..,
+                ),
+            ).map(move |(_, vars)| vars)
         });
     (d, eol_or_comment()).map(|(vars, _)| VariablesDeclaration { vars })
 }

@@ -1,6 +1,6 @@
 use riddle::{tokenization::{TextSource, Parser}, provided::text::ExactMatch};
 
-pub const OPERATORS: [(&str, usize); 23] = [
+pub const OPERATORS: [(&str, usize); 24] = [
     // TODO check_priorities
     ("**", 60),
     ("*", 50),
@@ -19,6 +19,7 @@ pub const OPERATORS: [(&str, usize); 23] = [
     (".not.", 10),
     (".eqv.", 10),
     (".neqv.", 10),
+    ("=", 0),
 ];
 
 pub fn operator<S: TextSource>() -> impl Parser<S, Token = ExactMatch<S::Span>> {

@@ -1,4 +1,7 @@
+if 0 1
+a = if 0 1
 ! comment
+c comment2
 program my_program
     !implicit none
     use some_module, ONLY : a, b, c

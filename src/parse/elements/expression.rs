@@ -6,6 +6,7 @@ use super::*;
 mod index_range; pub use index_range::*;
 mod operation; pub use operation::*;
 mod monome; pub use monome::*;
+mod if_arithmetic; pub use if_arithmetic::*;
 
 #[derive(Debug, Clone)]
 pub enum Expression<Span> {
@@ -26,6 +27,7 @@ pub enum Expression<Span> {
         right: Box<Expression<Span>>,
     },
     IndexRange(Box<IndexRange<Span>>),
+    IfArithmetic(Box<IfArithmetic<Span>>),
 }
 
 pub fn expression_non_range<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>> {

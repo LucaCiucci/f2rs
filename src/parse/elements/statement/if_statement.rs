@@ -2,7 +2,20 @@ use crate::parse::item;
 
 use super::*;
 
-pub fn if_<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
+#[derive(Debug, Clone)]
+pub enum IfStatement<Span> {
+    Statement {
+        condition: Expression<Span>,
+        body: Vec<Item<Span>>,
+        else_body: Option<Vec<Item<Span>>>,
+    },
+    Logical {
+        condition: Expression<Span>,
+        statement: Statement<Span>,
+    }
+}
+
+pub fn if_statement<S: TextSource>() -> impl Parser<S, Token = IfStatement<S::Span>> {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     enum BodyTermination {
         EndIf,
@@ -48,9 +61,22 @@ pub fn if_<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
                 .where_(termination == Some(BodyTermination::ElseIf))
                 .map(move |else_body| (body.clone(), else_body))
         })
-    ).map(|(condition, (body, else_body))| Statement::If {
+    ).map(|(condition, (body, else_body))| IfStatement::Statement {
         condition,
         body,
         else_body,
     })
+}
+
+// TODO to test!!!
+pub fn if_logical<S: TextSource>() -> impl Parser<S, Token = IfStatement<S::Span>> {
+    (
+        spaced(keyword("if")),
+        spaced(expression()),
+        spaced(statement()),
+    ).map(|(_, condition, statement)| IfStatement::Logical { condition, statement })
+}
+
+pub fn if_<S: TextSource>() -> impl Parser<S, Token = IfStatement<S::Span>> {
+    if_statement().or(if_logical())
 }
