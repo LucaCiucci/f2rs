@@ -2,6 +2,11 @@
 program my_program
     !implicit none
     use some_module, ONLY : a, b, c
+    use some_module2
+    implicit none
+
+    !1 format (i2, 1x, f4.2)
+    1 format (i2, 1x, f4)
 
     integer i
     logical :: flag1, flag2
@@ -17,7 +22,7 @@ program my_program
 
     -2
 
-    a + b * c - d / e ** f
+    a + b * c - d / e ** f + f(2)
 
     do i = 1, 10
         if (i == 5) then

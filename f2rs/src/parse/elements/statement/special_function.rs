@@ -21,10 +21,11 @@ pub fn star_or_expr<S: TextSource>() -> impl Parser<S, Token = StarOrExpr<S::Spa
 }
 
 // fortran
-const SPECIAL_FUNCTIONS: [&str; 3] = [
+const SPECIAL_FUNCTIONS: [&str; 4] = [
     "print",
     "write",
     "read",
+    "format",
 ];
 
 pub fn special_function_name<S: TextSource>() -> impl Parser<S, Token = Identifier<S::Span>> {
