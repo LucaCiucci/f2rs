@@ -1,4 +1,3 @@
-
 use riddle::provided::common::chained;
 
 use super::*;
@@ -11,16 +10,11 @@ pub struct Operation<Span> {
 }
 
 pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>> {
-    chained(spaced(expression_monome()), spaced(operator()))
-        .map(|
-            (
-                mut first,
-                mut tail,
-            ): (
-                Expression<S::Span>,
-                Vec<(ExactMatch<S::Span>, Expression<S::Span>)>
-            )
-        | {
+    chained(spaced(expression_monome()), spaced(operator())).map(
+        |(mut first, mut tail): (
+            Expression<S::Span>,
+            Vec<(ExactMatch<S::Span>, Expression<S::Span>)>,
+        )| {
             let operator_priority = |op: &ExactMatch<S::Span>| -> usize {
                 OPERATORS
                     .iter()
@@ -30,11 +24,12 @@ pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>>
                     .unwrap()
             };
 
-            fn pick_ith<'a, Span>(first: &'a mut Expression<Span>, tail: &'a mut Vec<(ExactMatch<Span>, Expression<Span>)>, i: usize) -> (&'a mut Expression<Span>, ExactMatch<Span>, Expression<Span>) {
-                let (
-                    op,
-                    expr
-                ) = tail.remove(i);
+            fn pick_ith<'a, Span>(
+                first: &'a mut Expression<Span>,
+                tail: &'a mut Vec<(ExactMatch<Span>, Expression<Span>)>,
+                i: usize,
+            ) -> (&'a mut Expression<Span>, ExactMatch<Span>, Expression<Span>) {
+                let (op, expr) = tail.remove(i);
                 let l_expr = if i == 0 {
                     first
                 } else {
@@ -55,11 +50,7 @@ pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>>
                     }
                 }
 
-                let (
-                    l_expr,
-                    op,
-                    r_expr
-                ) = pick_ith(&mut first, &mut tail, max_priority_i);
+                let (l_expr, op, r_expr) = pick_ith(&mut first, &mut tail, max_priority_i);
 
                 // https://stackoverflow.com/questions/67461269/replace-a-value-behind-a-mutable-reference-by-moving-and-mapping-the-original
                 // XXX unsound, don't use
@@ -86,7 +77,8 @@ pub fn operation<S: TextSource>() -> impl Parser<S, Token = Expression<S::Span>>
             }
 
             first
-        })
+        },
+    )
 }
 
 #[cfg(test)]
@@ -97,48 +89,135 @@ mod tests {
     fn test_operation() {
         let r = operation().parse("a + b * c - d / e ** f").0.unwrap();
 
+        assert_eq!(r.as_operation().unwrap().operator.value, "-");
         assert_eq!(
-            r.as_operation().unwrap().operator.value,
-            "-"
-        );
-        assert_eq!(
-            r.as_operation().unwrap().left.as_operation().unwrap().operator.value,
+            r.as_operation()
+                .unwrap()
+                .left
+                .as_operation()
+                .unwrap()
+                .operator
+                .value,
             "+"
         );
         assert_eq!(
-            r.as_operation().unwrap().left.as_operation().unwrap().left.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .left
+                .as_operation()
+                .unwrap()
+                .left
+                .as_identifier()
+                .unwrap()
+                .value,
             "a"
         );
         assert_eq!(
-            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            r.as_operation()
+                .unwrap()
+                .left
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .operator
+                .value,
             "*"
         );
         assert_eq!(
-            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .left
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .left
+                .as_identifier()
+                .unwrap()
+                .value,
             "b"
         );
         assert_eq!(
-            r.as_operation().unwrap().left.as_operation().unwrap().right.as_operation().unwrap().right.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .left
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .right
+                .as_identifier()
+                .unwrap()
+                .value,
             "c"
         );
         assert_eq!(
-            r.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            r.as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .operator
+                .value,
             "/"
         );
         assert_eq!(
-            r.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .left
+                .as_identifier()
+                .unwrap()
+                .value,
             "d"
         );
         assert_eq!(
-            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().operator.value,
+            r.as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .operator
+                .value,
             "**"
         );
         assert_eq!(
-            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().left.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .left
+                .as_identifier()
+                .unwrap()
+                .value,
             "e"
         );
         assert_eq!(
-            r.as_operation().unwrap().right.as_operation().unwrap().right.as_operation().unwrap().right.as_identifier().unwrap().value,
+            r.as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .right
+                .as_operation()
+                .unwrap()
+                .right
+                .as_identifier()
+                .unwrap()
+                .value,
             "f"
         );
     }

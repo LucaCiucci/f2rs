@@ -6,14 +6,22 @@ use enum_as_inner::EnumAsInner;
 
 use super::*;
 
-mod use_statement; pub use use_statement::*;
-mod special_function; pub use special_function::*;
-mod variables_declaration; pub use variables_declaration::*;
-mod do_loop; pub use do_loop::*;
-mod if_statement; pub use if_statement::*;
-mod call_statement; pub use call_statement::*;
-mod implicit; pub use implicit::*;
-mod format_statement; pub use format_statement::*;
+mod use_statement;
+pub use use_statement::*;
+mod special_function;
+pub use special_function::*;
+mod variables_declaration;
+pub use variables_declaration::*;
+mod do_loop;
+pub use do_loop::*;
+mod if_statement;
+pub use if_statement::*;
+mod call_statement;
+pub use call_statement::*;
+mod implicit;
+pub use implicit::*;
+mod format_statement;
+pub use format_statement::*;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum Statement<Span> {

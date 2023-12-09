@@ -1,4 +1,7 @@
-use riddle::{tokenization::{TextSource, Parser}, provided::text::ExactMatch};
+use riddle::{
+    provided::text::ExactMatch,
+    tokenization::{Parser, TextSource},
+};
 
 pub const OPERATORS: [(&str, usize); 24] = [
     // TODO check_priorities
@@ -8,12 +11,18 @@ pub const OPERATORS: [(&str, usize); 24] = [
     ("+", 40),
     ("-", 40),
     ("//", 30),
-    (".eq.", 20), ("==", 20),
-    (".ne.", 20), ("!=", 20),
-    (".lt.", 20), ("<", 20),
-    (".le.", 20), ("<=", 20),
-    (".gt.", 20), (">", 20),
-    (".ge.", 20), (">=", 20),
+    (".eq.", 20),
+    ("==", 20),
+    (".ne.", 20),
+    ("!=", 20),
+    (".lt.", 20),
+    ("<", 20),
+    (".le.", 20),
+    ("<=", 20),
+    (".gt.", 20),
+    (">", 20),
+    (".ge.", 20),
+    (">=", 20),
     (".and.", 10),
     (".or.", 10),
     (".not.", 10),

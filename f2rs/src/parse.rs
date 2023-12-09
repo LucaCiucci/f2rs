@@ -1,9 +1,15 @@
-use riddle::{tokenization::{TextSource, Parser}, provided::{common::{many, many_until}, text::Char}};
+use riddle::{
+    provided::{
+        common::{many, many_until},
+        text::Char,
+    },
+    tokenization::{Parser, TextSource},
+};
 
 use crate::parse::elements::*;
 use riddle::prelude::*;
 
-use self::elements::{LineComment, empty_lines, EmptyLines, line_comment};
+use self::elements::{empty_lines, line_comment, EmptyLines, LineComment};
 
 use riddle::alt;
 
@@ -29,10 +35,7 @@ pub fn item<S: TextSource>() -> impl Parser<S, Token = Item<S::Span>> {
 }
 
 pub fn items<S: TextSource>() -> impl Parser<S, Token = File<S::Span>> {
-    many(
-        item(),
-        0..,
-    ).map(|items| File { items })
+    many(item(), 0..).map(|items| File { items })
 }
 
 #[derive(Debug, Clone)]
@@ -51,39 +54,33 @@ pub fn program_declaration<S: TextSource>() -> impl Parser<S, Token = String> {
         spaced(keyword("program")),
         spaced(identifier()),
         eol_or_comment(),
-    ).map(|(_, name, _)| name.value)
+    )
+        .map(|(_, name, _)| name.value)
 }
 
 pub fn program_end<S: TextSource>() -> impl Parser<S, Token = ()> {
     (
         spaced(keyword("end")),
-        (
-            spaced(keyword("program")),
-            spaced(identifier()).optional(),
-        ).optional(),
+        (spaced(keyword("program")), spaced(identifier()).optional()).optional(),
         eol_or_comment(),
-    ).map(|_| ())
+    )
+        .map(|_| ())
 }
 
 pub fn program_definition<S: TextSource>() -> impl Parser<S, Token = Program<S::Span>> {
     program_declaration()
-        .then(|name|
-            many_until(
-                item(),
-                program_end(),
-                0..,
-            ).map(move |(items, _)| (name.clone(), items))
-        )
+        .then(|name| {
+            many_until(item(), program_end(), 0..).map(move |(items, _)| (name.clone(), items))
+        })
         .map(|(name, items)| Program { name, items })
 }
 
 pub fn unclassified_line<S: TextSource>() -> impl Parser<S, Token = (S::Span, String)> {
-    many_until(
-        Char::<S::Span>::any(),
-        eol_or_comment(),
-        1..,
-    ).map(|(chars, _newline)| {
-        println!("chars: {:?}", chars.iter().map(|c| c.value).collect::<String>());
+    many_until(Char::<S::Span>::any(), eol_or_comment(), 1..).map(|(chars, _newline)| {
+        println!(
+            "chars: {:?}",
+            chars.iter().map(|c| c.value).collect::<String>()
+        );
         if chars.is_empty() {
             (S::null_span(), String::new())
         } else {

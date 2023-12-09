@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -12,10 +11,8 @@ pub fn index_range<S: TextSource>() -> impl Parser<S, Token = IndexRange<S::Span
         expression_non_range().optional(),
         spaced(':'),
         expression_non_range().optional(),
-    ).map(|(start, _, end)| IndexRange {
-        start,
-        end,
-    })
+    )
+        .map(|(start, _, end)| IndexRange { start, end })
 }
 
 #[cfg(test)]

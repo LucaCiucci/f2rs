@@ -104,9 +104,11 @@ pub enum Type<Span> {
 
 pub fn type_<S: TextSource>() -> impl Parser<S, Token = Type<S::Span>> {
     alt!(
-        (basic_type(), spaced('('), identifier(), spaced(')')).map(|(ty, _, alias, _)| Type::BasicAlias(ty, alias)),
+        (basic_type(), spaced('('), identifier(), spaced(')'))
+            .map(|(ty, _, alias, _)| Type::BasicAlias(ty, alias)),
         basic_type().map(Type::Basic),
-        (keyword("type"), spaced('('), type_(), spaced(')')).map(|(_, _, ty, _)| Type::Type(Box::new(ty))),
+        (keyword("type"), spaced('('), type_(), spaced(')'))
+            .map(|(_, _, ty, _)| Type::Type(Box::new(ty))),
     )
 }
 

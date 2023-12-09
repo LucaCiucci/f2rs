@@ -3,9 +3,9 @@
 pub mod types;
 
 pub mod prelude {
+    pub use crate::call;
     pub use crate::types::*;
     pub use crate::CallOrIndex;
-    pub use crate::call;
 }
 
 pub trait CallOrIndex<Args> {

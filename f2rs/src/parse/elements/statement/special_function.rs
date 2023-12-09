@@ -21,12 +21,7 @@ pub fn star_or_expr<S: TextSource>() -> impl Parser<S, Token = StarOrExpr<S::Spa
 }
 
 // fortran
-const SPECIAL_FUNCTIONS: [&str; 4] = [
-    "print",
-    "write",
-    "read",
-    "format",
-];
+const SPECIAL_FUNCTIONS: [&str; 4] = ["print", "write", "read", "format"];
 
 pub fn special_function_name<S: TextSource>() -> impl Parser<S, Token = Identifier<S::Span>> {
     spaced(identifier()).condition(|id, _| SPECIAL_FUNCTIONS.contains(&id.value.as_str()))
@@ -46,17 +41,18 @@ pub fn special_function<S: TextSource>() -> impl Parser<S, Token = SpecialFuncti
             spaced('('),
             separated(spaced(star_or_expr()), spaced(','), 0..),
             spaced(')'),
-        ).map(|(_, s, _)| s).optional(),
+        )
+            .map(|(_, s, _)| s)
+            .optional(),
         spaced(',').optional(),
         separated(star_or_expr(), spaced(','), 0..),
         eol_or_comment(),
-    ).map(|(
-        name,
-        special_args,
-        _,
-        items,
-        _,
-    )| SpecialFunction { name, special_args, items })
+    )
+        .map(|(name, special_args, _, items, _)| SpecialFunction {
+            name,
+            special_args,
+            items,
+        })
 }
 
 #[cfg(test)]
@@ -67,24 +63,25 @@ mod tests {
     fn test_special_function() {
         let r = special_function().parse("print *, 1").0.unwrap();
 
-        assert_eq!(
-            r.name.value,
-            "print"
-        );
+        assert_eq!(r.name.value, "print");
         assert!(r.special_args.is_none());
         assert!(r.items.len() == 2);
         assert!(r.items[0].is_star());
         assert_eq!(
-            r.items[1].as_expression().unwrap().as_literal().unwrap().as_number().unwrap().value,
+            r.items[1]
+                .as_expression()
+                .unwrap()
+                .as_literal()
+                .unwrap()
+                .as_number()
+                .unwrap()
+                .value,
             "1"
         );
 
         let r = special_function().parse("write(*, *) 1").0.unwrap();
 
-        assert_eq!(
-            r.name.value,
-            "write"
-        );
+        assert_eq!(r.name.value, "write");
 
         assert!(r.special_args.is_some());
         assert!(r.special_args.as_ref().unwrap().len() == 2);
@@ -93,7 +90,14 @@ mod tests {
 
         assert!(r.items.len() == 1);
         assert_eq!(
-            r.items[0].as_expression().unwrap().as_literal().unwrap().as_number().unwrap().value,
+            r.items[0]
+                .as_expression()
+                .unwrap()
+                .as_literal()
+                .unwrap()
+                .as_number()
+                .unwrap()
+                .value,
             "1"
         );
     }

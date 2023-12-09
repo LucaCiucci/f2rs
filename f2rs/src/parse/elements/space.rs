@@ -1,14 +1,22 @@
 use std::ops::RangeBounds;
 
-use riddle::{alt, tokenization::{TextSource, Parser}, provided::{common::{fold_many, many, separated}, text::Char}};
 use riddle::prelude::*;
+use riddle::{
+    alt,
+    provided::{
+        common::{fold_many, many, separated},
+        text::Char,
+    },
+    tokenization::{Parser, TextSource},
+};
 
 pub fn nl<S: TextSource>() -> impl Parser<S, Token = ()> {
     alt! {
         "\n\r".map(|_| ()),
         "\n".map(|_| ()),
         "\r".map(|_| ()),
-    }.map(|_| ())
+    }
+    .map(|_| ())
 }
 
 pub fn sp<S: TextSource>(range: impl RangeBounds<usize> + Clone) -> impl Parser<S, Token = ()> {
@@ -25,19 +33,11 @@ pub fn continuation<S: TextSource>() -> impl Parser<S, Token = ()> {
 }
 
 pub fn space<S: TextSource>() -> impl Parser<S, Token = ()> {
-    separated(
-        sp(0..),
-        continuation(),
-        0..,
-    ).map(|_| ())
+    separated(sp(0..), continuation(), 0..).map(|_| ())
 }
 
 pub fn spaced<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, Token = T::Token> {
-    (
-        space(),
-        parser,
-        space(),
-    ).map(|(_, token, _)| token)
+    (space(), parser, space()).map(|(_, token, _)| token)
 }
 
 #[derive(Debug, Clone)]
@@ -46,7 +46,13 @@ pub struct EmptyLines {
 }
 
 pub fn empty_lines<S: TextSource>() -> impl Parser<S, Token = EmptyLines> {
-    fold_many((many(' ', 0..), nl()), || 0, |count, _| (count + 1, true), 1..).map(|count| EmptyLines { count })
+    fold_many(
+        (many(' ', 0..), nl()),
+        || 0,
+        |count, _| (count + 1, true),
+        1..,
+    )
+    .map(|count| EmptyLines { count })
 }
 
 // TODO tests

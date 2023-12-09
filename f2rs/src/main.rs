@@ -1,11 +1,11 @@
-use std::{path::Path, io::Write};
+use std::{io::Write, path::Path};
 
 use riddle::prelude::*;
 
 use crate::code_gen::file_2_rs;
 
-mod parse;
 mod code_gen;
+mod parse;
 
 use clap::Parser;
 
@@ -43,19 +43,15 @@ fn main() {
     write!(out, "{}", file).unwrap();
 }
 
-fn load_file(
-    path: impl AsRef<Path>,
-) -> String {
+fn load_file(path: impl AsRef<Path>) -> String {
     let path = path.as_ref();
 
-    let src = std::fs::read_to_string(path)
-        .unwrap()
-        .replace("\r", "");
-        //.replace("\\", "\\\\")
-        //.replace("//", "\\//")
-        //.replace("!", "//")
-        //.replace("\\//", "!")
-        //.replace("\\\\", "\\");
+    let src = std::fs::read_to_string(path).unwrap().replace("\r", "");
+    //.replace("\\", "\\\\")
+    //.replace("//", "\\//")
+    //.replace("!", "//")
+    //.replace("\\//", "!")
+    //.replace("\\\\", "\\");
 
     src
 }

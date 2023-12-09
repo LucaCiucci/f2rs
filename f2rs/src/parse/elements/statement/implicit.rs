@@ -1,4 +1,3 @@
-
 use super::*;
 
 use enum_as_inner::EnumAsInner;
@@ -9,13 +8,13 @@ pub enum Implicit<Span> {
     _Phantom(std::marker::PhantomData<Span>),
 }
 
-
 pub fn implicit<S: TextSource>() -> impl Parser<S, Token = Implicit<S::Span>> {
     (
         spaced(keyword("implicit")),
         spaced(keyword("none")),
         eol_or_comment(),
-    ).map(|_| Implicit::ImplicitNone)
+    )
+        .map(|_| Implicit::ImplicitNone)
 }
 
 #[cfg(test)]

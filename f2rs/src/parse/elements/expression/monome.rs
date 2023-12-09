@@ -49,13 +49,10 @@ pub struct CallOrIndexing<Span> {
 fn call_or_indexing<S: TextSource>() -> impl Parser<S, Token = Vec<Expression<S::Span>>> {
     (
         spaced('('),
-        separated(
-            spaced(expression()),
-            ',',
-            0..,
-        ),
+        separated(spaced(expression()), ',', 0..),
         spaced(')'),
-    ).map(|(_, args, _)| args)
+    )
+        .map(|(_, args, _)| args)
 }
 
 #[cfg(test)]
@@ -71,37 +68,35 @@ mod tests {
     fn unary_operator() {
         let r = expression_monome().parse("-a").0.unwrap();
         assert_eq!(r.as_unary_left_operation().unwrap().operator.value, "-");
-        assert_eq!(r.as_unary_left_operation().unwrap().right.as_identifier().unwrap().value, "a");
+        assert_eq!(
+            r.as_unary_left_operation()
+                .unwrap()
+                .right
+                .as_identifier()
+                .unwrap()
+                .value,
+            "a"
+        );
     }
 
     #[test]
     fn literal() {
         let r = expression_monome().parse("1").0.unwrap();
-        assert_eq!(
-            r.as_literal().unwrap()
-                .as_number().unwrap().value,
-                "1"
-        );
+        assert_eq!(r.as_literal().unwrap().as_number().unwrap().value, "1");
 
         let r = expression_monome().parse("1.0").0.unwrap();
-        assert_eq!(
-            r.as_literal().unwrap()
-                .as_number().unwrap().value,
-                "1.0"
-        );
+        assert_eq!(r.as_literal().unwrap().as_number().unwrap().value, "1.0");
 
         let r = expression_monome().parse("1.0e-10").0.unwrap();
         assert_eq!(
-            r.as_literal().unwrap()
-                .as_number().unwrap().value,
-                "1.0e-10"
+            r.as_literal().unwrap().as_number().unwrap().value,
+            "1.0e-10"
         );
 
         let r = expression_monome().parse("\"hello world\"").0.unwrap();
         assert_eq!(
-            r.as_literal().unwrap()
-                .as_string().unwrap().value(),
-                "hello world"
+            r.as_literal().unwrap().as_string().unwrap().value(),
+            "hello world"
         );
     }
 
@@ -114,51 +109,84 @@ mod tests {
     #[test]
     fn parenthesis() {
         let r = expression_monome().parse("(a)").0.unwrap();
-        assert_eq!(r.as_parenthesis().unwrap().as_identifier().unwrap().value, "a");
+        assert_eq!(
+            r.as_parenthesis().unwrap().as_identifier().unwrap().value,
+            "a"
+        );
     }
 
     #[test]
     fn call_or_indexing() {
         let r = expression_monome().parse("a(b)").0.unwrap();
-        assert_eq!(r.as_call_or_indexing().unwrap().function.as_identifier().unwrap().value, "a");
+        assert_eq!(
+            r.as_call_or_indexing()
+                .unwrap()
+                .function
+                .as_identifier()
+                .unwrap()
+                .value,
+            "a"
+        );
         assert_eq!(r.as_call_or_indexing().unwrap().arguments.len(), 1);
-        assert_eq!(r.as_call_or_indexing().unwrap().arguments[0].as_identifier().unwrap().value, "b");
+        assert_eq!(
+            r.as_call_or_indexing().unwrap().arguments[0]
+                .as_identifier()
+                .unwrap()
+                .value,
+            "b"
+        );
 
         let r = expression_monome().parse("a(b:c, :d)").0.unwrap();
-        assert_eq!(r.as_call_or_indexing().unwrap().function.as_identifier().unwrap().value, "a");
+        assert_eq!(
+            r.as_call_or_indexing()
+                .unwrap()
+                .function
+                .as_identifier()
+                .unwrap()
+                .value,
+            "a"
+        );
         assert_eq!(r.as_call_or_indexing().unwrap().arguments.len(), 2);
         assert_eq!(
-            r
-                .as_call_or_indexing().unwrap()
-                .arguments[0].as_index_range().unwrap()
-                .start.as_ref().unwrap()
-                .as_identifier().unwrap()
+            r.as_call_or_indexing().unwrap().arguments[0]
+                .as_index_range()
+                .unwrap()
+                .start
+                .as_ref()
+                .unwrap()
+                .as_identifier()
+                .unwrap()
                 .value,
-                "b"
+            "b"
         );
         assert_eq!(
-            r
-                .as_call_or_indexing().unwrap()
-                .arguments[0].as_index_range().unwrap()
-                .end.as_ref().unwrap()
-                .as_identifier().unwrap()
+            r.as_call_or_indexing().unwrap().arguments[0]
+                .as_index_range()
+                .unwrap()
+                .end
+                .as_ref()
+                .unwrap()
+                .as_identifier()
+                .unwrap()
                 .value,
-                "c"
+            "c"
         );
-        assert!(
-            r
-                .as_call_or_indexing().unwrap()
-                .arguments[1].as_index_range().unwrap()
-                .start.is_none()
-        );
+        assert!(r.as_call_or_indexing().unwrap().arguments[1]
+            .as_index_range()
+            .unwrap()
+            .start
+            .is_none());
         assert_eq!(
-            r
-                .as_call_or_indexing().unwrap()
-                .arguments[1].as_index_range().unwrap()
-                .end.as_ref().unwrap()
-                .as_identifier().unwrap()
+            r.as_call_or_indexing().unwrap().arguments[1]
+                .as_index_range()
+                .unwrap()
+                .end
+                .as_ref()
+                .unwrap()
+                .as_identifier()
+                .unwrap()
                 .value,
-                "d"
+            "d"
         );
     }
 }

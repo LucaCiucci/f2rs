@@ -17,16 +17,18 @@ pub fn use_statement<S: TextSource>() -> impl Parser<S, Token = UseStatement> {
             spaced(keyword("only")),
             spaced(':'),
             separated(spaced(identifier()), ',', 0..), // TODO better, until eol
-        ).optional(),
+        )
+            .optional(),
         eol_or_comment(),
-    ).map(|(_, module, only, _)| {
-        let only = only.map(|(_, _, _, ids)| ids).unwrap_or(vec![]);
-        let only = only.into_iter().map(|id| id.value).collect();
-        UseStatement {
-            module_name: module.value,
-            only,
-        }
-    })
+    )
+        .map(|(_, module, only, _)| {
+            let only = only.map(|(_, _, _, ids)| ids).unwrap_or(vec![]);
+            let only = only.into_iter().map(|id| id.value).collect();
+            UseStatement {
+                module_name: module.value,
+                only,
+            }
+        })
 }
 
 #[cfg(test)]
@@ -37,24 +39,12 @@ mod tests {
     fn test_use_statement() {
         let r = use_statement().parse("use foo").0.unwrap();
 
-        assert_eq!(
-            r.module_name,
-            "foo"
-        );
-        assert_eq!(
-            r.only,
-            Vec::<String>::new()
-        );
+        assert_eq!(r.module_name, "foo");
+        assert_eq!(r.only, Vec::<String>::new());
 
         let r = use_statement().parse("use foo, only: bar, baz").0.unwrap();
 
-        assert_eq!(
-            r.module_name,
-            "foo"
-        );
-        assert_eq!(
-            r.only,
-            vec!["bar", "baz"]
-        );
+        assert_eq!(r.module_name, "foo");
+        assert_eq!(r.only, vec!["bar", "baz"]);
     }
 }
