@@ -1,5 +1,3 @@
-
-
 use f2rs_adapter::prelude::*;
 
 fn main() {

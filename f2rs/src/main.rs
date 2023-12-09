@@ -7,8 +7,17 @@ use crate::code_gen::file_2_rs;
 mod parse;
 mod code_gen;
 
+use clap::Parser;
+
+#[derive(Debug, Clone, Parser)]
+struct Args {
+    file: String,
+}
+
 fn main() {
-    let src = load_file("in.f90");
+    let args = Args::parse();
+
+    let src = load_file(&args.file);
 
     //println!("{}", src.lines().next().unwrap());
 

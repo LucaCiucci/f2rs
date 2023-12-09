@@ -1,6 +1,9 @@
 use std::{io::{BufWriter, Write}, ops::Deref};
 
-use crate::parse::{File, Item, elements::{Statement, Expression, IfStatement, Implicit, StarOrExpr, CallOrIndexing, Literal, UseStatement}};
+
+mod item; use item::*;
+
+use crate::parse::{File, elements::{Statement, IfStatement, Implicit, UseStatement, StarOrExpr, Expression, CallOrIndexing, Literal}};
 
 type Span = ();
 
@@ -16,39 +19,6 @@ pub fn file_2_rs(
     String::from_utf8(out.into_inner().unwrap()).unwrap()
 }
 
-pub fn item_2_rs(
-    item: &Item<Span>,
-) -> String {
-    let mut out = BufWriter::new(Vec::new());
-
-    match item {
-        Item::EmptyLines(empty_lines) => {
-            writeln!(&mut out, "{}", &"\n".repeat(empty_lines.count)).unwrap();
-        },
-        Item::LineComment(line_comment) => {
-            writeln!(&mut out, "//{}", line_comment.text).unwrap();
-        },
-        Item::Program(program) => {
-            //out.push_str(&format!("mod {} {{\n", program.name));
-            writeln!(&mut out, "mod {} {{", program.name).unwrap();
-            writeln!(&mut out, "fn main() {{").unwrap();
-            for item in &program.items {
-                write!(&mut out, "{}", item_2_rs(item)).unwrap();
-            }
-            writeln!(&mut out, "}}").unwrap();
-            writeln!(&mut out, "}}").unwrap();
-        },
-        Item::Statement(statement) => {
-            write!(&mut out, "{}", statement_2_rs(statement)).unwrap();
-        },
-        Item::UnclassifiedLine(span) => {
-            writeln!(&mut out, "// TODO unclassified line").unwrap();
-        }
-    }
-
-    String::from_utf8(out.into_inner().unwrap()).unwrap()
-}
-
 fn statement_2_rs(
     statement: &Statement<Span>
 ) -> String {
@@ -56,16 +26,16 @@ fn statement_2_rs(
 
     match statement {
         Statement::Expression(expression) => {
-            writeln!(&mut out, "{};", expression_2_rs(expression)).unwrap();
+            writeln!(&mut out, "{};", expression_2_rs(expression, true)).unwrap();
         },
         Statement::CallStatement(expression) => {
-            writeln!(&mut out, "{};", expression_2_rs(expression)).unwrap();
+            writeln!(&mut out, "{};", expression_2_rs(expression, false)).unwrap();
         },
         Statement::DoLoop(do_loop) => {
             if let Some(step) = &do_loop.step {
-                writeln!(&mut out, "for {} in ({}..{}).step_by({}) {{", do_loop.variable, expression_2_rs(&do_loop.start), expression_2_rs(&do_loop.end), expression_2_rs(&step)).unwrap();
+                writeln!(&mut out, "for {} in ({}..{}).step_by({}) {{", do_loop.variable, expression_2_rs(&do_loop.start, false), expression_2_rs(&do_loop.end, false), expression_2_rs(&step, false)).unwrap();
             } else {
-                writeln!(&mut out, "for {} in {}..{} {{", do_loop.variable, expression_2_rs(&do_loop.start), expression_2_rs(&do_loop.end)).unwrap();
+                writeln!(&mut out, "for {} in {}..{} {{", do_loop.variable, expression_2_rs(&do_loop.start, false), expression_2_rs(&do_loop.end, false)).unwrap();
             }
             for item in &do_loop.body {
                 write!(&mut out, "{}", item_2_rs(item)).unwrap();
@@ -79,7 +49,7 @@ fn statement_2_rs(
                     body,
                     else_body
                 } => {
-                    writeln!(&mut out, "if {} {{", expression_2_rs(condition)).unwrap();
+                    writeln!(&mut out, "if {} {{", expression_2_rs(condition, false)).unwrap();
                     for item in body {
                         write!(&mut out, "{}", item_2_rs(item)).unwrap();
                     }
@@ -96,7 +66,7 @@ fn statement_2_rs(
                     condition,
                     statement
                 } => {
-                    writeln!(&mut out, "if {} {{", expression_2_rs(condition)).unwrap();
+                    writeln!(&mut out, "if {} {{", expression_2_rs(condition, false)).unwrap();
                     write!(&mut out, "{}", statement_2_rs(statement)).unwrap();
                     writeln!(&mut out, "}}").unwrap();
                 }
@@ -150,12 +120,13 @@ fn star_or_expr_2_rs(
 ) -> String {
     match star_or_expr {
         StarOrExpr::Star => String::from("*"),
-        StarOrExpr::Expression(expression) => expression_2_rs(expression),
+        StarOrExpr::Expression(expression) => expression_2_rs(expression, false),
     }
 }
 
 fn expression_2_rs(
-    expression: &Expression<Span>
+    expression: &Expression<Span>,
+    as_statement: bool,
 ) -> String {
     match expression {
         Expression::CallOrIndexing(call_or_indexing) => call_or_indexing_2_rs(call_or_indexing),
@@ -163,15 +134,15 @@ fn expression_2_rs(
         Expression::IfArithmetic(if_arithmetic) => {
             let mut out = BufWriter::new(Vec::new());
 
-            let elements = if_arithmetic.cases.iter().map(|expr| expression_2_rs(expr)).collect::<Vec<_>>().join(", ");
+            let elements = if_arithmetic.cases.iter().map(|expr| expression_2_rs(expr, false)).collect::<Vec<_>>().join(", ");
 
-            format!("select!({} => {})", expression_2_rs(&if_arithmetic.selector), elements)
+            format!("select!({} => {})", expression_2_rs(&if_arithmetic.selector, false), elements)
         },
         Expression::IndexRange(index_range) => {
             match (&index_range.start, &index_range.end) {
-                (Some(start), Some(end)) => format!("{}..{}", expression_2_rs(start), expression_2_rs(end)),
-                (Some(start), None) => format!("{}..", expression_2_rs(start)),
-                (None, Some(end)) => format!("..{}", expression_2_rs(end)),
+                (Some(start), Some(end)) => format!("{}..{}", expression_2_rs(start, false), expression_2_rs(end, false)),
+                (Some(start), None) => format!("{}..", expression_2_rs(start, false)),
+                (None, Some(end)) => format!("..{}", expression_2_rs(end, false)),
                 (None, None) => format!(".."),
             }
         },
@@ -179,10 +150,14 @@ fn expression_2_rs(
         Expression::Operation(operation) => {
             // TODO other special operations
             match operation.operator.value {
-                "**" => format!("pow!({}, {})", expression_2_rs(&operation.left), expression_2_rs(&operation.right)),
+                "**" => format!("pow!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false)),
                 op => match op {
                     op => {
-                        format!("({} {} {})", expression_2_rs(&operation.left), op, expression_2_rs(&operation.right))
+                        if as_statement {
+                            format!("{} {} {}", expression_2_rs(&operation.left, false), op, expression_2_rs(&operation.right, false))
+                        } else {
+                            format!("({} {} {})", expression_2_rs(&operation.left, false), op, expression_2_rs(&operation.right, false))
+                        }
                     }
                 }
             }
@@ -190,14 +165,14 @@ fn expression_2_rs(
         Expression::Parenthesis(parenthesis) => {
             let mut out = BufWriter::new(Vec::new());
 
-            write!(&mut out, "({})", expression_2_rs(parenthesis)).unwrap();
+            write!(&mut out, "({})", expression_2_rs(parenthesis, false)).unwrap();
 
             String::from_utf8(out.into_inner().unwrap()).unwrap()
         },
         Expression::UnaryLeftOperation(unary_left_operation) => {
             let mut out = BufWriter::new(Vec::new());
 
-            write!(&mut out, "{}{}", unary_left_operation.operator.value, expression_2_rs(&unary_left_operation.right)).unwrap();
+            write!(&mut out, "{}{}", unary_left_operation.operator.value, expression_2_rs(&unary_left_operation.right, false)).unwrap();
 
             String::from_utf8(out.into_inner().unwrap()).unwrap()
         }
@@ -209,12 +184,12 @@ fn call_or_indexing_2_rs(
 ) -> String {
     let mut out = BufWriter::new(Vec::new());
 
-    write!(&mut out, "call!({}(", expression_2_rs(&call_or_indexing.function)).unwrap();
+    write!(&mut out, "call!({}(", expression_2_rs(&call_or_indexing.function, false)).unwrap();
     for (i, arg) in call_or_indexing.arguments.iter().enumerate() {
         if i > 0 {
             write!(&mut out, ", ").unwrap();
         }
-        write!(&mut out, "{}", expression_2_rs(arg)).unwrap();
+        write!(&mut out, "{}", expression_2_rs(arg, false)).unwrap();
     }
     write!(&mut out, "))").unwrap();
 

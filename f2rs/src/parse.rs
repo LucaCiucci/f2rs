@@ -15,7 +15,7 @@ pub enum Item<Span> {
     LineComment(LineComment<Span>),
     Program(Program<Span>),
     Statement(Statement<Span>),
-    UnclassifiedLine(Span),
+    UnclassifiedLine(Span, String),
 }
 
 pub fn item<S: TextSource>() -> impl Parser<S, Token = Item<S::Span>> {
@@ -24,7 +24,7 @@ pub fn item<S: TextSource>() -> impl Parser<S, Token = Item<S::Span>> {
         line_comment().map(Item::LineComment),
         program_definition().map(Item::Program),
         statement().map(Item::Statement),
-        unclassified_line().map(Item::UnclassifiedLine),
+        unclassified_line().map(|(sp, s)| Item::UnclassifiedLine(sp, s)),
     }
 }
 
@@ -77,17 +77,22 @@ pub fn program_definition<S: TextSource>() -> impl Parser<S, Token = Program<S::
         .map(|(name, items)| Program { name, items })
 }
 
-pub fn unclassified_line<S: TextSource>() -> impl Parser<S, Token = S::Span> {
+pub fn unclassified_line<S: TextSource>() -> impl Parser<S, Token = (S::Span, String)> {
     many_until(
         Char::<S::Span>::any(),
         eol_or_comment(),
-        0..,
-    ).map_if(|(chars, _newline)| {
-        let mut span = chars.first().map(|c| c.span.clone());
-        for c in chars.iter().skip(1) {
-            span = span.map(|s| S::joint_span(s, c.span.clone()));
+        1..,
+    ).map(|(chars, _newline)| {
+        println!("chars: {:?}", chars.iter().map(|c| c.value).collect::<String>());
+        if chars.is_empty() {
+            (S::null_span(), String::new())
+        } else {
+            let mut span = chars.first().unwrap().span.clone();
+            for c in chars.iter().skip(1) {
+                span = S::joint_span(span, c.span.clone());
+            }
+            (span, chars.iter().map(|c| c.value).collect())
         }
-        span
     })
 }
 
