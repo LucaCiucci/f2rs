@@ -4,7 +4,7 @@ use enum_as_inner::EnumAsInner;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum Implicit<Span> {
-    ImplicitNone,
+    ImplicitNone(Option<LineComment<Span>>),
     _Phantom(std::marker::PhantomData<Span>),
 }
 
@@ -14,7 +14,7 @@ pub fn implicit<S: TextSource>() -> impl Parser<S, Token = Implicit<S::Span>> {
         spaced(keyword("none")),
         eol_or_comment(),
     )
-        .map(|_| Implicit::ImplicitNone)
+        .map(|(_, _, comment)| Implicit::ImplicitNone(comment))
 }
 
 #[cfg(test)]

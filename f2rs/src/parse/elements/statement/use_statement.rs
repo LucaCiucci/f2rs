@@ -3,12 +3,13 @@ use crate::parse::{elements::spaced, eol_or_comment};
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct UseStatement {
+pub struct UseStatement<Span> {
     pub module_name: String,
     pub only: Vec<String>,
+    pub comment: Option<LineComment<Span>>,
 }
 
-pub fn use_statement<S: TextSource>() -> impl Parser<S, Token = UseStatement> {
+pub fn use_statement<S: TextSource>() -> impl Parser<S, Token = UseStatement<S::Span>> {
     (
         spaced(keyword("use")),
         spaced(identifier()),
@@ -21,12 +22,13 @@ pub fn use_statement<S: TextSource>() -> impl Parser<S, Token = UseStatement> {
             .optional(),
         eol_or_comment(),
     )
-        .map(|(_, module, only, _)| {
+        .map(|(_, module, only, comment)| {
             let only = only.map(|(_, _, _, ids)| ids).unwrap_or(vec![]);
             let only = only.into_iter().map(|id| id.value).collect();
             UseStatement {
                 module_name: module.value,
                 only,
+                comment,
             }
         })
 }

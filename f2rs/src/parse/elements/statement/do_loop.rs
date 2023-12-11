@@ -9,6 +9,8 @@ pub struct DoLoop<Span> {
     pub end: Expression<Span>,
     pub step: Option<Expression<Span>>,
     pub body: Vec<Item<Span>>,
+    pub opening_comment: Option<LineComment<Span>>,
+    pub closing_comment: Option<LineComment<Span>>,
 }
 
 pub fn do_loop<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
@@ -25,7 +27,7 @@ pub fn do_loop<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
                 .map(|opt| opt.map(|(_, step)| step)),
             eol_or_comment(),
         )
-            .map(|(_, var, _, from, _, to, step, _)| (var, from, to, step)),
+            .map(|(_, var, _, from, _, to, step, oc)| (var, from, to, step, oc)),
         many_until(
             item(),
             (
@@ -33,18 +35,20 @@ pub fn do_loop<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
                 spaced(keyword("do").optional()),
                 eol_or_comment(),
             )
-                .map(|_| ()),
+                .map(|(_, _, cc)| cc),
             0..,
         )
-        .map(|(body, _)| body),
+        .map(|(body, cc)| (body, cc)),
     )
-        .map(|((var, from, to, step), body)| {
+        .map(|((var, from, to, step, oc), (body, cc))| {
             Statement::DoLoop(DoLoop {
                 variable: var.value,
                 start: from,
                 end: to,
                 step,
                 body,
+                opening_comment: oc,
+                closing_comment: if let Some(cc) = cc { cc } else { None }
             })
         })
 }

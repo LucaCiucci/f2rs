@@ -18,7 +18,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature="default-integer-precision-128")] {
         pub type integer = i128;
     } else {
-        pub type integer = i32;
+        pub type integer = i32; // TODO check
     }
 }
 
@@ -36,7 +36,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature="default-real-precision-128")] {
         pub type real = f128;
     } else {
-        pub type real = f64;
+        pub type real = f32; // TODO maybe change this to f64? check what is the default in Fortran
     }
 }
 

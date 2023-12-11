@@ -12,6 +12,7 @@ use clap::Parser;
 #[derive(Debug, Clone, Parser)]
 struct Args {
     file: String,
+    out: String,
 }
 
 fn main() {
@@ -38,7 +39,7 @@ fn main() {
     let start_time = std::time::Instant::now();
     let file = file_2_rs(&file);
     println!("time: {:?}", start_time.elapsed());
-    let out = std::fs::File::create("out.rs").unwrap();
+    let out = std::fs::File::create(&args.out).unwrap();
     let mut out = std::io::BufWriter::new(out);
     write!(out, "{}", file).unwrap();
 }

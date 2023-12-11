@@ -26,13 +26,13 @@ pub use format_statement::*;
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum Statement<Span> {
     Implicit(Implicit<Span>),
-    UseStatement(UseStatement),
+    UseStatement(UseStatement<Span>),
     VariablesDeclaration(VariablesDeclaration<Span>),
-    Expression(Expression<Span>),
+    Expression(Expression<Span>, Option<LineComment<Span>>),
     DoLoop(DoLoop<Span>),
     If(Box<IfStatement<Span>>),
     CallStatement(Expression<Span>),
-    PrintStatement(SpecialFunction<Span>),
+    PrintStatement(SpecialStatementFunction<Span>),
     FormatStatement(FormatStatement<Span>),
 }
 
@@ -44,9 +44,9 @@ pub fn statement<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> 
         do_loop(),
         if_().map(|i| Statement::If(Box::new(i))),
         call_statement(),
-        special_function().map(Statement::PrintStatement),
+        special_statement_function().map(Statement::PrintStatement),
         format_statement().map(Statement::FormatStatement),
-        (expression(), eol_or_comment()).map(|(e, _)| e).map(Statement::Expression),
+        (expression(), eol_or_comment()).map(|(e, c)| Statement::Expression(e, c)),
     }
 }
 

@@ -9,7 +9,7 @@ use item::*;
 use crate::parse::{
     elements::{
         CallOrIndexing, Expression, IfStatement, Implicit, Literal, StarOrExpr, Statement,
-        UseStatement,
+        UseStatement, VariablesDeclaration, Type, BasicType, LineComment,
     },
     File,
 };
@@ -19,6 +19,9 @@ type Span = ();
 pub fn file_2_rs(file: &File<Span>) -> String {
     let mut out = BufWriter::new(Vec::new());
 
+    writeln!(&mut out, "use f2rs_adapter::prelude::*;").unwrap();
+    writeln!(&mut out, "").unwrap();
+
     for item in &file.items {
         write!(&mut out, "{}", item_2_rs(item)).unwrap();
     }
@@ -26,12 +29,18 @@ pub fn file_2_rs(file: &File<Span>) -> String {
     String::from_utf8(out.into_inner().unwrap()).unwrap()
 }
 
+fn optional_comment(
+    comment: &Option<LineComment<Span>>,
+) -> String {
+    comment.as_ref().map(|c| format!(" //{}", c.text)).unwrap_or("".into())
+}
+
 fn statement_2_rs(statement: &Statement<Span>) -> String {
     let mut out = BufWriter::new(Vec::new());
 
     match statement {
-        Statement::Expression(expression) => {
-            writeln!(&mut out, "{};", expression_2_rs(expression, true)).unwrap();
+        Statement::Expression(expression, comment) => {
+            writeln!(&mut out, "{};{}", expression_2_rs(expression, true), optional_comment(comment)).unwrap();
         }
         Statement::CallStatement(expression) => {
             writeln!(&mut out, "{};", expression_2_rs(expression, false)).unwrap();
@@ -40,20 +49,22 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
             if let Some(step) = &do_loop.step {
                 writeln!(
                     &mut out,
-                    "for {} in ({}..{}).step_by({}) {{",
+                    "for {} in ({}..={}).step_by({}) {{{}",
                     do_loop.variable,
                     expression_2_rs(&do_loop.start, false),
                     expression_2_rs(&do_loop.end, false),
-                    expression_2_rs(&step, false)
+                    expression_2_rs(&step, false),
+                    optional_comment(&do_loop.opening_comment),
                 )
                 .unwrap();
             } else {
                 writeln!(
                     &mut out,
-                    "for {} in {}..{} {{",
+                    "for {} in {}..={} {{{}",
                     do_loop.variable,
                     expression_2_rs(&do_loop.start, false),
-                    expression_2_rs(&do_loop.end, false)
+                    expression_2_rs(&do_loop.end, false),
+                    optional_comment(&do_loop.opening_comment),
                 )
                 .unwrap();
             }
@@ -65,10 +76,13 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
         Statement::If(if_statement) => match if_statement.deref() {
             IfStatement::Statement {
                 condition,
+                condition_comment,
                 body,
+                body_closing_comment,
                 else_body,
+                else_closing_comment,
             } => {
-                writeln!(&mut out, "if {} {{", expression_2_rs(condition, false)).unwrap();
+                writeln!(&mut out, "if {} {{{}", expression_2_rs(condition, false), optional_comment(condition_comment)).unwrap();
                 for item in body {
                     write!(&mut out, "{}", item_2_rs(item)).unwrap();
                 }
@@ -91,8 +105,8 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
             }
         },
         Statement::Implicit(implicit) => match implicit {
-            Implicit::ImplicitNone => {
-                writeln!(&mut out, "// TODO implicit none").unwrap();
+            Implicit::ImplicitNone(comment) => {
+                writeln!(&mut out, "// implicit none {}", optional_comment(comment)).unwrap();
             }
             Implicit::_Phantom(_) => {}
         },
@@ -124,7 +138,7 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
             writeln!(&mut out, "{}", use_statement_2_rs(use_statement)).unwrap();
         }
         Statement::VariablesDeclaration(variables_declaration) => {
-            writeln!(&mut out, "// TODO variables declaration").unwrap();
+            writeln!(&mut out, "{}", variable_declaration_2_rs(variables_declaration)).unwrap();
         }
         Statement::FormatStatement(format_statement) => {
             writeln!(&mut out, "// TODO format statement").unwrap();
@@ -134,9 +148,55 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
     String::from_utf8(out.into_inner().unwrap()).unwrap()
 }
 
-fn use_statement_2_rs(use_statement: &UseStatement) -> String {
+fn variable_declaration_2_rs(variable_declaration: &VariablesDeclaration<Span>) -> String {
+    let mut out = BufWriter::new(Vec::new());
+
+    for (ty, name) in &variable_declaration.vars {
+        writeln!(&mut out, "let mut {}: {} = {} /*WARNING: initialization was missing*/;{}", name, type_2_rs(ty).0, type_2_rs(ty).1, optional_comment(&variable_declaration.comment)).unwrap();
+    }
+
+    String::from_utf8(out.into_inner().unwrap()).unwrap()
+}
+
+fn type_2_rs(ty: &Type<Span>) -> (String, String) {
+    match ty {
+        Type::Basic(ty) => basic_type_2_rs(ty),
+        Type::Array { ty, ranges } => ("TODO".into(), "TODO".into()),
+        Type::BasicAlias(_, _) => ("TODO".into(), "TODO".into()),
+        Type::Type(_) => ("TODO".into(), "TODO".into()),
+    }
+}
+
+fn basic_type_2_rs(ty: &BasicType) -> (String, String) {
+    match ty {
+        BasicType::Integer => ("integer".into(), "0".into()),
+        BasicType::Integer2 => ("integer2".into(), "0".into()),
+        BasicType::Integer4 => ("integer4".into(), "0".into()),
+        BasicType::Integer8 => ("integer8".into(), "0".into()),
+        BasicType::Integer16 => ("integer16".into(), "0".into()),
+        BasicType::Real => ("real".into(), "0.0".into()),
+        BasicType::Real4 => ("real4".into(), "0.0".into()),
+        BasicType::Real8 => ("real8".into(), "0.0".into()),
+        BasicType::Real16 => ("real16".into(), "0.0".into()),
+        BasicType::Complex => ("complex".into(), "0.0".into()),
+        BasicType::Complex8 => ("complex8".into(), "0.0".into()),
+        BasicType::Complex16 => ("complex16".into(), "0.0".into()),
+        BasicType::Complex32 => ("complex32".into(), "0.0".into()),
+        BasicType::DoubleComplex => ("double_complex".into(), "0.0".into()),
+        BasicType::Logical => ("logical".into(), "false".into()),
+        BasicType::Logical1 => ("logical1".into(), "false".into()),
+        BasicType::Logical2 => ("logical2".into(), "false".into()),
+        BasicType::Logical4 => ("logical4".into(), "false".into()),
+        BasicType::Logical8 => ("logical8".into(), "false".into()),
+        BasicType::Character => ("character".into(), "'\0'".into()),
+        BasicType::CharacterN(_) => ("TODO".into(), "TODO".into()),
+        BasicType::DoublePrecision => ("double_precision".into(), "0.0".into()),
+    }
+}
+
+fn use_statement_2_rs(use_statement: &UseStatement<Span>) -> String {
     if use_statement.only.is_empty() {
-        format!("use {}::*;", use_statement.module_name)
+        format!("use {}::*;{}", use_statement.module_name, optional_comment(&use_statement.comment))
     } else {
         let only = use_statement
             .only
@@ -144,7 +204,7 @@ fn use_statement_2_rs(use_statement: &UseStatement) -> String {
             .map(|only| only.clone())
             .collect::<Vec<_>>()
             .join(", ");
-        format!("use {}::{{{}}};", use_statement.module_name, only)
+        format!("use {}::{{{}}};{}", use_statement.module_name, only, optional_comment(&use_statement.comment))
     }
 }
 
@@ -194,23 +254,37 @@ fn expression_2_rs(expression: &Expression<Span>, as_statement: bool) -> String 
                     expression_2_rs(&operation.left, false),
                     expression_2_rs(&operation.right, false)
                 ),
-                op => match op {
-                    op => {
-                        if as_statement {
-                            format!(
-                                "{} {} {}",
-                                expression_2_rs(&operation.left, false),
-                                op,
-                                expression_2_rs(&operation.right, false)
-                            )
-                        } else {
-                            format!(
-                                "({} {} {})",
-                                expression_2_rs(&operation.left, false),
-                                op,
-                                expression_2_rs(&operation.right, false)
-                            )
-                        }
+                "=" => {
+                    format!("assign!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false))
+                }
+                "+" => {
+                    format!("add!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false))
+                }
+                "-" => {
+                    format!("sub!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false))
+                }
+                "*" => {
+                    format!("mul!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false))
+                }
+                "/" => {
+                    format!("div!({}, {})", expression_2_rs(&operation.left, false), expression_2_rs(&operation.right, false))
+                }
+                // TODO ...
+                op => {
+                    if as_statement {
+                        format!(
+                            "{} {} {}",
+                            expression_2_rs(&operation.left, false),
+                            op,
+                            expression_2_rs(&operation.right, false)
+                        )
+                    } else {
+                        format!(
+                            "({} {} {})",
+                            expression_2_rs(&operation.left, false),
+                            op,
+                            expression_2_rs(&operation.right, false)
+                        )
                     }
                 },
             }
@@ -240,6 +314,19 @@ fn expression_2_rs(expression: &Expression<Span>, as_statement: bool) -> String 
 
 fn call_or_indexing_2_rs(call_or_indexing: &CallOrIndexing<Span>) -> String {
     let mut out = BufWriter::new(Vec::new());
+
+    if let Some(f) = call_or_indexing.function.as_identifier() {
+        match f.value.to_lowercase().as_str() {
+            "float" => {
+                return format!(
+                    "fortran!({}({}))",
+                    f.value,
+                    expression_2_rs(&call_or_indexing.arguments[0], false)
+                );
+            }
+            _ => {}
+        }
+    }
 
     write!(
         &mut out,

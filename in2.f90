@@ -36,7 +36,7 @@
         
               xk = seed      
         
-              do iloop = 1,10000   ! change as you want
+              do iloop = 1,10   ! change as you want
         
                 xtemp = xk*a + c            ! the generator in three lines: linear transformation
                 xkp1  = xtemp - m*(xtemp/m) ! this is the mod(xtemp,m) operation. Notice that going
@@ -50,7 +50,7 @@
                                             ! 
                 y = float(xk)/float(m)      ! 
         
-                write (*,*) x,y             ! try to plot the pairs [0,1]x[0,1] to see if they
+                print *, x,y             ! try to plot the pairs [0,1]x[0,1] to see if they
                                             ! follow some regular structure. Lehmer implementation
                                             ! is ugly, Park-Miller looks much better
         !      if (x.lt.0.001.and.y.lt.0.001) write (*,*) x,y  ! but if you try to zoom

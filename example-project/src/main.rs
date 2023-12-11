@@ -1,5 +1,7 @@
 use f2rs_adapter::prelude::*;
 
+mod pp;
+
 fn main() {
     let _v: integer = 3;
     let _v: real = 3.0;
@@ -18,4 +20,8 @@ fn main() {
     f.call_or_index((&mut 3,));
 
     println!("Hello, world!");
+
+    unsafe {
+        pp::main();
+    }
 }

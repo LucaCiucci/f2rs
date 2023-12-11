@@ -21,22 +21,22 @@ pub fn star_or_expr<S: TextSource>() -> impl Parser<S, Token = StarOrExpr<S::Spa
 }
 
 // fortran
-const SPECIAL_FUNCTIONS: [&str; 4] = ["print", "write", "read", "format"];
+const SPECIAL_STATEMENT_FUNCTIONS: [&str; 5] = ["print", "write", "read", "format", "stop"];
 
-pub fn special_function_name<S: TextSource>() -> impl Parser<S, Token = Identifier<S::Span>> {
-    spaced(identifier()).condition(|id, _| SPECIAL_FUNCTIONS.contains(&id.value.as_str()))
+pub fn special_statement_function_name<S: TextSource>() -> impl Parser<S, Token = Identifier<S::Span>> {
+    spaced(identifier()).condition(|id, _| SPECIAL_STATEMENT_FUNCTIONS.contains(&id.value.as_str()))
 }
 
 #[derive(Debug, Clone)]
-pub struct SpecialFunction<Span> {
+pub struct SpecialStatementFunction<Span> {
     pub name: Identifier<Span>,
     pub special_args: Option<Vec<StarOrExpr<Span>>>,
     pub items: Vec<StarOrExpr<Span>>,
 }
 
-pub fn special_function<S: TextSource>() -> impl Parser<S, Token = SpecialFunction<S::Span>> {
+pub fn special_statement_function<S: TextSource>() -> impl Parser<S, Token = SpecialStatementFunction<S::Span>> {
     (
-        spaced(special_function_name()),
+        spaced(special_statement_function_name()),
         (
             spaced('('),
             separated(spaced(star_or_expr()), spaced(','), 0..),
@@ -48,7 +48,7 @@ pub fn special_function<S: TextSource>() -> impl Parser<S, Token = SpecialFuncti
         separated(star_or_expr(), spaced(','), 0..),
         eol_or_comment(),
     )
-        .map(|(name, special_args, _, items, _)| SpecialFunction {
+        .map(|(name, special_args, _, items, _)| SpecialStatementFunction {
             name,
             special_args,
             items,
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_special_function() {
-        let r = special_function().parse("print *, 1").0.unwrap();
+        let r = special_statement_function().parse("print *, 1").0.unwrap();
 
         assert_eq!(r.name.value, "print");
         assert!(r.special_args.is_none());
@@ -79,7 +79,7 @@ mod tests {
             "1"
         );
 
-        let r = special_function().parse("write(*, *) 1").0.unwrap();
+        let r = special_statement_function().parse("write(*, *) 1").0.unwrap();
 
         assert_eq!(r.name.value, "write");
 

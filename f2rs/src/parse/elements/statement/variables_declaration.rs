@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct VariablesDeclaration<Span> {
     pub vars: Vec<(Type<Span>, String)>,
+    pub comment: Option<LineComment<Span>>,
 }
 
 pub fn variable_declaree<S: TextSource>(
@@ -45,7 +46,7 @@ pub fn variables_declaration<S: TextSource>(
         )
             .map(move |(_, vars)| vars)
     });
-    (d, eol_or_comment()).map(|(vars, _)| VariablesDeclaration { vars })
+    (d, eol_or_comment()).map(|(vars, comment)| VariablesDeclaration { vars, comment })
 }
 
 #[cfg(test)]
