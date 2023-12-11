@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use proc_macro2::{TokenStream, TokenTree, Group, Delimiter, Ident};
+use proc_macro2::{TokenStream, TokenTree, Delimiter, Ident};
 use quote::quote;
 
 
@@ -303,7 +303,7 @@ fn parse_fortran_body(
         if ident.to_string() == "fortran_body" {
             if let Some(TokenTree::Punct(punct)) = tokens.next() {
                 if punct.as_char() == '!' {
-                    if let Some(TokenTree::Group(group)) = tokens.next() {
+                    if let Some(TokenTree::Group(_)) = tokens.next() {
                         Some(3)
                     } else {
                         None

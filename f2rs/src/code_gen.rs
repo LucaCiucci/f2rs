@@ -78,9 +78,9 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
                 condition,
                 condition_comment,
                 body,
-                body_closing_comment,
+                body_closing_comment, // TODO
                 else_body,
-                else_closing_comment,
+                else_closing_comment, // TODO
             } => {
                 writeln!(&mut out, "if {} {{{}", expression_2_rs(condition, false), optional_comment(condition_comment)).unwrap();
                 for item in body {
