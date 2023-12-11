@@ -1,6 +1,2 @@
 /target
-
-in.*
-out.*
-parsed.*
-!in.f90
+/Cargo.lock

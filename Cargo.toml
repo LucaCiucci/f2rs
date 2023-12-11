@@ -1,11 +1,10 @@
-[workspace]
-resolver = "2"
-members = [
-    "f2rs",
-    "f2rs-adapter",
-    "f2rs-adapter-derive",
-    "example-project",
-]
-default-members = [
-    "f2rs",
-]
+[package]
+name = "f2rs"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+description = "A simple Fortran to Rust transpiler"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
