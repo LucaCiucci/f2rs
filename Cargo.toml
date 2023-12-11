@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "f2rs",
     "f2rs-adapter",
+    "f2rs-adapter-derive",
     "example-project",
 ]
 default-members = [

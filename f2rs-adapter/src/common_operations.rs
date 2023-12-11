@@ -35,7 +35,8 @@ macro_rules! impl_assign_for_fortran {
 #[macro_export]
 macro_rules! assign {
     ($lhs:expr, $rhs:expr) => {
-        $crate::common_operations::FortranAssign::fortran_assign(&mut $lhs, $rhs)
+        let r = $rhs;
+        $crate::common_operations::FortranAssign::fortran_assign(&mut $lhs, r)
     }
 }
 

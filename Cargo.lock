@@ -102,7 +102,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.39",
 ]
 
 [[package]]
@@ -126,7 +126,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.39",
 ]
 
 [[package]]
@@ -134,6 +134,7 @@ name = "example-project"
 version = "0.1.0"
 dependencies = [
  "f2rs-adapter",
+ "forward_goto",
 ]
 
 [[package]]
@@ -183,7 +184,34 @@ version = "0.1.0"
 dependencies = [
  "cfg-if",
  "f128",
+ "f2rs-adapter-derive",
  "num",
+]
+
+[[package]]
+name = "f2rs-adapter-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "fix_fn"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "380f193e13417258cee0f6f750a1be449bfaa476874985fd6690be580086f7f1"
+
+[[package]]
+name = "forward_goto"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0015f9b3487ed1bd86faea11bc4b47cde51541f43b5676dbcc0208bded148b22"
+dependencies = [
+ "fix_fn",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -301,6 +329,17 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "syn"
+version = "1.0.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
 
 [[package]]
 name = "syn"

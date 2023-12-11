@@ -8,6 +8,7 @@ use riddle::{
 
 use crate::parse::elements::*;
 use riddle::prelude::*;
+use enum_as_inner::EnumAsInner;
 
 use self::elements::{empty_lines, line_comment, EmptyLines, LineComment};
 
@@ -15,7 +16,7 @@ use riddle::alt;
 
 pub mod elements;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum Item<Span> {
     EmptyLines(EmptyLines),
     LineComment(LineComment<Span>),

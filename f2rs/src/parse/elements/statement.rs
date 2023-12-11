@@ -34,10 +34,15 @@ pub enum Statement<Span> {
     CallStatement(Expression<Span>),
     PrintStatement(SpecialStatementFunction<Span>),
     FormatStatement(FormatStatement<Span>),
+    Label(usize),
+    GoTo(usize, Option<LineComment<Span>>), // TODO GO TO n
 }
 
 pub fn statement<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> {
     alt! {
+        format_statement().map(Statement::FormatStatement),
+        spaced(integer_literal()).map(|i| Statement::Label(i as usize)),
+        (spaced(keyword("go")), spaced(keyword("to")), spaced(integer_literal()), eol_or_comment()).map(|(_, _, i, c)| Statement::GoTo(i as usize, c)),
         implicit().map(Statement::Implicit),
         use_statement().map(Statement::UseStatement),
         variables_declaration().map(Statement::VariablesDeclaration),
@@ -45,7 +50,6 @@ pub fn statement<S: TextSource>() -> impl Parser<S, Token = Statement<S::Span>> 
         if_().map(|i| Statement::If(Box::new(i))),
         call_statement(),
         special_statement_function().map(Statement::PrintStatement),
-        format_statement().map(Statement::FormatStatement),
         (expression(), eol_or_comment()).map(|(e, c)| Statement::Expression(e, c)),
     }
 }

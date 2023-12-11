@@ -143,6 +143,12 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
         Statement::FormatStatement(format_statement) => {
             writeln!(&mut out, "// TODO format statement").unwrap();
         }
+        Statement::Label(i) => {
+            writeln!(&mut out, "fortran_label!({});", i).unwrap();
+        }
+        Statement::GoTo(i, comment) => {
+            writeln!(&mut out, "fortran_goto!({});{}", i, optional_comment(comment)).unwrap();
+        }
     }
 
     String::from_utf8(out.into_inner().unwrap()).unwrap()
@@ -151,8 +157,11 @@ fn statement_2_rs(statement: &Statement<Span>) -> String {
 fn variable_declaration_2_rs(variable_declaration: &VariablesDeclaration<Span>) -> String {
     let mut out = BufWriter::new(Vec::new());
 
+    if variable_declaration.comment.is_some() {
+        writeln!(&mut out, "{}", optional_comment(&variable_declaration.comment)).unwrap();
+    }
     for (ty, name) in &variable_declaration.vars {
-        writeln!(&mut out, "let mut {}: {} = {} /*WARNING: initialization was missing*/;{}", name, type_2_rs(ty).0, type_2_rs(ty).1, optional_comment(&variable_declaration.comment)).unwrap();
+        writeln!(&mut out, "let mut {}: {} = {};", name, type_2_rs(ty).0, type_2_rs(ty).1).unwrap();
     }
 
     String::from_utf8(out.into_inner().unwrap()).unwrap()

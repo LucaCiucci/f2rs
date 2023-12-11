@@ -59,6 +59,8 @@
                                                                ! scales
         
               enddo   ! close the loop on the generation of random pairs
+
+              print *, 'DONE'
         
                   
               stop

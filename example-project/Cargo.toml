@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 f2rs-adapter = { path = "../f2rs-adapter" }
+forward_goto = "0.1.1"

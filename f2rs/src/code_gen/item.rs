@@ -19,8 +19,35 @@ pub fn item_2_rs(item: &Item<Span>) -> String {
             writeln!(&mut out, "use super::*;").unwrap();
             writeln!(&mut out, "use crate::*;").unwrap();
             writeln!(&mut out, "// program \"{}\"", program.name).unwrap();
+            writeln!(&mut out, "#[rewrite_fortran_goto]").unwrap();
             writeln!(&mut out, "pub unsafe fn main() {{").unwrap();
-            for item in &program.items {
+            let mut next = program.items.len();
+            for (i, item) in program.items.iter().enumerate() {
+                fn next_is_statement(items: &[Item<Span>], i: usize) -> bool {
+                    if i >= items.len() {
+                        return false;
+                    }
+                    let item = &items[i];
+                    if item.is_line_comment() || item.is_empty_lines() {
+                        // TODO remove recursion
+                        return next_is_statement(items, i + 1);
+                    } else {
+                        if item.is_statement() {
+                            let s = item.as_statement().unwrap();
+                            !(s.is_implicit() || s.is_use_statement() || s.is_variables_declaration())
+                        } else {
+                            false
+                        }
+                    }
+                }
+                if next_is_statement(&program.items, i) {
+                    next = i;
+                    writeln!(&mut out, "fortran_body!();\n").unwrap();
+                    break;
+                }
+                write!(&mut out, "{}", item_2_rs(item)).unwrap();
+            }
+            for item in &program.items[next..] {
                 write!(&mut out, "{}", item_2_rs(item)).unwrap();
             }
             writeln!(&mut out, "}}").unwrap();

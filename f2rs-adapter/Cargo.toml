@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 cfg-if = "1.0.0"
 f128 = { version = "0.2.9", optional = true }
+f2rs-adapter-derive = { version = "0.1.0", path = "../f2rs-adapter-derive" }
 num = "0.4.1"
 
 [features]

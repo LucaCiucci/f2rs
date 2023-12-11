@@ -21,6 +21,10 @@ pub mod prelude {
     pub use crate::sub;
     pub use crate::mul;
     pub use crate::div;
+    pub use f2rs_adapter_derive::rewrite_fortran_goto;
+    pub use f2rs_adapter_derive::fortran_body;
+    pub use f2rs_adapter_derive::fortran_label;
+    pub use f2rs_adapter_derive::fortran_goto;
 }
 
 //pub fn float<T>(x: impl std::borrow::Borrow<T>) -> types::real
