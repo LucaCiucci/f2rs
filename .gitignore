@@ -1,5 +1,6 @@
 /target
 
-in.*
-out.*
-!in.f90
+parsed.*
+*.mod
+
+tmp*

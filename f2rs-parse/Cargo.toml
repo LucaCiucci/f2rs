@@ -1,0 +1,13 @@
+[package]
+name = "f2rs-parse"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+enum-as-inner = "0.6.0"
+enum-iterator = "1.4.1"
+f2rs-parse-derive = { version = "0.1.0", path = "f2rs-parse-derive" }
+f2rs-parser-combinator = { version = "0.1.0", path = "../f2rs-parser-combinator" }
+paste = "1.0.14"
