@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub enum GenericSpec<Span> {
-    GenericName(GenericName<Span>),
+    GenericName(Name<Span>),
     Operator(DefinedOperator<Span>),
     Assignment,
     DefinedIoGenericSpec(DefinedIoGenericSpec),
@@ -15,7 +15,7 @@ pub enum GenericSpec<Span> {
 )]
 pub fn generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = GenericSpec<S::Span>> + 'a {
     alt!(
-        generic_name(cfg).map(GenericSpec::GenericName),
+        name(cfg, false).map(GenericSpec::GenericName),
         (
             kw("operator", cfg), space(0), '(', space(0),
             defined_operator(cfg),
@@ -24,16 +24,6 @@ pub fn generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
         (kw("assignment", cfg), space(0), '(', space(0), '=', space(0), ')').map(|_| GenericSpec::Assignment),
         defined_io_generic_spec(cfg).map(GenericSpec::DefinedIoGenericSpec),
     )
-}
-
-#[derive(Debug, Clone)]
-pub struct GenericName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "generic-name",
-)]
-pub fn generic_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = GenericName<S::Span>> + 'a {
-    name(cfg, false).map(GenericName)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -81,9 +71,9 @@ pub fn function_reference<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ProcedureDesignator<Span> {
-    Name(ProcedureName<Span>),
+    Name(Name<Span>),
     ProcComponentRef(Box<ProcComponentRef<Span>>),
-    DataRef(DataRef<Span>, BindingName<Span>),
+    DataRef(DataRef<Span>, Name<Span>),
 }
 
 #[syntax_rule(
@@ -91,12 +81,12 @@ pub enum ProcedureDesignator<Span> {
 )]
 pub fn procedure_designator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureDesignator<S::Span>> + 'a {
     alt!(
-        procedure_name(cfg).map(ProcedureDesignator::Name),
+        name(cfg, false).map(ProcedureDesignator::Name),
         proc_component_ref(cfg).map(|p| ProcedureDesignator::ProcComponentRef(Box::new(p))),
         (
             data_ref(cfg),
             (space(0), '%', space(0)),
-            binding_name(cfg),
+            name(cfg, false),
         ).map(|(data_ref, _, binding_name)| ProcedureDesignator::DataRef(data_ref, binding_name)),
     )
 }
@@ -129,7 +119,7 @@ pub enum ActualArg<Span> {
     Expr(Expr<Span>),
     //Variable(Box<Variable<Span>>),
     Variable(Variable<Span>),
-    ProcedureName(ProcedureName<Span>),
+    ProcedureName(Name<Span>),
     ProcComponentRef(ProcComponentRef<Span>),
     AltReturnSpec(AltReturnSpec<Span>),
 }
@@ -141,7 +131,7 @@ pub fn actual_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token 
     alt!(
         expr(cfg).map(ActualArg::Expr),
         variable(cfg, false).map(ActualArg::Variable),
-        procedure_name(cfg).map(ActualArg::ProcedureName),
+        name(cfg, false).map(ActualArg::ProcedureName),
         proc_component_ref(cfg).map(ActualArg::ProcComponentRef),
         alt_return_spec(cfg).map(ActualArg::AltReturnSpec),
     )
@@ -166,13 +156,124 @@ pub fn alt_return_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
 }
 
 #[derive(Debug, Clone)]
-pub struct BindingName<Span>(pub Name<Span>);
+pub struct ProcLanguageBindingSpec<Span>(pub LanguageBindingSpec<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "binding-name",
+    F18V007r1 rule "proc-language-binding-spec" #1528,
 )]
-pub fn binding_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindingName<S::Span>> + 'a {
-    name(cfg, false).map(BindingName)
+pub fn proc_language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcLanguageBindingSpec<S::Span>> + 'a {
+    language_binding_spec(cfg).map(ProcLanguageBindingSpec)
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum Suffix<Span> {
+    Form1(ProcLanguageBindingSpec<Span>, Option<Name<Span>>),
+    Form2(Name<Span>, Option<ProcLanguageBindingSpec<Span>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct DummyArgName<Span>(pub Name<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "dummy-arg-name" #1531,
+)]
+pub fn dummy_arg_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DummyArgName<S::Span>> + 'a {
+    name(cfg, false).map(DummyArgName)
+}
+
+#[syntax_rule(
+    F18V007r1 rule "suffix" #1532,
+)]
+pub fn suffix<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Suffix<S::Span>> + 'a {
+    alt!(
+        (
+            proc_language_binding_spec(cfg),
+            (space(0), kw("result", cfg), space(0), '(', space(0), name(cfg, false), space(0), ')'),
+        ).map(|(proc_language_binding_spec, (_, _, _, _, _, result_name, _, _))| Suffix::Form1(proc_language_binding_spec, Some(result_name))),
+        (
+            kw("result", cfg), space(0), '(', space(0), name(cfg, false), space(0), ')',
+            proc_language_binding_spec(cfg).optional(),
+        ).map(|(_, _, _, _, result_name, _, _, proc_language_binding_spec)| Suffix::Form2(result_name, proc_language_binding_spec)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum DummyArg<Span> {
+    Name(DummyArgName<Span>),
+    Star,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "dummy-arg" #1536,
+)]
+pub fn dummy_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DummyArg<S::Span>> + 'a {
+    alt!(
+        dummy_arg_name(cfg).map(DummyArg::Name),
+        (SpecialCharacter::Asterisk).map(|_| DummyArg::Star),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct EntryStmt<Span> {
+    pub entry_name: Name<Span>,
+    pub dummy_arg_list: Vec<DummyArg<Span>>,
+    pub suffix: Option<Suffix<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+/// ENTRY entry-name
+#[syntax_rule(
+    F18V007r1 rule "entry-stmt" #1541 :
+    "is ENTRY entry-name [ ( [ dummy-arg-list ] ) [ suffix ] ]",
+)]
+pub fn entry_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EntryStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("entry", cfg),
+        space(0),
+        name(cfg, false),
+        (
+            (space(0), '(', space(0)),
+            list(dummy_arg(cfg), 0..),
+            (space(0), ')', space(0)),
+            suffix(cfg).optional(),
+        ).map(|(_, list, _, suffix)| (list, suffix)).optional(),
+        statement_termination(),
+    ).map(|(_, _, _, entry_name, dummy_arg_list_suffix, comment)| {
+        let (dummy_arg_list, suffix) = match dummy_arg_list_suffix {
+            Some((dummy_arg_list, suffix)) => (dummy_arg_list, suffix),
+            None => (vec![], None),
+        };
+        EntryStmt {
+            entry_name,
+            dummy_arg_list,
+            suffix,
+            comment,
+        }
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ReturnStmt<Span> {
+    // TODO maybe a label?
+    pub expr: Option<ScalarIntExpr<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "return-stmt" #1542,
+)]
+pub fn return_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ReturnStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("return", cfg),
+        space(0),
+        scalar_int_expr(cfg).optional(),
+        statement_termination(),
+    ).map(|(_, _, _, expr, comment)| ReturnStmt {
+        expr,
+        comment,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -192,6 +293,35 @@ pub fn contains_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
         statement_termination(),
     ).map(|(_, match_, comment)| ContainsStmt {
         match_,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct StmtFunctionStmt<Span> {
+    pub function_name: Name<Span>,
+    pub dummy_arg_ame_list: Vec<DummyArgName<Span>>,
+    pub expr: ScalarExpr<Span>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "stmt-function-stmt" #1544,
+)]
+pub fn stmt_function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StmtFunctionStmt<S::Span>> + 'a {
+    (
+        space(0),
+        name(cfg, false),
+        (space(0), '(', space(0)),
+        list(dummy_arg_name(cfg), 0..),
+        (space(0), ')', space(0)),
+        (space(0), '=', space(0)),
+        scalar_expr(cfg),
+        statement_termination(),
+    ).map(|(_, function_name, _, dummy_arg_ame_list, _, _, expr, comment)| StmtFunctionStmt {
+        function_name,
+        dummy_arg_ame_list,
+        expr,
         comment,
     })
 }

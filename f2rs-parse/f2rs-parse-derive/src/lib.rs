@@ -1,3 +1,4 @@
+use f2rs_parser_combinator::tokenization::ParserCore;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse::Parse, punctuated::Punctuated, Token, Stmt};
@@ -30,6 +31,20 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
                 line += &format!(" §{}", section);
             }
             doc_string += &format!("{}\n", line);
+        }
+        doc_string += "\n## Definitions:\n";
+        for s in &attrs.standards {
+            if let Some(rule_implementation) = &s.rule_implementation {
+                doc_string += &format!("\nDefinition for [`{}`]:\n", s.standard.to_string());
+                for line in rule_implementation {
+                    doc_string += &format!("> {}  \n", definition_line(line));
+                }
+                doc_string += "\n\n";
+            } else {
+                doc_string += &format!("\nDefinition for [`{}`]:\n", s.standard.to_string());
+                doc_string += "> _not available_  \n";
+                doc_string += "\n\n";
+            }
         }
     }
 
@@ -70,6 +85,83 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
     quote!(#f).into()
 }
 
+mod utils {
+    use f2rs_parser_combinator::prelude::*;
+
+    pub fn identifier<S: TextSource>() -> impl Parser<S, Token = String> {
+        // TODO optimize
+        (
+            Char::alpha(),
+            many(Char::alphanumeric::<S>().or(Char::exact('-')), 0..),
+        ).map(|(first, rest)| {
+            let value = std::iter::once(first.value)
+                .chain(rest.into_iter().map(|c| c.value))
+                .collect::<String>();
+            value
+        })
+    }
+
+    pub fn is_rule_keyword(c: &str) -> bool {
+        match c {
+            "is" | "or" => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_keyword(c: &str) -> bool {
+        if c.contains("-") {
+            return false;
+        }
+        // true if all uppercase
+        c.chars().all(|c| c.is_uppercase())
+    }
+}
+
+fn definition_line(
+    line: &str,
+) -> String {
+    fn link(id: &str) -> String {
+        let mut id = id.to_string();
+
+        for rule in include!("../../src/rules/report/rules-18-007r1.rs") {
+            if id.contains(rule) {
+                id = id.replace(rule, &format!("[{}]({})", rule, rule.replace("-", "_")));
+                break;
+            }
+        }
+        format!("_{}_", id)
+    }
+
+    let mut line = line
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("(", "\\(")
+        .replace(")", "\\)");
+    let mut processed = String::new();
+    loop {
+        if line.is_empty() {
+            break processed;
+        }
+        let r = utils::identifier().parse(line.as_str());
+        match r {
+            Ok((id, rest)) => {
+                if utils::is_rule_keyword(&id) {
+                    processed.push_str(&format!("**{}**", id));
+                } else if utils::is_keyword(&id) {
+                    processed.push_str(&format!("[{}](kw)", id));
+                } else {
+                    processed.push_str(&link(&id));
+                }
+                line = rest.to_string();
+            },
+            Err(_) => {
+                processed.push(line.chars().next().unwrap());
+                line = line.chars().skip(1).collect();
+            }
+        }
+    }
+}
+
 /// Example:
 /// `(&F18V007r1.into()) => ["a", "b", "c"]`
 struct Example {
@@ -105,6 +197,7 @@ struct Standard {
     number: Option<String>,
     clause: Option<String>,
     section: Option<String>,
+    rule_implementation: Option<Vec<String>>,
 }
 
 impl Parse for Standard {
@@ -114,6 +207,7 @@ impl Parse for Standard {
         let mut number = None;
         let mut section = None;
         let mut clause = None;
+        let mut rule_implementation = None;
         while !input.is_empty() {
             // stop if ","
             if input.peek(Token![,]) {
@@ -133,6 +227,16 @@ impl Parse for Standard {
             } else if lh.peek(Token![#]) {
                 input.parse::<Token![#]>()?;
                 number = Some(input.parse::<syn::LitInt>()?.to_string());
+            } else if lh.peek(Token![:]) {
+                input.parse::<Token![:]>()?;
+                rule_implementation = Some(vec![]);
+                while !input.is_empty() {
+                    // stop if ","
+                    if input.peek(Token![,]) {
+                        break;
+                    }
+                    rule_implementation.as_mut().unwrap().push(input.parse::<syn::LitStr>()?.value());
+                }
             } else {
                 return Err(input.error("expected `rule`, `clause`, `section`, or `#`"));
             }
@@ -143,6 +247,7 @@ impl Parse for Standard {
             number,
             section,
             clause,
+            rule_implementation,
         })
     }
 }

@@ -256,6 +256,7 @@ dependencies = [
 name = "f2rs-parse-derive"
 version = "0.1.0"
 dependencies = [
+ "f2rs-parser-combinator",
  "paste",
  "proc-macro2",
  "quote",

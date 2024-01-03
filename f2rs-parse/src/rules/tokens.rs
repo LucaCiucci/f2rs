@@ -253,17 +253,6 @@ pub fn kw<'a, S: TextSource + 'a>(keyword: &'static str, cfg: &'a Cfg) -> impl P
     StringMatch::exact(keyword, false).map(|m| Keyword(Name(m)))
 }
 
-#[derive(Debug, Clone)]
-pub struct ScalarIntVariableName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-int-variable-name",
-)]
-pub fn scalar_int_variable_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarIntVariableName<S::Span>> + 'a {
-    // TODO test
-    name(cfg, false).map(ScalarIntVariableName)
-}
-
 pub fn blanks<'a, S: TextSource + 'a>(range: impl RangeBounds<usize> + Clone + 'a) -> impl Parser<S, Token = ()> + 'a {
     fold_many(
         Parser::<S>::or(SpecialCharacter::Blank, SpecialCharacter::Tab), // NOTE: added Tab for convenience

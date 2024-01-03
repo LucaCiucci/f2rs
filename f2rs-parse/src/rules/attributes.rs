@@ -444,7 +444,7 @@ pub enum EntityDecl<Span> {
         initialization: Option<Initialization<Span>>,
     },
     Form2 {
-        function_name: FunctionName<Span>,
+        function_name: Name<Span>,
         char_length: Option<CharLength<Span>>,
     }
 }
@@ -478,7 +478,7 @@ pub fn entity_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
     });
 
     let form_2 = (
-        function_name(cfg),
+        name(cfg, false),
         (
             space(0),
             SpecialCharacter::Asterisk, space(0),
@@ -493,16 +493,6 @@ pub fn entity_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
         form_1,
         form_2,
     )
-}
-
-#[derive(Debug, Clone)]
-pub struct FunctionName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "function-name",
-)]
-pub fn function_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionName<S::Span>> + 'a {
-    name(cfg, false).map(FunctionName)
 }
 
 #[derive(Debug, Clone)]

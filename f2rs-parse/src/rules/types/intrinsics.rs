@@ -376,14 +376,15 @@ pub fn ac_do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 }
 
 #[derive(Debug, Clone)]
-pub struct DoVariable<Span>(pub ScalarIntVariableName<Span>);
+pub struct DoVariable<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "do-variable" #1124,
+    F18V007r1 rule "do-variable" #1124 :
+    "is scalar-int-variable-name",
 )]
 pub fn do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DoVariable<S::Span>> + 'a {
     // TODO test
-    scalar_int_variable_name(cfg).map(DoVariable)
+    name(cfg, false).map(DoVariable)
 }
 
 #[cfg(test)]

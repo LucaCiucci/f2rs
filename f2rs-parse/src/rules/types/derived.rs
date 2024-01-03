@@ -494,7 +494,7 @@ pub fn proc_component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 pub enum ProcComponentAttrSpec<Span> {
     AccessSpec(AccessSpec),
     Nopass,
-    Pass(ArgName<Span>),
+    Pass(Name<Span>),
     Pointer,
 }
 
@@ -509,21 +509,11 @@ pub fn proc_component_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Pa
         (
             StringMatch::exact("pass", false),
             (space(0), '(', space(0)),
-            arg_name(cfg),
+            name(cfg, false),
             (space(0), ')', space(0)),
         ).map(|(_, _, name, _)| ProcComponentAttrSpec::Pass(name)),
         StringMatch::exact("pointer", false).map(|_| ProcComponentAttrSpec::Pointer),
     )
-}
-
-#[derive(Debug, Clone)]
-pub struct ArgName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "arg-name",
-)]
-pub fn arg_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArgName<S::Span>> + 'a {
-    name(cfg, false).map(ArgName)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -611,7 +601,7 @@ pub fn type_bound_proc_binding<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum TypeBoundProcedureStmt<Span> {
     Form1(Option<Vec<BindingAttr<Span>>>, Vec<TypeBoundProcDecl<Span>>, Option<LineComment<Span>>),
-    Form2(InterfaceName<Span>, Vec<BindingAttr<Span>>, Vec<BindingName<Span>>, Option<LineComment<Span>>),
+    Form2(Name<Span>, Vec<BindingAttr<Span>>, Vec<Name<Span>>, Option<LineComment<Span>>),
 }
 
 #[syntax_rule(
@@ -632,11 +622,11 @@ pub fn type_bound_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl P
     let form_2 = (
         kw("procedure", cfg),
         (space(0), '(', space(0)),
-        interface_name(cfg),
+        name(cfg, false),
         (space(0), ')', space(0), ',', space(0)),
         list(binding_attr(cfg), 0..),
         (space(0), "::", space(0)),
-        list(binding_name(cfg), 0..),
+        list(name(cfg, false), 0..),
         statement_termination(),
     ).map(|(_, _, interface_name, _, attrs, _, names, comment)| TypeBoundProcedureStmt::Form2(interface_name, attrs, names, comment));
 
@@ -647,22 +637,12 @@ pub fn type_bound_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl P
 }
 
 #[derive(Debug, Clone)]
-pub struct InterfaceName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "interface-name",
-)]
-pub fn interface_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceName<S::Span>> + 'a {
-    name(cfg, false).map(InterfaceName)
-}
-
-#[derive(Debug, Clone)]
 pub enum BindingAttr<Span> {
     AccessSpec(AccessSpec),
     Deferred,
     NonOverridable,
     Nopass,
-    Pass(Option<ArgName<Span>>),
+    Pass(Option<Name<Span>>),
 }
 
 #[syntax_rule(
@@ -678,7 +658,7 @@ pub fn binding_attr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             kw("pass", cfg),
             (
                 (space(0), '(', space(0)),
-                arg_name(cfg),
+                name(cfg, false),
                 (space(0), ')', space(0)),
             ).map(|(_, name, _)| name).optional(),
         ).map(|(_, name)| BindingAttr::Pass(name)),
@@ -687,7 +667,7 @@ pub fn binding_attr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
 
 #[derive(Debug, Clone)]
 pub struct FinalProcedureStmt<Span> {
-    pub final_subroutine_name_list: Vec<FinalSubroutineName<Span>>,
+    pub final_subroutine_name_list: Vec<Name<Span>>,
     pub comment: Option<LineComment<Span>>,
 }
 
@@ -698,7 +678,7 @@ pub fn final_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
     (
         (space(0), kw("final", cfg)),
         (space(0), "::", space(0)),
-        list(final_subroutine_name(cfg), 1..),
+        list(name(cfg, false), 1..),
         statement_termination(),
     ).map(|(_, _, names, comment)| FinalProcedureStmt {
         final_subroutine_name_list: names,
@@ -707,19 +687,9 @@ pub fn final_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
 }
 
 #[derive(Debug, Clone)]
-pub struct FinalSubroutineName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "final-subroutine-name",
-)]
-pub fn final_subroutine_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FinalSubroutineName<S::Span>> + 'a {
-    name(cfg, false).map(FinalSubroutineName)
-}
-
-#[derive(Debug, Clone)]
 pub struct TypeBoundProcDecl<Span> {
-    pub binding_name: BindingName<Span>,
-    pub procedure_name: Option<ProcedureName<Span>>,
+    pub binding_name: Name<Span>,
+    pub procedure_name: Option<Name<Span>>,
 }
 
 #[syntax_rule(
@@ -727,10 +697,10 @@ pub struct TypeBoundProcDecl<Span> {
 )]
 pub fn type_bound_proc_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeBoundProcDecl<S::Span>> + 'a {
     (
-        binding_name(cfg),
+        name(cfg, false),
         (
             (space(0), "=>", space(0)),
-            procedure_name(cfg),
+            name(cfg, false),
         ).map(|(_, name)| name).optional(),
     ).map(|(binding_name, procedure_name)| TypeBoundProcDecl {
         binding_name,
@@ -770,18 +740,8 @@ pub fn end_type_stmt<'a, S: TextSource + 'a>(
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "type-name",
-)]
-pub fn type_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeName<S::Span>> + 'a {
-    name(cfg, false).map(TypeName)
-}
-
-#[derive(Debug, Clone)]
 pub struct DerivedTypeSpec<Span> {
-    pub name: TypeName<Span>,
+    pub name: Name<Span>,
     pub type_param_specifiers: Option<Vec<TypeParamSpec<Span>>>,
 }
 
@@ -789,7 +749,7 @@ pub struct DerivedTypeSpec<Span> {
 pub struct TypeBoundGenericStmt<Span> {
     pub access_spec: Option<AccessSpec>,
     pub generic_spec: GenericSpec<Span>,
-    pub binding_name_list: Vec<BindingName<Span>>,
+    pub binding_name_list: Vec<Name<Span>>,
     pub comment: Option<LineComment<Span>>,
 }
 
@@ -806,7 +766,7 @@ pub fn type_bound_generic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
         "::", space(0),
         generic_spec(cfg),
         (space(0), "=>", space(0)),
-        list(binding_name(cfg), 0..),
+        list(name(cfg, false), 0..),
         statement_termination(),
     ).map(|(_, _, _, access_spec, _, _, generic_spec, _, binding_name_list, comment)| TypeBoundGenericStmt {
         access_spec,
@@ -822,7 +782,7 @@ pub fn type_bound_generic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 pub fn derived_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DerivedTypeSpec<S::Span>> + 'a {
     // TODO test
     (
-        type_name(cfg),
+        name(cfg, false),
         (
             space(0),
             '(',

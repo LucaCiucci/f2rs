@@ -187,7 +187,7 @@ pub enum Primary<Span> {
     StructureConstructor(StructureConstructor<Span>),
     FunctionReference(FunctionReference<Span>),
     TypeParamInquiry(TypeParamInquiry<Span>),
-    TypeParamName(TypeParamName<Span>),
+    TypeParamName(Name<Span>),
     ParenthesizedExpr(Box<Expr<Span>>),
 }
 
@@ -203,7 +203,7 @@ pub fn primary<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = P
         structure_constructor(cfg).map(Primary::StructureConstructor),
         function_reference(cfg).map(Primary::FunctionReference),
         type_param_inquiry(cfg).map(Primary::TypeParamInquiry),
-        type_param_name(cfg).map(Primary::TypeParamName),
+        name(cfg, false).map(Primary::TypeParamName),
         (
             '(',
             space(0),
@@ -705,17 +705,6 @@ pub fn variable_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarVariableName<Span>(pub VariableName<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-variable-name",
-)]
-pub fn scalar_variable_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarVariableName<S::Span>> + 'a {
-    // TODO test
-    variable_name(cfg).map(ScalarVariableName)
-}
-
-#[derive(Debug, Clone)]
 pub struct LogicalVariable<Span>(pub Variable<Span>);
 
 #[syntax_rule(
@@ -825,7 +814,7 @@ pub fn substring<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ParentString<Span> {
-    ScalarVariable(ScalarVariableName<Span>),
+    ScalarVariable(VariableName<Span>),
     ArrayElement(ArrayElement<Span>),
     CoindexedNamedObject(CoindexedNamedObject<Span>),
     ScalarStructureComponent(ScalarStructureComponent<Span>),
@@ -838,7 +827,7 @@ pub enum ParentString<Span> {
 pub fn parent_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ParentString<S::Span>> + 'a {
     // TODO test
     alt!(
-        scalar_variable_name(cfg).map(ParentString::ScalarVariable),
+        variable_name(cfg).map(ParentString::ScalarVariable),
         array_element(cfg).map(ParentString::ArrayElement),
         coindexed_named_object(cfg).map(ParentString::CoindexedNamedObject),
         scalar_structure_component(cfg).map(ParentString::ScalarStructureComponent),
@@ -893,7 +882,7 @@ pub fn data_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 
 #[derive(Debug, Clone)]
 pub struct PartRef<Span> {
-    pub part_name: PartName<Span>,
+    pub part_name: Name<Span>,
     pub section_subscript_list: Option<Vec<Subscript<Span>>>,
     pub image_selector: Option<ImageSelector<Span>>,
 }
@@ -904,7 +893,7 @@ pub struct PartRef<Span> {
 pub fn part_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PartRef<S::Span>> + 'a {
     // TODO test
     (
-        part_name(cfg),
+        name(cfg, false),
         (
             (space(0), '(', space(0)),
             list(
@@ -919,17 +908,6 @@ pub fn part_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
         section_subscript_list,
         image_selector,
     })
-}
-
-#[derive(Debug, Clone)]
-pub struct PartName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "part-name",
-)]
-pub fn part_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PartName<S::Span>> + 'a {
-    // TODO test
-    name(cfg, false).map(PartName)
 }
 
 #[derive(Debug, Clone)]
@@ -982,19 +960,9 @@ pub fn complex_part_designator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeParamName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "type-param-name",
-)]
-pub fn type_param_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamName<S::Span>> + 'a {
-    name(cfg, false).map(TypeParamName)
-}
-
-#[derive(Debug, Clone)]
 pub struct TypeParamInquiry<Span> {
     pub designator: Designator<Span>,
-    pub type_param_name: TypeParamName<Span>,
+    pub type_param_name: Name<Span>,
 }
 
 #[syntax_rule(
@@ -1005,7 +973,7 @@ pub fn type_param_inquiry<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
     (
         designator(cfg, true),
         space(0), '%' , space(0),
-        type_param_name(cfg),
+        name(cfg, false),
     ).map(|(designator, _, _, _, type_param_name)| TypeParamInquiry {
         designator,
         type_param_name,
@@ -1453,7 +1421,7 @@ pub fn proc_pointer_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 #[derive(Debug, Clone)]
 pub struct ProcComponentRef<Span> {
     pub scalar_variable: ScalarVariable<Span>,
-    pub procedure_component_name: ProcedureComponentName<Span>,
+    pub procedure_component_name: Name<Span>,
 }
 
 #[syntax_rule(
@@ -1464,28 +1432,17 @@ pub fn proc_component_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
     (
         scalar_variable(cfg, true),
         (space(0), '%', space(0)),
-        procedure_component_name(cfg),
+        name(cfg, false),
     ).map(|(scalar_variable, _, procedure_component_name)| ProcComponentRef {
         scalar_variable,
         procedure_component_name,
     })
 }
 
-#[derive(Debug, Clone)]
-pub struct ProcedureComponentName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "procedure-component-name",
-)]
-pub fn procedure_component_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureComponentName<S::Span>> + 'a {
-    // TODO test
-    name(cfg, false).map(ProcedureComponentName)
-}
-
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ProcTarget<Span> {
     Expr(Expr<Span>),
-    ProcedureName(ProcedureName<Span>),
+    ProcedureName(Name<Span>),
     ProcComponentRef(ProcComponentRef<Span>),
 }
 
@@ -1496,20 +1453,9 @@ pub fn proc_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
     // TODO test
     alt!(
         expr(cfg).map(ProcTarget::Expr),
-        procedure_name(cfg).map(ProcTarget::ProcedureName),
+        name(cfg, false).map(ProcTarget::ProcedureName),
         proc_component_ref(cfg).map(ProcTarget::ProcComponentRef),
     )
-}
-
-#[derive(Debug, Clone)]
-pub struct ProcedureName<Span>(pub Name<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "procedure-name",
-)]
-pub fn procedure_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureName<S::Span>> + 'a {
-    // TODO test
-    name(cfg, false).map(ProcedureName)
 }
 
 #[cfg(test)]

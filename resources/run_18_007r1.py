@@ -8,6 +8,7 @@ URL = "https://j3-fortran.org/doc/year/18/18-007r1.pdf"
 FILE_PATH = 'resources/18-007r1.pdf'
 PROCESSED_FILE_PATH = 'resources/18-007r1.rules.txt'
 OUT_FILE_PATH = 'f2rs-parse/src/rules/report/rules-18-007r1.md'
+OUT_RULE_LIST_PATH = 'f2rs-parse/src/rules/report/rules-18-007r1.rs'
 
 # a regexp that matches all line numbers, then space, then "R<some_digits>" then the name of the rule (letters, bumbers, -)
 PDF_RULE_REGEX = re.compile(r'\n(\d+)\s+R(\d+)\s+([A-Za-z0-9-]+)')
@@ -118,6 +119,14 @@ def run():
                     f.write("| R{} | _{}_ | ✅ |\n".format(rule_number, rule_name))
                 else:
                     f.write("| R{} | _{}_ | ❌ |\n".format(rule_number, rule_name))
+        with open(OUT_RULE_LIST_PATH, 'w', encoding="utf-8") as f:
+            f.write("[\n")
+            rule_names = [rule[1] for rule in RULES.items()]
+            # sort by length, longest first
+            rule_names.sort(key=len, reverse=True)
+            for rule_name in rule_names:
+                f.write("    \"{}\",\n".format(rule_name))
+            f.write("]\n")
 
     print("Found standard has {} rules".format(len(RULES)))
     print("Found {} implemented rules".format(len(IMPLEMENTED_RULES)))
