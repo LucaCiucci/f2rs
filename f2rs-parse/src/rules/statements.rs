@@ -7,7 +7,7 @@ pub struct Label<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "label" #611,
+    F18V007r1 rule "label" #611 : "is digit [ digit [ digit [ digit [ digit ] ] ] ]",
 )]
 pub fn label<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Label<S::Span>> + 'a {
     digit(cfg)
@@ -74,7 +74,7 @@ pub struct SequenceStmt<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "sequence-stmt" #731,
+    F18V007r1 rule "sequence-stmt" #731 : "is SEQUENCE",
 )]
 pub fn sequence_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SequenceStmt<S::Span>> + 'a {
     (
@@ -93,7 +93,7 @@ pub struct PrivateComponentsStmt<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "private-components-stmt" #745,
+    F18V007r1 rule "private-components-stmt" #745 : "is PRIVATE",
 )]
 pub fn private_components_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PrivateComponentsStmt<S::Span>> + 'a {
     (
@@ -113,7 +113,9 @@ pub enum PrivateOrSequence<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "private-or-sequence" #729,
+    F18V007r1 rule "private-or-sequence" #729 :
+    "is private-components-stmt"
+    "or sequence-stmt",
 )]
 pub fn private_or_sequence<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PrivateOrSequence<S::Span>> + 'a {
     alt!(
@@ -129,7 +131,7 @@ pub struct NullifyStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "nullify-stmt" #938,
+    F18V007r1 rule "nullify-stmt" #938 : "is NULLIFY ( pointer-object-list )",
 )]
 pub fn nullify_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NullifyStmt<S::Span>> + 'a {
     (
@@ -153,7 +155,10 @@ pub enum PointerObject<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "pointer-object" #939,
+    F18V007r1 rule "pointer-object" #939 :
+    "is variable-name"
+    "or structure-component"
+    "or proc-pointer-name",
 )]
 pub fn pointer_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerObject<S::Span>> + 'a {
     alt!(
@@ -171,7 +176,7 @@ pub struct DeallocateStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "deallocate-stmt" #940,
+    F18V007r1 rule "deallocate-stmt" #940 : "is DEALLOCATE ( allocate-object-list [ , dealloc-opt-list ] )",
 )]
 pub fn deallocate_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeallocateStmt<S::Span>> + 'a {
     (
@@ -197,7 +202,9 @@ pub enum DeallocOpt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "dealloc-opt" #941,
+    F18V007r1 rule "dealloc-opt" #941 :
+    "is STAT = stat-variable"
+    "or ERRMSG = errmsg-variable",
 )]
 pub fn dealloc_opt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeallocOpt<S::Span>> + 'a {
     alt!(

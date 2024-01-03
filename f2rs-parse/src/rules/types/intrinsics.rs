@@ -2,18 +2,21 @@ use super::*;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum TypeParamValue<Span> {
-    Expr(ScalarIntExpr<Span>),
+    Expr(IntExpr<Span>),
     Asterisk(SpecialCharacterMatch<Span>),
     Colon(SpecialCharacterMatch<Span>),
 }
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "type-param-value" #701,
+    F18V007r1 rule "type-param-value" #701 :
+    "is scalar-int-expr"
+    "or *"
+    "or :",
 )]
 pub fn type_param_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamValue<S::Span>> + 'a {
     alt!(
-        scalar_int_expr(cfg).map(TypeParamValue::Expr),
+        int_expr(cfg).map(TypeParamValue::Expr),
         SpecialCharacter::Asterisk.map(TypeParamValue::Asterisk),
         SpecialCharacter::Colon.map(TypeParamValue::Colon),
     )
@@ -21,19 +24,19 @@ pub fn type_param_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
 
 #[derive(Debug, Clone)]
 pub struct KindSelector<Span> {
-    pub value: ScalarIntConstantExpr<Span>,
+    pub value: IntConstantExpr<Span>,
 }
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "kind-selector" #706,
+    F18V007r1 rule "kind-selector" #706 : "is ( [ KIND = ] scalar-int-constant-expr )",
 )]
 pub fn kind_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = KindSelector<S::Span>> + 'a {
     // TODO support the alternate form as an extension
 
     let inner = || (
         (StringMatch::exact("kind", false), space(0), '=').optional(),
-        scalar_int_constant_expr(cfg), // TODO the standard says this, but maybe kind_param should be used instead?
+        int_constant_expr(cfg), // TODO the standard says this, but maybe kind_param should be used instead?
     ).map(|(_, expr)| KindSelector { value: expr });
 
     let with_parenthesis = move || (
@@ -57,7 +60,7 @@ pub struct IntegerTypeSpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "integer-type-spec" #705,
+    F18V007r1 rule "integer-type-spec" #705 : "is INTEGER [ kind-selector ]",
 )]
 pub fn integer_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntegerTypeSpec<S::Span>> + 'a {
     (
@@ -79,7 +82,13 @@ pub enum IntrinsicTypeSpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "intrinsic-type-spec" #704,
+    F18V007r1 rule "intrinsic-type-spec" #704 :
+    "is integer-type-spec"
+    "or REAL [ kind-selector ]"
+    "or DOUBLE PRECISION"
+    "or COMPLEX [ kind-selector ]"
+    "or CHARACTER [ char-selector ]"
+    "or LOGICAL [ kind-selector ]",
 )]
 pub fn intrinsic_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicTypeSpec<S::Span>> + 'a {
     alt!(
@@ -120,7 +129,9 @@ pub enum CharLength<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "char-length" #723,
+    F18V007r1 rule "char-length" #723 :
+    "is ( type-param-value )"
+    "or int-literal-constant",
 )]
 pub fn char_length<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLength<S::Span>> + 'a {
     alt!(
@@ -137,7 +148,9 @@ pub enum LengthSelector<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "length-selector" #722,
+    F18V007r1 rule "length-selector" #722 :
+    "is ( [ LEN = ] type-param-value )"
+    "or * char-length [ , ]",
 )]
 pub fn length_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LengthSelector<S::Span>> + 'a {
     alt!(
@@ -149,13 +162,17 @@ pub fn length_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum CharSelector<Span> {
     Len(LengthSelector<Span>),
-    LenKind(TypeParamValue<Span>, ScalarIntConstantExpr<Span>),
-    Kind(ScalarIntConstantExpr<Span>),
+    LenKind(TypeParamValue<Span>, IntConstantExpr<Span>),
+    Kind(IntConstantExpr<Span>),
 }
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "char-selector" #721,
+    F18V007r1 rule "char-selector" #721 :
+    "is length-selector"
+    "or ( LEN = type-param-value , KIND = scalar-int-constant-expr )"
+    "or ( type-param-value , [ KIND = ] scalar-int-constant-expr )"
+    "or ( KIND = scalar-int-constant-expr [ , LEN =type-param-value ] )",
 )]
 pub fn char_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharSelector<S::Span>> + 'a {
     alt!(
@@ -178,7 +195,7 @@ pub fn char_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
                 space(0),
                 Char::exact('='),
                 space(0),
-                scalar_int_constant_expr(cfg)
+                int_constant_expr(cfg)
             ).map(|(_, _, _, _, kind)| kind),
             space(0),
             ')',
@@ -197,7 +214,7 @@ pub fn char_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
                     Char::exact('='),
                 ).optional(),
                 space(0),
-                scalar_int_constant_expr(cfg)
+                int_constant_expr(cfg)
             ).map(|(_, _, kind)| kind),
             space(0),
             ')',
@@ -210,7 +227,7 @@ pub fn char_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
                 space(0),
                 Char::exact('='),
                 space(0),
-                scalar_int_constant_expr(cfg)
+                int_constant_expr(cfg)
             ).map(|(_, _, _, _, kind)| kind),
             (
                 space(0),
@@ -238,7 +255,9 @@ pub enum ArrayConstructor<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "array-constructor" #769,
+    F18V007r1 rule "array-constructor" #769 :
+    "is (/ ac-spec /)"
+    "or lbracket ac-spec rbracket",
 )]
 pub fn array_constructor<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayConstructor<S::Span>> + 'a {
     // TODO test
@@ -263,7 +282,9 @@ pub enum AcSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "ac-spec" #770,
+    F18V007r1 rule "ac-spec" #770 :
+    "is type-spec ::"
+    "or [type-spec ::] ac-value-list",
 )]
 pub fn ac_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcSpec<S::Span>> + 'a {
     // TODO test
@@ -293,7 +314,9 @@ pub enum AcValue<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "ac-value" #773,
+    F18V007r1 rule "ac-value" #773 :
+    "is expr"
+    "or ac-implied-do",
 )]
 pub fn ac_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcValue<S::Span>> + 'a {
     // TODO test
@@ -310,7 +333,7 @@ pub struct AcImpliedDo<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "ac-implied-do" #774,
+    F18V007r1 rule "ac-implied-do" #774 : "is ( ac-value-list , ac-implied-do-control )",
 )]
 pub fn ac_implied_do<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDo<S::Span>> + 'a {
     // TODO test
@@ -334,13 +357,14 @@ pub fn ac_implied_do<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
 pub struct AcImpliedDoControl<Span> {
     pub spec: Option<IntegerTypeSpec<Span>>,
     pub variable: AcDoVariable<Span>,
-    pub start: ScalarIntExpr<Span>,
-    pub end: ScalarIntExpr<Span>,
-    pub stride: Option<ScalarIntExpr<Span>>,
+    pub start: IntExpr<Span>,
+    pub end: IntExpr<Span>,
+    pub stride: Option<IntExpr<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "ac-implied-do-control" #775,
+    F18V007r1 rule "ac-implied-do-control" #775 :
+    "is [ integer-type-spec :: ] ac-do-variable = scalar-int-expr , scalar-int-expr [ , scalar-int-expr ]",
 )]
 pub fn ac_implied_do_control<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDoControl<S::Span>> + 'a {
     // TODO test
@@ -351,10 +375,10 @@ pub fn ac_implied_do_control<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
         ).map(|(spec, _, _, _)| spec).optional(),
         ac_do_variable(cfg),
         (space(0), '=', space(0)),
-        scalar_int_expr(cfg),
+        int_expr(cfg),
         (space(0), ',', space(0)),
-        scalar_int_expr(cfg),
-        (space(0), ',', space(0), scalar_int_expr(cfg)).map(|(_, _, _, stride)| stride).optional(),
+        int_expr(cfg),
+        (space(0), ',', space(0), int_expr(cfg)).map(|(_, _, _, stride)| stride).optional(),
     ).map(|(spec, variable, _, start, _, end, stride)| AcImpliedDoControl {
         spec,
         variable,
@@ -368,7 +392,7 @@ pub fn ac_implied_do_control<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
 pub struct AcDoVariable<Span>(pub DoVariable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "ac-do-variable" #776,
+    F18V007r1 rule "ac-do-variable" #776 : "is do-variable",
 )]
 pub fn ac_do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcDoVariable<S::Span>> + 'a {
     // TODO test
@@ -385,10 +409,4 @@ pub struct DoVariable<Span>(pub Name<Span>);
 pub fn do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DoVariable<S::Span>> + 'a {
     // TODO test
     name(cfg, false).map(DoVariable)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
 }

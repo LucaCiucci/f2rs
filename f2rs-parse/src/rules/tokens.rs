@@ -8,7 +8,10 @@ use f2rs_parse_derive::syntax_rule;
 use crate::{Cfg, Standard::*};
 
 #[syntax_rule(
-    F18V007r1 rule "alphanumeric-character" #601,
+    F18V007r1 rule "alphanumeric-character" #601 :
+    "is letter"
+    "or digit"
+    "or underscore",
 )]
 pub fn alphanumeric_character<'a, S: TextSource>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
     alt!(
@@ -34,7 +37,7 @@ pub fn digit<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Char<S::Span>> 
 
 /// Fortran underscore
 #[syntax_rule(
-    F18V007r1 rule "underscore" #602,
+    F18V007r1 rule "underscore" #602 : "is _",
 )]
 pub fn underscore<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Char<S::Span>> {
     Char::exact('_')
@@ -76,7 +79,7 @@ pub enum SpecialCharacter {
     /// `}` (right curly bracket)
     RightCurlyBracket,
     /// `,` (comma)
-    Coma,
+    Comma,
     /// `.` (decimal point or period)
     DecimalPointOrPeriod,
     /// `:` (colon)
@@ -134,7 +137,7 @@ impl SpecialCharacter {
             RightSquareBracket => ']',
             LeftCurlyBracket => '{',
             RightCurlyBracket => '}',
-            Coma => ',',
+            Comma => ',',
             DecimalPointOrPeriod => '.',
             Colon => ':',
             SemiColon => ';',
@@ -205,7 +208,7 @@ pub struct Name<Span>(pub StringMatch<Span>);
 
 /// Fortran name
 #[syntax_rule(
-    F18V007r1 rule "name" #603,
+    F18V007r1 rule "name" #603 : "is letter [ alphanumeric-character ] ...",
 )]
 pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) -> impl Parser<S, Token = Name<S::Span>> + 'a { // TODO remove bound on source
     move |source: S| {
@@ -240,7 +243,7 @@ pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) ->
 pub struct Keyword<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "keyword" #516,
+    F18V007r1 rule "keyword" #516 : "is name",
 )]
 pub fn keyword<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Keyword<S::Span>> + 'a {
     name(cfg, false).map(Keyword)
@@ -371,7 +374,7 @@ pub fn statement_termination<'a, S: TextSource + 'a>() -> impl Parser<S, Token =
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "lbracket" #771,
+    F18V007r1 rule "lbracket" #771 : "is [",
 )]
 pub fn lbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
     '['.map(|_| ())
@@ -379,7 +382,7 @@ pub fn lbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "rbracket" #772,
+    F18V007r1 rule "rbracket" #772 : "is ]",
 )]
 pub fn rbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
     ']'.map(|_| ())
@@ -465,7 +468,7 @@ mod test {
             assert_eq!(special_character(cfg).parse("]").unwrap().0.character, RightSquareBracket);
             assert_eq!(special_character(cfg).parse("{").unwrap().0.character, LeftCurlyBracket);
             assert_eq!(special_character(cfg).parse("}").unwrap().0.character, RightCurlyBracket);
-            assert_eq!(special_character(cfg).parse(",").unwrap().0.character, Coma);
+            assert_eq!(special_character(cfg).parse(",").unwrap().0.character, Comma);
             assert_eq!(special_character(cfg).parse(".").unwrap().0.character, DecimalPointOrPeriod);
             assert_eq!(special_character(cfg).parse(":").unwrap().0.character, Colon);
             assert_eq!(special_character(cfg).parse(";").unwrap().0.character, SemiColon);

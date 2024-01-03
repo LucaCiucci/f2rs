@@ -103,7 +103,7 @@ impl Source for &str {
     }
 
     fn tail(self, end: Self::Index) -> Self {
-        print!("{}", &self[..end]);
+        // TODO !!! print!("{}", &self[..end]);
         &self[end..]
     }
 

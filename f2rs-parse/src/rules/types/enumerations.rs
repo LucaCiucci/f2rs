@@ -8,7 +8,11 @@ pub struct EnumDef<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "enum-def" #759,
+    F18V007r1 rule "enum-def" #759 :
+    "is enum-def-stmt"
+    "    enumerator-def-stmt"
+    "    [ enumerator-def-stmt ] ..."
+    "    end-enum-stmt",
 )]
 pub fn enum_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumDef<S::Span>> + 'a {
     (
@@ -33,7 +37,7 @@ pub struct EnumDefStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "enum-def-stmt" #760,
+    F18V007r1 rule "enum-def-stmt" #760 : "is ENUM, BIND(C)",
 )]
 pub fn enum_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumDefStmt<S::Span>> + 'a {
     (
@@ -56,7 +60,7 @@ pub struct EnumeratorDefStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "enumerator-def-stmt" #761,
+    F18V007r1 rule "enumerator-def-stmt" #761 : "ENUMERATOR [ :: ] enumerator-list",
 )]
 pub fn enumerator_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumeratorDefStmt<S::Span>> + 'a {
     (
@@ -77,11 +81,11 @@ pub fn enumerator_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
 #[derive(Debug, Clone)]
 pub struct Enumerator<Span> {
     pub name: NamedConstant<Span>,
-    pub value: Option<ScalarIntConstantExpr<Span>>,
+    pub value: Option<IntConstantExpr<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "enumerator" #762,
+    F18V007r1 rule "enumerator" #762 : "is named-constant [ = scalar-int-constant-expr ]",
 )]
 pub fn enumerator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Enumerator<S::Span>> + 'a {
     (
@@ -90,7 +94,7 @@ pub fn enumerator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token 
             space(0),
             kw("=", cfg),
             space(0),
-            scalar_int_constant_expr(cfg),
+            int_constant_expr(cfg),
         ).map(|(_, _, _, value)| value).optional(),
     ).map(|(name, value)| Enumerator {
         name,
@@ -104,7 +108,7 @@ pub struct EndEnumStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "end-enum-stmt" #763,
+    F18V007r1 rule "end-enum-stmt" #763 : "is END ENUM",
 )]
 pub fn end_enum_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndEnumStmt<S::Span>> + 'a {
     (

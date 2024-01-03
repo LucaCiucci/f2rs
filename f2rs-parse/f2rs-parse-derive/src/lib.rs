@@ -1,6 +1,9 @@
+// TODO disable if not nightly
+//#![feature(proc_macro_diagnostic)]
+
 use f2rs_parser_combinator::tokenization::ParserCore;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{parse::Parse, punctuated::Punctuated, Token, Stmt};
 
 
@@ -10,6 +13,8 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
     let attrs = syn::parse_macro_input!(attr as Attributes);
 
     let mut doc_string = "\n".to_string();
+
+    let mut missing_rule_definition: Vec<proc_macro::Span> = vec![];
 
     if attrs.standards.is_empty() {
         return syn::Error::new_spanned(f, "expected at least one compatible standard").to_compile_error().into();
@@ -44,11 +49,17 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
                 doc_string += &format!("\nDefinition for [`{}`]:\n", s.standard.to_string());
                 doc_string += "> _not available_  \n";
                 doc_string += "\n\n";
+                if s.number.is_some() {
+                    missing_rule_definition.push(s.standard.span().unwrap());
+                }
             }
         }
     }
 
     f.attrs.push(syn::parse_quote!(#[doc = #doc_string]));
+    //if missing_rule_definition {
+    //    f.attrs.push(syn::parse_quote!(#[deprecated(note = "missing rule definition")]));
+    //}
 
     let function_name = &f.sig.ident;
 
@@ -81,8 +92,18 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
     //        //eprintln!("Backtrace:\n{:?}", std::backtrace::Backtrace::capture());
     //    }
     //));
-    
-    quote!(#f).into()
+
+    // TODO disable if not nightly
+    //for s in missing_rule_definition {
+    //    s.warning("missing rule definition").emit();
+    //}
+    let mut errors = TokenStream::new();
+    for span in missing_rule_definition {
+        errors.extend(quote_spanned!(span.into()=> compile_error!("missing rule definition");));
+    }
+
+    let r = quote!(#errors #f).into();
+    r
 }
 
 mod utils {
@@ -123,7 +144,9 @@ fn definition_line(
     fn link(id: &str) -> String {
         let mut id = id.to_string();
 
-        for rule in include!("../../src/rules/report/rules-18-007r1.rs") {
+        const RULES: [&str; 478] = include!("rules-18-007r1.rs");
+
+        for rule in RULES {
             if id.contains(rule) {
                 id = id.replace(rule, &format!("[{}]({})", rule, rule.replace("-", "_")));
                 break;
@@ -136,11 +159,38 @@ fn definition_line(
         .replace("[", "\\[")
         .replace("]", "\\]")
         .replace("(", "\\(")
-        .replace(")", "\\)");
+        .replace(")", "\\)")
+        .replace(":", "\\:")
+        .replace("=", "\\=")
+        .replace(">", "\\>")
+        .replace("<", "\\<")
+        .replace(",", "\\,")
+        .replace("/", "\\/")
+        .replace("%", "\\%")
+        .replace("+", "\\+")
+        .replace("- ", "\\- ")
+        .replace("_", "\\_")
+        .replace("..", "\\..")
+        .replace("*", "\\*");
     let mut processed = String::new();
     loop {
         if line.is_empty() {
-            break processed;
+            break processed
+                .replace("\\(", "[\\(](SpecialCharacter::LeftParenthesis)")
+                .replace("\\)", "[\\)](SpecialCharacter::RightParenthesis)")
+                .replace("\\*", "[\\*](SpecialCharacter::Asterisk)")
+                .replace("\\:", "[\\:](SpecialCharacter::Colon)")
+                .replace("\\=", "[\\=](SpecialCharacter::Equals)")
+                .replace("\\>", "[\\>](SpecialCharacter::GreaterThan)")
+                .replace("\\<", "[\\<](SpecialCharacter::LessThan)")
+                .replace("\\,", "[,](SpecialCharacter::Comma)")
+                .replace("\\/", "[/](SpecialCharacter::Slash)")
+                .replace("\\%", "[%](SpecialCharacter::Percent)")
+                .replace("\\+", "[+](SpecialCharacter::Plus)")
+                .replace("\\- ", "[-](SpecialCharacter::Minus) ")
+                .replace("\\_", "[_](SpecialCharacter::Underscore)")
+                .replace("\\...", "[...](f2rs_parser_combinator::prelude::many)")
+                .replace("    ", "&nbsp;&nbsp;&nbsp;&nbsp;");
         }
         let r = utils::identifier().parse(line.as_str());
         match r {
@@ -159,32 +209,6 @@ fn definition_line(
                 line = line.chars().skip(1).collect();
             }
         }
-    }
-}
-
-/// Example:
-/// `(&F18V007r1.into()) => ["a", "b", "c"]`
-struct Example {
-    args: Vec<syn::Expr>,
-    cases: Vec<syn::LitStr>,
-}
-
-impl Parse for Example {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let args;
-        syn::parenthesized!(args in input);
-        let args = Punctuated::<syn::Expr, Token![,]>::parse_terminated(&args)?.into_iter().collect::<Vec<_>>();
-
-        input.parse::<Token![=>]>()?;
-
-        let cases;
-        syn::bracketed!(cases in input);
-        let cases = Punctuated::<syn::LitStr, Token![,]>::parse_terminated(&cases)?.into_iter().collect::<Vec<_>>();
-
-        Ok(Self {
-            args,
-            cases,
-        })
     }
 }
 

@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use crate::cfg;
-
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -16,7 +14,13 @@ pub struct DerivedTypeDef<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "derived-type-def" #726,
+    F18V007r1 rule "derived-type-def" #726:
+    "is derived-type-stmt"
+    "    [ type-param-def-stmt ] ..."
+    "    [ private-or-sequence ] ..."
+    "    [ component-part ]"
+    "    [ type-bound-procedure-part ]"
+    "    end-type-stmt",
 )]
 pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DerivedTypeDef<S::Span>> + 'a {
     // TODO test
@@ -125,7 +129,8 @@ pub struct DerivedTypeStmt<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "derived-type-stmt" #727,
+    F18V007r1 rule "derived-type-stmt" #727 :
+    "is TYPE [ [ , type-attr-spec-list ] :: ] type-name [ ( type-param-name-list ) ]",
 )]
 pub fn derived_type_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DerivedTypeStmt<S::Span>> + 'a {
     let type_attr_spec_list = || (
@@ -193,7 +198,11 @@ pub enum TypeAttrSpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "type-attr-spec" #728,
+    F18V007r1 rule "type-attr-spec" #728 : 
+    "is ABSTRACT"
+    "or access-spec"
+    "or BIND (C)"
+    "or EXTENDS ( parent-type-name )",
 )]
 pub fn type_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeAttrSpec<S::Span>> + 'a {
     alt!(
@@ -224,7 +233,9 @@ pub enum TypeParamAttrSpec {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "type-param-attr-spec" #734,
+    F18V007r1 rule "type-param-attr-spec" #734 :
+    "is KIND"
+    "or LEN",
 )]
 pub fn type_param_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamAttrSpec> + 'a {
     alt!(
@@ -236,19 +247,19 @@ pub fn type_param_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
 #[derive(Debug, Clone)]
 pub struct TypeParamDecl<Span> {
     pub name: Name<Span>,
-    pub init: Option<ScalarIntConstantExpr<Span>>,
+    pub init: Option<IntConstantExpr<Span>>,
 }
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "type-param-decl" #733,
+    F18V007r1 rule "type-param-decl" #733 : "is type-param-name [ = scalar-int-constant-expr ]",
 )]
 pub fn type_param_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamDecl<S::Span>> + 'a {
     (
         name(cfg, false),
         (
             space(0), '=', space(0),
-            scalar_int_constant_expr(cfg),
+            int_constant_expr(cfg),
         ).map(|(_, _, _, expr)| expr).optional(),
     ).map(|(name, init)| TypeParamDecl {
         name,
@@ -266,7 +277,8 @@ pub struct TypeParamDefStmt<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "type-param-def-stmt" #732,
+    F18V007r1 rule "type-param-def-stmt" #732 : 
+    "is integer-type-spec, type-param-attr-spec :: type-param-decl-list",
 )]
 pub fn type_param_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamDefStmt<S::Span>> + 'a {
     (
@@ -297,7 +309,9 @@ pub enum ComponentArraySpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "component-array-spec" #740,
+    F18V007r1 rule "component-array-spec" #740 :
+    "is explicit-shape-spec-list"
+    "or deferred-shape-spec-list",
 )]
 pub fn component_array_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentArraySpec<S::Span>> + 'a {
     alt!(
@@ -316,7 +330,8 @@ pub struct ComponentDecl<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "component-decl" #739,
+    F18V007r1 rule "component-decl" #739 :
+    "is component-name [ ( component-array-spec ) ] [ lbracket coarray-spec rbracket ] [ * char-length ] [ component-initialization ]",
 )]
 pub fn component_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentDecl<S::Span>> + 'a {
     // TODO test
@@ -355,13 +370,14 @@ pub fn component_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 }
 
 #[derive(Debug, Clone)]
-pub struct InitialDataTarget<Span>(std::marker::PhantomData<Span>);// TODO
+pub struct InitialDataTarget<Span>(pub Designator<Span>);// TODO
 
 #[syntax_rule(
-    F18V007r1 rule "initial-data-target" #744,
+    F18V007r1 rule "initial-data-target" #744 : "is designator",
 )]
 pub fn initial_data_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InitialDataTarget<S::Span>> + 'a {
-    |_| todo!("TODO: parser not implemented yet")
+    // TODO test
+    designator(cfg, false).map(InitialDataTarget)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -375,7 +391,13 @@ pub enum ComponentAttrSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "component-attr-spec" #738,
+    F18V007r1 rule "component-attr-spec" #738 :
+    "is access-spec"
+    "or ALLOCATABLE"
+    "or CODIMENSION lbracket coarray-spec rbracket"
+    "or CONTIGUOUS"
+    "or DIMENSION ( component-array-spec )"
+    "or POINTER",
 )]
 
 pub fn component_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentAttrSpec<S::Span>> + 'a {
@@ -407,7 +429,8 @@ pub struct DataComponentDefStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "data-component-def-stmt" #737,
+    F18V007r1 rule "data-component-def-stmt" #737 :
+    "is declaration-type-spec [ [ , component-attr-spec-list ] :: ] component-decl-list",
 )]
 pub fn data_component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataComponentDefStmt<S::Span>> + 'a {
     // TODO test
@@ -449,7 +472,7 @@ pub fn data_component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 pub struct ComponentPart<Span>(pub Vec<MaybeStatement<ComponentDefStmt<Span>, Span>>);
 
 #[syntax_rule(
-    F18V007r1 rule "component-part" #735,
+    F18V007r1 rule "component-part" #735 : "is [ component-def-stmt ] ...",
 )]
 pub fn component_part<'a, S: TextSource + 'a, U: 'a>(
     cfg: &'a Cfg,
@@ -470,7 +493,9 @@ pub enum ComponentDefStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "component-def-stmt" #736,
+    F18V007r1 rule "component-def-stmt" #736 :
+    "is data-component-def-stmt"
+    "or proc-component-def-stmt",
 )]
 pub fn component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentDefStmt<S::Span>> + 'a {
     // TODO test
@@ -484,7 +509,8 @@ pub fn component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
 pub struct ProcComponentDefStmt<Span>(std::marker::PhantomData<Span>);// TODO
 
 #[syntax_rule(
-    F18V007r1 rule "proc-component-def-stmt" #741,
+    F18V007r1 rule "proc-component-def-stmt" #741 :
+    "is PROCEDURE ( [ proc-interface ] ) , proc-component-attr-spec-list :: proc-decl-list",
 )]
 pub fn proc_component_def_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcComponentDefStmt<S::Span>> + 'a {
     |_| todo!("TODO: parser not implemented yet")
@@ -499,7 +525,11 @@ pub enum ProcComponentAttrSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "proc-component-attr-spec" #742,
+    F18V007r1 rule "proc-component-attr-spec" #742 :
+    "is access-spec"
+    "or NOPASS"
+    "or PASS [ (arg-name) ]"
+    "or POINTER",
 )]
 pub fn proc_component_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcComponentAttrSpec<S::Span>> + 'a {
     // TODO test
@@ -524,7 +554,9 @@ pub enum TypeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-spec" #702,
+    F18V007r1 rule "type-spec" #702 :
+    "is intrinsic-type-spec"
+    "or derived-type-spec",
 )]
 pub fn type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeSpec<S::Span>> + 'a {
     |_| todo!("TODO: parser not implemented yet")
@@ -542,7 +574,13 @@ pub enum DeclarationTypeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "declaration-type-spec" #703,
+    F18V007r1 rule "declaration-type-spec" #703 :
+    "is intrinsic-type-spec"
+    "or TYPE ( intrinsic-type-spec )"
+    "or TYPE ( derived-type-spec )"
+    "or CLASS ( derived-type-spec )"
+    "or CLASS ( * )"
+    "or TYPE ( * )",
 )]
 pub fn declaration_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeclarationTypeSpec<S::Span>> + 'a {
     |_| todo!("TODO: parser not implemented yet")
@@ -552,7 +590,10 @@ pub fn declaration_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
 pub struct TypeBoundProcedurePart<Span>(std::marker::PhantomData<Span>);// TODO
 
 #[syntax_rule(
-    F18V007r1 rule "type-bound-procedure-part" #746,
+    F18V007r1 rule "type-bound-procedure-part" #746 :
+    "is contains-stmt"
+    "    [ binding-private-stmt ]"
+    "    [ type-bound-proc-binding ] ...",
 )]
 pub fn type_bound_procedure_part<'a, S: TextSource + 'a, U: 'a>(
     cfg: &'a Cfg,
@@ -568,7 +609,8 @@ pub struct BindingPrivateStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "binding-private-stmt" #747,
+    F18V007r1 rule "binding-private-stmt" #747 :
+    "is PRIVATE",
 )]
 pub fn binding_private_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindingPrivateStmt<S::Span>> + 'a {
     (
@@ -588,7 +630,10 @@ pub enum TypeBoundProcBinding<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-bound-proc-binding" #748,
+    F18V007r1 rule "type-bound-proc-binding" #748 :
+    "is type-bound-procedure-stmt"
+    "or type-bound-generic-stmt"
+    "or final-procedure-stmt",
 )]
 pub fn type_bound_proc_binding<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeBoundProcBinding<S::Span>> + 'a {
     alt!(
@@ -605,7 +650,9 @@ pub enum TypeBoundProcedureStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-bound-procedure-stmt" #749,
+    F18V007r1 rule "type-bound-procedure-stmt" #749 :
+    "is PROCEDURE [ [ , binding-attr-list ] :: ] type-bound-proc-decl-list"
+    "or PROCEDURE (interface-name), binding-attr-list :: binding-name-list",
 )]
 pub fn type_bound_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeBoundProcedureStmt<S::Span>> + 'a {
     let form_1 = (
@@ -646,7 +693,12 @@ pub enum BindingAttr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "binding-attr" #752,
+    F18V007r1 rule "binding-attr" #752 :
+    "is access-spec"
+    "or DEFERRED"
+    "or NON_OVERRIDABLE"
+    "or NOPASS"
+    "or PASS [ (arg-name) ]",
 )]
 pub fn binding_attr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindingAttr<S::Span>> + 'a {
     alt!(
@@ -672,7 +724,7 @@ pub struct FinalProcedureStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "final-procedure-stmt" #753,
+    F18V007r1 rule "final-procedure-stmt" #753 : "is FINAL [ :: ] final-subroutine-name-list",
 )]
 pub fn final_procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FinalProcedureStmt<S::Span>> + 'a {
     (
@@ -693,7 +745,7 @@ pub struct TypeBoundProcDecl<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-bound-proc-decl" #750,
+    F18V007r1 rule "type-bound-proc-decl" #750 : "is binding-name [ => procedure-name ]",
 )]
 pub fn type_bound_proc_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeBoundProcDecl<S::Span>> + 'a {
     (
@@ -712,7 +764,7 @@ pub fn type_bound_proc_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
 pub struct EndTypeStmt<Span>(std::marker::PhantomData<Span>);// TODO
 
 #[syntax_rule(
-    F18V007r1 rule "end-type-stmt" #730,
+    F18V007r1 rule "end-type-stmt" #730 : "is END TYPE [ type-name ]",
 )]
 pub fn end_type_stmt<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -754,7 +806,7 @@ pub struct TypeBoundGenericStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-bound-generic-stmt" #751,
+    F18V007r1 rule "type-bound-generic-stmt" #751 : "is GENERIC [ , access-spec ] :: generic-spec => binding-name-list",
 )]
 pub fn type_bound_generic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeBoundGenericStmt<S::Span>> + 'a {
     (
@@ -777,7 +829,7 @@ pub fn type_bound_generic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 }
 
 #[syntax_rule(
-    F18V007r1 rule "derived-type-spec" #754,
+    F18V007r1 rule "derived-type-spec" #754 : "is type-name [ ( type-param-spec-list ) ]",
 )]
 pub fn derived_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DerivedTypeSpec<S::Span>> + 'a {
     // TODO test
@@ -812,7 +864,7 @@ pub struct TypeParamSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-param-spec" #755,
+    F18V007r1 rule "type-param-spec" #755 : "is [ keyword = ] type-param-value",
 )]
 pub fn type_param_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamSpec<S::Span>> + 'a {
     // TODO test
@@ -835,7 +887,7 @@ pub struct StructureConstructor<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "structure-constructor" #756,
+    F18V007r1 rule "structure-constructor" #756 : "is derived-type-spec ( [ component-spec-list ] )",
 )]
 pub fn structure_constructor<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StructureConstructor<S::Span>> + 'a {
     // TODO test
@@ -865,7 +917,7 @@ pub struct ComponentSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "component-spec" #757,
+    F18V007r1 rule "component-spec" #757 : "is [ keyword = ] component-data-source",
 )]
 pub fn component_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentSpec<S::Span>> + 'a {
     // TODO test
@@ -885,7 +937,10 @@ pub fn component_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 pub struct ComponentDataSource<Span>(PhantomData<Span>); // TODO
 
 #[syntax_rule(
-    F18V007r1 rule "component-data-source" #758,
+    F18V007r1 rule "component-data-source" #758 :
+    "is expr"
+    "or data-target"
+    "or proc-target",
 )]
 pub fn component_data_source<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentDataSource<S::Span>> + 'a {
     |_| todo!("TODO: \"component_data_source\" parser not implemented yet")

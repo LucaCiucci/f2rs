@@ -6,7 +6,7 @@ use f2rs_parser_combinator::prelude::*;
 pub struct PowerOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "power-op" #1007,
+    F18V007r1 rule "power-op" #1007 : "is **",
 )]
 pub fn power_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PowerOp<S::Span>> + 'a {
     StringMatch::exact("**", true).map(PowerOp)
@@ -16,7 +16,9 @@ pub fn power_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 pub struct MultOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "mult-op" #1008,
+    F18V007r1 rule "mult-op" #1008 :
+    "is *"
+    "or /",
 )]
 pub fn mult_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MultOp<S::Span>> + 'a {
     alt!(
@@ -29,7 +31,9 @@ pub fn mult_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = M
 pub struct AddOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "add-op" #1009,
+    F18V007r1 rule "add-op" #1009 :
+    "is +"
+    "or -",
 )]
 pub fn add_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AddOp<S::Span>> + 'a {
     alt!(
@@ -42,7 +46,7 @@ pub fn add_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Ad
 pub struct ConcatOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "concat-op" #1011,
+    F18V007r1 rule "concat-op" #1011 : "is //",
 )]
 pub fn concat_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConcatOp<S::Span>> + 'a {
     StringMatch::exact("//", true).map(ConcatOp)
@@ -52,7 +56,19 @@ pub fn concat_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 pub struct RelOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "rel-op" #1013,
+    F18V007r1 rule "rel-op" #1013 :
+    "is .EQ."
+    "or .NE."
+    "or .LT."
+    "or .LE."
+    "or .GT."
+    "or .GE."
+    "or =="
+    "or /="
+    "or <"
+    "or <="
+    "or >"
+    "or >=",
 )]
 pub fn rel_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RelOp<S::Span>> + 'a {
     // NOTE: The order of the alternatives is important, is different from the standard
@@ -76,7 +92,7 @@ pub fn rel_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Re
 pub struct NotOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "not-op" #1018,
+    F18V007r1 rule "not-op" #1018 : "is .NOT.",
 )]
 pub fn not_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NotOp<S::Span>> + 'a {
     StringMatch::exact(".not.", false).map(NotOp)
@@ -86,7 +102,7 @@ pub fn not_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = No
 pub struct AndOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "and-op" #1019,
+    F18V007r1 rule "and-op" #1019 : "is .AND.",
 )]
 pub fn and_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AndOp<S::Span>> + 'a {
     StringMatch::exact(".and.", false).map(AndOp)
@@ -96,7 +112,7 @@ pub fn and_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = An
 pub struct OrOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "or-op" #1020,
+    F18V007r1 rule "or-op" #1020 : "is .OR.",
 )]
 pub fn or_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OrOp<S::Span>> + 'a {
     StringMatch::exact(".or.", false).map(OrOp)
@@ -106,7 +122,9 @@ pub fn or_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OrO
 pub struct EquivOp<Span>(pub StringMatch<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "equiv-op" #1021,
+    F18V007r1 rule "equiv-op" #1021 :
+    "is .EQV."
+    "or .NEQV.",
 )]
 pub fn equiv_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivOp<S::Span>> + 'a {
     alt!(
@@ -129,7 +147,16 @@ pub enum IntrinsicOperator<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "intrinsic-operator" #608,
+    F18V007r1 rule "intrinsic-operator" #608 :
+    "is power-op"
+    "or mult-op"
+    "or add-op"
+    "or concat-op"
+    "or rel-op"
+    "or not-op"
+    "or and-op"
+    "or or-op"
+    "or equiv-op",
 )]
 pub fn intrinsic_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicOperator<S::Span>> + 'a {
     // NOTE: The order of the alternatives is important, is different from the standard
@@ -148,7 +175,7 @@ pub fn intrinsic_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
 
 // TODO test?
 #[syntax_rule(
-    F18V007r1 rule "extended-intrinsic-op" #610,
+    F18V007r1 rule "extended-intrinsic-op" #610 : "is intrinsic-operator",
 )]
 pub fn extended_intrinsic_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicOperator<S::Span>> + 'a {
     intrinsic_operator(cfg)
@@ -160,7 +187,7 @@ pub struct DefinedUnaryOrBinaryOp<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "defined-unary-op" #1003,
+    F18V007r1 rule "defined-unary-op" #1003 : "is . letter [ letter ] ... .",
 )]
 pub fn defined_unary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedUnaryOrBinaryOp<S::Span>> + 'a {
     (
@@ -184,7 +211,7 @@ pub fn defined_unary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
 }
 
 #[syntax_rule(
-    F18V007r1 rule "defined-binary-op" #1023,
+    F18V007r1 rule "defined-binary-op" #1023 : "is . letter [ letter ] ... .",
 )]
 pub fn defined_binary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedUnaryOrBinaryOp<S::Span>> + 'a {
     (
@@ -214,7 +241,10 @@ pub enum DefinedOperator<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "defined-operator" #609,
+    F18V007r1 rule "defined-operator" #609 :
+    "is defined-unary-op"
+    "or defined-binary-op"
+    "or extended-intrinsic-op",
 )]
 pub fn defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedOperator<S::Span>> + 'a {
     alt!(

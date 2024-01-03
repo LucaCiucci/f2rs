@@ -1,7 +1,7 @@
 use super::*;
 
 #[syntax_rule(
-    F18V007r1 rule "digit-string" #711,
+    F18V007r1 rule "digit-string" #711 : "is digit [ digit ] ...",
 )]
 pub fn digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
     digit(cfg)
@@ -32,7 +32,9 @@ impl<Span> Sign<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "sign" #712,
+    F18V007r1 rule "sign" #712 :
+    "is +"
+    "or -",
 )]
 pub fn sign<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Sign<S::Span>> {
     Char::exact('+')
@@ -52,7 +54,7 @@ pub struct SignedDigitString<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "signed-digit-string" #710,
+    F18V007r1 rule "signed-digit-string" #710 : "is [ sign ] digit-string",
 )]
 pub fn signed_digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedDigitString<S::Span>> + 'a {
     (
@@ -82,7 +84,9 @@ pub enum KindParam<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "kind-param" #709,
+    F18V007r1 rule "kind-param" #709 :
+    "is digit-string"
+    "or scalar-int-constant-name",
 )]
 pub fn kind_param<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) -> impl Parser<S, Token = KindParam<S::Span>> + 'a {
     // TODO implement J3/18-007r1 §7.4.3.1 C713
@@ -103,7 +107,7 @@ pub struct IntLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "int-literal-constant" #708,
+    F18V007r1 rule "int-literal-constant" #708 : "is digit-string [ _ kind-param ]",
 )]
 pub fn int_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntLiteralConstant<S::Span>> + 'a {
     // TODO maybe relax R708 to allow for trailing underscores if a kind param is missing:
@@ -147,7 +151,7 @@ pub struct SignedIntLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "signed-int-literal-constant" #707,
+    F18V007r1 rule "signed-int-literal-constant" #707 : "is [ sign ] int-literal-constant",
 )]
 pub fn signed_int_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedIntLiteralConstant<S::Span>> + 'a {
     (
@@ -167,7 +171,9 @@ pub enum ExponentLetter<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "exponent-letter" #716,
+    F18V007r1 rule "exponent-letter" #716 :
+    "is E"
+    "or D",
 )]
 pub fn exponent_letter<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExponentLetter<S::Span>> + 'a {
     alt!(
@@ -177,7 +183,7 @@ pub fn exponent_letter<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
 }
 
 #[syntax_rule(
-    F18V007r1 rule "exponent" #717,
+    F18V007r1 rule "exponent" #717 : "is signed-digit-string",
 )]
 pub fn exponent<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedDigitString<S::Span>> + 'a {
     signed_digit_string(cfg)
@@ -192,7 +198,9 @@ pub enum Significand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "significand" #715,
+    F18V007r1 rule "significand" #715 :
+    "is digit-string . [ digit-string ]"
+    "or . digit-string",
 )]
 pub fn significand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Significand<S::Span>> + 'a {
     alt! {
@@ -225,7 +233,9 @@ pub enum RealLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "real-literal-constant" #714,
+    F18V007r1 rule "real-literal-constant" #714 :
+    "is significand [ exponent-letter exponent ] [ _ kind-param ]"
+    "or digit-string exponent-letter exponent [ _ kind-param ]",
 )]
 pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RealLiteralConstant<S::Span>> + 'a {
     // TODO implement §7.4.3.2 C716
@@ -273,7 +283,7 @@ pub struct SignedRealLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "signed-real-literal-constant" #713,
+    F18V007r1 rule "signed-real-literal-constant" #713 : "is [ sign ] real-literal-constant",
 )]
 pub fn signed_real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedRealLiteralConstant<S::Span>> + 'a {
     (
@@ -295,8 +305,14 @@ pub enum ComplexPart<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "real-part" #719,
-    F18V007r1 rule "imag-part" #720,
+    F18V007r1 rule "real-part" #719 :
+    "is signed-int-literal-constant"
+    "or signed-real-literal-constant"
+    "or named-constant",
+    F18V007r1 rule "imag-part" #720 :
+    "is signed-int-literal-constant"
+    "or signed-real-literal-constant"
+    "or named-constant",
 )]
 pub fn complex_part<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComplexPart<S::Span>> + 'a {
     // Note that the order is different from the standard to avoid ambiguity
@@ -314,7 +330,7 @@ pub struct ComplexLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "complex-literal-constant" #718,
+    F18V007r1 rule "complex-literal-constant" #718 : "is ( real-part , imag-part )",
 )]
 pub fn complex_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComplexLiteralConstant<S::Span>> + 'a {
     (
@@ -366,7 +382,9 @@ impl<Span> CharLiteralConstant<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "char-literal-constant" #724,
+    F18V007r1 rule "char-literal-constant" #724 :
+    "is [ kind-param _ ] ' [ rep-char ] ... '"
+    "or [ kind-param _ ] \" [ rep-char ] ... \"",
 )]
 pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLiteralConstant<S::Span>> + 'a {
     alt! {
@@ -414,28 +432,36 @@ pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
 #[derive(Debug, Clone)]
 pub struct LogicalLiteralConstant<Span> {
     pub value: bool,
-    pub kind: KindParam<Span>,
+    pub kind: Option<KindParam<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "logical-literal-constant" #725,
+    F18V007r1 rule "logical-literal-constant" #725 :
+    "is .TRUE. [ _ kind-param ]"
+    "or .FALSE. [ _ kind-param ]",
 )]
 pub fn logical_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LogicalLiteralConstant<S::Span>> + 'a {
-    alt! {
-        StringMatch::exact(".TRUE.", false),
-        StringMatch::exact(".FALSE.", false),
-    }.map(|s| LogicalLiteralConstant {
-        value: match s.value.to_uppercase().as_str() {
-            ".TRUE." => true,
-            ".FALSE." => false,
-            _ => unreachable!(),
-        },
-        kind: KindParam::DigitString(s),
+    (
+        alt!(
+            StringMatch::exact(".TRUE.", false).map(|_| true),
+            StringMatch::exact(".FALSE.", false).map(|_| false),
+        ),
+        (space(0), underscore(cfg), space(0), kind_param(cfg, true)).map(|(_, _, _, k)| k).optional(),
+    ).map(|(value, kind)| LogicalLiteralConstant {
+        value,
+        kind,
     })
 }
 
 #[syntax_rule(
-    F18V007r1 rule "hex-digit" #768,
+    F18V007r1 rule "hex-digit" #768 :
+    "is digit"
+    "or A"
+    "or B"
+    "or C"
+    "or D"
+    "or E"
+    "or F",
 )]
 pub fn hex_digit<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
     alt!(
@@ -445,7 +471,9 @@ pub fn hex_digit<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 }
 
 #[syntax_rule(
-    F18V007r1 rule "hex-constant" #767,
+    F18V007r1 rule "hex-constant" #767 :
+    "is Z ' hex-digit [ hex-digit ] ... '"
+    "or Z \" hex-digit [ hex-digit ] ... \"",
 )]
 pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
     let hex_digits = || fold_many(
@@ -475,7 +503,9 @@ pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
 }
 
 #[syntax_rule(
-    F18V007r1 rule "octal-constant" #766,
+    F18V007r1 rule "octal-constant" #766 :
+    "is O ' digit [ digit ] ... '"
+    "or O \" digit [ digit ] ... \"",
 )]
 pub fn octal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
     let octal_digits = || fold_many(
@@ -505,7 +535,9 @@ pub fn octal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 }
 
 #[syntax_rule(
-    F18V007r1 rule "binary-constant" #765,
+    F18V007r1 rule "binary-constant" #765 :
+    "is B ' digit [ digit ] ... '"
+    "or B \" digit [ digit ] ... \"",
 )]
 pub fn binary_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
     let binary_digits = || fold_many(
@@ -544,7 +576,10 @@ pub enum BozLiteralConstant<Span> {
 
 /// Binary, octal, and hexadecimal literal constant
 #[syntax_rule(
-    F18V007r1 rule "boz-literal-constant" #764,
+    F18V007r1 rule "boz-literal-constant" #764 :
+    "is binary-constant"
+    "or octal-constant"
+    "or hex-constant",
 )]
 pub fn boz_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BozLiteralConstant<S::Span>> + 'a {
     alt!(

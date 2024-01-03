@@ -10,7 +10,9 @@ pub enum AccessSpec {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "access-spec" #807,
+    F18V007r1 rule "access-spec" #807 :
+    "is PUBLIC"
+    "or PRIVATE",
 )]
 pub fn access_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessSpec> + 'a {
     alt!(
@@ -24,7 +26,8 @@ pub struct LowerBound<Span>(pub SpecificationExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "lower-bound" #817,
+    F18V007r1 rule "lower-bound" #817 :
+    "is specification-expr",
 )]
 pub fn lower_bound<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LowerBound<S::Span>> + 'a {
     specification_expr(cfg).map(LowerBound)
@@ -35,7 +38,8 @@ pub struct UpperBound<Span>(pub SpecificationExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "upper-bound" #818,
+    F18V007r1 rule "upper-bound" #818 :
+    "is specification-expr",
 )]
 pub fn upper_bound<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UpperBound<S::Span>> + 'a {
     specification_expr(cfg).map(UpperBound)
@@ -49,7 +53,8 @@ pub struct ExplicitShapeSpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "explicit-shape-spec" #816,
+    F18V007r1 rule "explicit-shape-spec" #816 :
+    "is [ lower-bound : ] upper-bound",
 )]
 pub fn explicit_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExplicitShapeSpec<S::Span>> + 'a {
     (
@@ -67,7 +72,8 @@ pub struct AssumedShapeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "assumed-shape-spec" #819,
+    F18V007r1 rule "assumed-shape-spec" #819 :
+    "is [ lower-bound ] :",
 )]
 pub fn assumed_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssumedShapeSpec<S::Span>> + 'a {
     // TODO test
@@ -84,7 +90,8 @@ pub struct DeferredShapeSpec;
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "deferred-shape-spec" #820,
+    F18V007r1 rule "deferred-shape-spec" #820 :
+    "is :",
 )]
 pub fn deferred_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeferredShapeSpec> + 'a {
     ':'.map(|_| DeferredShapeSpec)
@@ -96,7 +103,8 @@ pub struct AssumedImpliedSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "assumed-implied-spec" #821,
+    F18V007r1 rule "assumed-implied-spec" #821 :
+    "is [ lower-bound : ] *",
 )]
 pub fn assumed_implied_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssumedImpliedSpec<S::Span>> + 'a {
     // TODO test
@@ -118,7 +126,8 @@ pub struct AssumedSizeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "assumed-size-spec" #822,
+    F18V007r1 rule "assumed-size-spec" #822 :
+    "is explicit-shape-spec-list, assumed-implied-spec",
 )]
 pub fn assumed_size_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssumedSizeSpec<S::Span>> + 'a {
     // TODO test
@@ -141,7 +150,8 @@ pub fn assumed_size_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 pub struct ImpliedShapeOrAssumedSizeSpec<Span>(pub AssumedImpliedSpec<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "implied-shape-or-assumed-size-spec" #823,
+    F18V007r1 rule "implied-shape-or-assumed-size-spec" #823 :
+    "is assumed-implied-spec",
 )]
 pub fn implied_shape_or_assumed_size_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImpliedShapeOrAssumedSizeSpec<S::Span>> + 'a {
     // TODO test
@@ -155,7 +165,8 @@ pub struct ImpliedShapeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "implied-shape-spec" #824,
+    F18V007r1 rule "implied-shape-spec" #824 :
+    "is assumed-implied-spec, assumed-implied-spec-list",
 )]
 pub fn implied_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImpliedShapeSpec<S::Span>> + 'a {
     // TODO test
@@ -173,7 +184,8 @@ pub fn implied_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
 pub struct AssumedRankSpec<Span>(PhantomData<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "assumed-rank-spec" #825,
+    F18V007r1 rule "assumed-rank-spec" #825 :
+    "is ..",
 )]
 pub fn assumed_rank_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssumedRankSpec<S::Span>> + 'a {
     // TODO test
@@ -188,7 +200,10 @@ pub enum IntentSpec<Span> { // TODO use span
 }
 
 #[syntax_rule(
-    F18V007r1 rule "intent-spec" #826,
+    F18V007r1 rule "intent-spec" #826 :
+    "is IN"
+    "or OUT"
+    "or INOUT",
 )]
 pub fn intent_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntentSpec<S::Span>> + 'a {
     // TODO test
@@ -210,7 +225,8 @@ pub struct DeferredCoShapeSpec;
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "deferred-coshape-spec" #810,
+    F18V007r1 rule "deferred-coshape-spec" #810 :
+    "is :",
 )]
 pub fn deferred_coshape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeferredCoShapeSpec> + 'a {
     ':'.map(|_| DeferredCoShapeSpec)
@@ -221,7 +237,8 @@ pub struct LowerCobound<Span>(pub SpecificationExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "lower-cobound" #812,
+    F18V007r1 rule "lower-cobound" #812:
+    "is specification-expr",
 )]
 pub fn lower_cobound<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LowerCobound<S::Span>> + 'a {
     specification_expr(cfg).map(LowerCobound)
@@ -232,7 +249,8 @@ pub struct UpperCobound<Span>(pub SpecificationExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "upper-cobound" #813,
+    F18V007r1 rule "upper-cobound" #813 :
+    "is specification-expr",
 )]
 pub fn upper_cobound<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UpperCobound<S::Span>> + 'a {
     specification_expr(cfg).map(UpperCobound)
@@ -244,7 +262,8 @@ pub struct DimensionSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "dimension-spec" #814,
+    F18V007r1 rule "dimension-spec" #814 :
+    "is DIMENSION ( array-spec )",
 )]
 pub fn dimension_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DimensionSpec<S::Span>> + 'a {
     // TODO test
@@ -270,7 +289,14 @@ pub enum ArraySpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "array-spec" #815,
+    F18V007r1 rule "array-spec" #815 :
+    "is explicit-shape-spec-list"
+    "or assumed-shape-spec-list"
+    "or deferred-shape-spec-list"
+    "or assumed-size-spec"
+    "or implied-shape-spec"
+    "or implied-shape-or-assumed-size-spec"
+    "or assumed-rank-spec",
 )]
 pub fn array_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArraySpec<S::Span>> + 'a {
     // TODO test
@@ -293,7 +319,8 @@ pub struct ExplicitCoshapeSpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "explicit-coshape-spec" #811,
+    F18V007r1 rule "explicit-coshape-spec" #811 :
+    "is [ [ lower-cobound : ] upper-cobound, ]... [ lower-cobound : ] *",
 )]
 pub fn explicit_coshape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExplicitCoshapeSpec<S::Span>> + 'a {
     (
@@ -327,7 +354,9 @@ pub enum CoarraySpec<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "coarray-spec" #809,
+    F18V007r1 rule "coarray-spec" #809:
+    "is deferred-coshape-spec-list"
+    "or explicit-coshape-spec",
 )]
 pub fn coarray_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CoarraySpec<S::Span>> + 'a {
     alt!(
@@ -344,7 +373,10 @@ pub enum ComponentInitialization<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "component-initialization" #743,
+    F18V007r1 rule "component-initialization" #743 :
+    "is = constant-expr"
+    "or => null-init"
+    "or => initial-data-target",
 )]
 pub fn component_initialization<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComponentInitialization<S::Span>> + 'a {
     // TODO test
@@ -364,7 +396,8 @@ pub struct TypeDeclarationStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-declaration-stmt" #801,
+    F18V007r1 rule "type-declaration-stmt" #801 :
+    "is declaration-type-spec [ [ , attr-spec ] ... :: ] entity-decl-list",
 )]
 pub fn type_declaration_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeDeclarationStmt<S::Span>> + 'a {
     (
@@ -409,7 +442,25 @@ pub enum AttrSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "attr-spec" #802,
+    F18V007r1 rule "attr-spec" #802 :
+    "is access-spec"
+    "or ALLOCATABLE"
+    "or ASYNCHRONOUS"
+    "or CODIMENSION lbracket coarray-spec rbracket"
+    "or CONTIGUOUS"
+    "or DIMENSION ( array-spec )"
+    "or EXTERNAL"
+    "or INTENT ( intent-spec )"
+    "or INTRINSIC"
+    "or language-binding-spec"
+    "or OPTIONAL"
+    "or PARAMETER"
+    "or POINTER"
+    "or PROTECTED"
+    "or SAVE"
+    "or TARGET"
+    "or VALUE"
+    "or VOLATILE",
 )]
 pub fn attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AttrSpec<S::Span>> + 'a {
     alt!(
@@ -450,7 +501,9 @@ pub enum EntityDecl<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "entity-decl" #803,
+    F18V007r1 rule "entity-decl" #803 :
+    "is object-name [ ( array-spec ) ] [ lbracket coarray-spec rbracket ] [ * char-length ] [ initialization ]"
+    "or function-name [ * char-length ]",
 )]
 pub fn entity_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EntityDecl<S::Span>> + 'a {
     let form_1 = (
@@ -499,7 +552,8 @@ pub fn entity_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
 pub struct ObjectName<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "object-name" #804,
+    F18V007r1 rule "object-name" #804 :
+    "is name",
 )]
 pub fn object_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ObjectName<S::Span>> + 'a {
     name(cfg, false).map(ObjectName)
@@ -513,7 +567,10 @@ pub enum Initialization<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "initialization" #805,
+    F18V007r1 rule "initialization" #805 :
+    "is = constant-expr"
+    "or => null-init"
+    "or => initial-data-target",
 )]
 pub fn initialization<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Initialization<S::Span>> + 'a {
     // TODO test
@@ -528,7 +585,8 @@ pub fn initialization<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 pub struct NullInit<Span>(std::marker::PhantomData<Span>); // TODO
 
 #[syntax_rule(
-    F18V007r1 rule "null-init" #806,
+    F18V007r1 rule "null-init" #806 :
+    "is function-reference",
 )]
 pub fn null_init<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NullInit<S::Span>> + 'a {
     |_| todo!("TODO: parser not implemented yet")
@@ -536,11 +594,12 @@ pub fn null_init<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 
 #[derive(Debug, Clone)]
 pub struct LanguageBindingSpec<Span> {
-    pub name: Option<ScalarDefaultCharConstantExpr<Span>>,
+    pub name: Option<DefaultCharConstantExpr<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "language-binding-spec" #808,
+    F18V007r1 rule "language-binding-spec" #808 :
+    "is BIND (C [ , NAME = scalar-default-char-constant-expr ])",
 )]
 pub fn language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LanguageBindingSpec<S::Span>> + 'a {
     // TODO test
@@ -558,19 +617,11 @@ pub fn language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
             space(0),
             '=',
             space(0),
-            scalar_default_char_constant_expr(cfg),
+            default_char_constant_expr(cfg),
             space(0),
         ).map(|(_, _, _, _, _, _, name, _)| name).optional(),
         ')',
     ).map(|(_, _, _, _, _, _, name, _)| LanguageBindingSpec {
         name,
     })
-}
-
-
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
 }

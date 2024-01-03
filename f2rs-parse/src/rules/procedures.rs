@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -11,7 +9,11 @@ pub enum GenericSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "generic-spec" #1508,
+    F18V007r1 rule "generic-spec" #1508 :
+    "is generic-name"
+    "or OPERATOR ( defined-operator )"
+    "or ASSIGNMENT ( = )"
+    "or defined-io-generic-spec",
 )]
 pub fn generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = GenericSpec<S::Span>> + 'a {
     alt!(
@@ -35,7 +37,11 @@ pub enum DefinedIoGenericSpec {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "defined-io-generic-spec" #1509,
+    F18V007r1 rule "defined-io-generic-spec" #1509 :
+    "is READ (FORMATTED)"
+    "or READ (UNFORMATTED)"
+    "or WRITE (FORMATTED)"
+    "or WRITE (UNFORMATTED)",
 )]
 pub fn defined_io_generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedIoGenericSpec> + 'a {
     alt!(
@@ -53,7 +59,7 @@ pub struct FunctionReference<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "function-reference" #1520,
+    F18V007r1 rule "function-reference" #1520 : "is procedure-designator ( [ actual-arg-spec-list ] )",
 )]
 pub fn function_reference<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionReference<S::Span>> + 'a {
     (
@@ -77,7 +83,10 @@ pub enum ProcedureDesignator<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "procedure-designator" #1522,
+    F18V007r1 rule "procedure-designator" #1522 :
+    "is procedure-name"
+    "or proc-component-ref"
+    "or data-ref % binding-name",
 )]
 pub fn procedure_designator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureDesignator<S::Span>> + 'a {
     alt!(
@@ -98,7 +107,7 @@ pub struct ActualArgSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "actual-arg-spec" #1523,
+    F18V007r1 rule "actual-arg-spec" #1523 : "is [ keyword = ] actual-arg",
 )]
 pub fn actual_arg_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ActualArgSpec<S::Span>> + 'a {
     // TODO test
@@ -125,7 +134,12 @@ pub enum ActualArg<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "actual-arg" #1524,
+    F18V007r1 rule "actual-arg" #1524 :
+    "is expr"
+    "or variable"
+    "or procedure-name"
+    "or proc-component-ref"
+    "or alt-return-spec",
 )]
 pub fn actual_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ActualArg<S::Span>> + 'a {
     alt!(
@@ -143,7 +157,7 @@ pub struct AltReturnSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "alt-return-spec" #1525,
+    F18V007r1 rule "alt-return-spec" #1525 : "is * label",
 )]
 pub fn alt_return_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AltReturnSpec<S::Span>> + 'a {
     (
@@ -159,7 +173,7 @@ pub fn alt_return_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
 pub struct ProcLanguageBindingSpec<Span>(pub LanguageBindingSpec<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "proc-language-binding-spec" #1528,
+    F18V007r1 rule "proc-language-binding-spec" #1528 : "is language-binding-spec",
 )]
 pub fn proc_language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcLanguageBindingSpec<S::Span>> + 'a {
     language_binding_spec(cfg).map(ProcLanguageBindingSpec)
@@ -175,14 +189,16 @@ pub enum Suffix<Span> {
 pub struct DummyArgName<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "dummy-arg-name" #1531,
+    F18V007r1 rule "dummy-arg-name" #1531 : "is name",
 )]
 pub fn dummy_arg_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DummyArgName<S::Span>> + 'a {
     name(cfg, false).map(DummyArgName)
 }
 
 #[syntax_rule(
-    F18V007r1 rule "suffix" #1532,
+    F18V007r1 rule "suffix" #1532 :
+    "is proc-language-binding-spec [ RESULT ( result-name ) ]"
+    "or RESULT ( result-name ) [ proc-language-binding-spec ]",
 )]
 pub fn suffix<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Suffix<S::Span>> + 'a {
     alt!(
@@ -204,7 +220,9 @@ pub enum DummyArg<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "dummy-arg" #1536,
+    F18V007r1 rule "dummy-arg" #1536 :
+    "is dummy-arg-name"
+    "or *",
 )]
 pub fn dummy_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DummyArg<S::Span>> + 'a {
     alt!(
@@ -256,19 +274,19 @@ pub fn entry_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token 
 #[derive(Debug, Clone)]
 pub struct ReturnStmt<Span> {
     // TODO maybe a label?
-    pub expr: Option<ScalarIntExpr<Span>>,
+    pub expr: Option<IntExpr<Span>>,
     pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "return-stmt" #1542,
+    F18V007r1 rule "return-stmt" #1542 : "is RETURN [ scalar-int-expr ]",
 )]
 pub fn return_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ReturnStmt<S::Span>> + 'a {
     (
         space(0),
         kw("return", cfg),
         space(0),
-        scalar_int_expr(cfg).optional(),
+        int_expr(cfg).optional(),
         statement_termination(),
     ).map(|(_, _, _, expr, comment)| ReturnStmt {
         expr,
@@ -283,7 +301,7 @@ pub struct ContainsStmt<Span>{
 }
 
 #[syntax_rule(
-    F18V007r1 rule "contains-stmt" #1543,
+    F18V007r1 rule "contains-stmt" #1543 : "is CONTAINS",
 )]
 pub fn contains_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ContainsStmt<S::Span>> + 'a {
     // TODO test
@@ -301,12 +319,12 @@ pub fn contains_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
 pub struct StmtFunctionStmt<Span> {
     pub function_name: Name<Span>,
     pub dummy_arg_ame_list: Vec<DummyArgName<Span>>,
-    pub expr: ScalarExpr<Span>,
+    pub expr: Expr<Span>,
     pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "stmt-function-stmt" #1544,
+    F18V007r1 rule "stmt-function-stmt" #1544 : "is function-name ( [ dummy-arg-name-list ] ) = scalar-expr",
 )]
 pub fn stmt_function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StmtFunctionStmt<S::Span>> + 'a {
     (
@@ -316,7 +334,7 @@ pub fn stmt_function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
         list(dummy_arg_name(cfg), 0..),
         (space(0), ')', space(0)),
         (space(0), '=', space(0)),
-        scalar_expr(cfg),
+        expr(cfg),
         statement_termination(),
     ).map(|(_, function_name, _, dummy_arg_ame_list, _, _, expr, comment)| StmtFunctionStmt {
         function_name,

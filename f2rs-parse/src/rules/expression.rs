@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -10,7 +8,8 @@ pub struct Expr<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "expr" #1022,
+    F18V007r1 rule "expr" #1022 :
+    "is [ expr defined-binary-op ] level-5-expr",
 )]
 pub fn expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr<S::Span>> + 'a {
     // TODO test
@@ -57,7 +56,8 @@ pub struct IntExpr<Span>(pub Expr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "int-expr" #1026,
+    F18V007r1 rule "int-expr" #1026 :
+    "is expr",
 )]
 pub fn int_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntExpr<S::Span>> + 'a {
     expr(cfg).map(IntExpr)
@@ -68,43 +68,11 @@ pub struct IntConstantExpr<Span>(pub IntExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "int-constant-expr" #1031,
+    F18V007r1 rule "int-constant-expr" #1031 :
+    "is int-expr",
 )]
 pub fn int_constant_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntConstantExpr<S::Span>> + 'a {
     int_expr(cfg).map(IntConstantExpr)
-}
-
-#[derive(Debug, Clone)]
-pub struct ScalarIntExpr<Span>(pub IntExpr<Span>);
-
-// TODO test
-#[syntax_rule(
-    F18V007r1 rule "scalar-int-expr",
-)]
-pub fn scalar_int_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarIntExpr<S::Span>> + 'a {
-    int_expr(cfg).map(ScalarIntExpr)
-}
-
-#[derive(Debug, Clone)]
-pub struct ScalarExpr<Span>(pub Expr<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-expr",
-)]
-pub fn scalar_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarExpr<S::Span>> + 'a {
-    // TODO test
-    expr(cfg).map(ScalarExpr)
-}
-
-#[derive(Debug, Clone)]
-pub struct ScalarIntConstantExpr<Span>(pub IntConstantExpr<Span>);
-
-// TODO test
-#[syntax_rule(
-    F18V007r1 rule "scalar-int-constant-expr",
-)]
-pub fn scalar_int_constant_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarIntConstantExpr<S::Span>> + 'a {
-    int_constant_expr(cfg).map(ScalarIntConstantExpr)
 }
 
 #[derive(Debug, Clone)]
@@ -112,7 +80,8 @@ pub struct ConstantExpr<Span>(pub Expr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "constant-expr" #1029,
+    F18V007r1 rule "constant-expr" #1029 :
+    "is expr",
 )]
 pub fn constant_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConstantExpr<S::Span>> + 'a {
     expr(cfg).map(ConstantExpr)
@@ -123,37 +92,29 @@ pub struct DefaultCharConstantExpr<Span>(pub DefaultCharExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "default-char-constant-expr" #1030,
+    F18V007r1 rule "default-char-constant-expr" #1030 :
+    "is default-char-expr",
 )]
 pub fn default_char_constant_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefaultCharConstantExpr<S::Span>> + 'a {
     default_char_expr(cfg).map(DefaultCharConstantExpr)
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarDefaultCharConstantExpr<Span>(pub DefaultCharConstantExpr<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-default-char-constant-expr",
-)]
-pub fn scalar_default_char_constant_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarDefaultCharConstantExpr<S::Span>> + 'a {
-    // TODO test
-    default_char_constant_expr(cfg).map(ScalarDefaultCharConstantExpr)
-}
-
-#[derive(Debug, Clone)]
-pub struct SpecificationExpr<Span>(pub ScalarIntExpr<Span>);
+pub struct SpecificationExpr<Span>(pub IntExpr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "specification-expr" #1028,
+    F18V007r1 rule "specification-expr" #1028 :
+    "is scalar-int-expr",
 )]
 pub fn specification_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SpecificationExpr<S::Span>> + 'a {
-    scalar_int_expr(cfg).map(SpecificationExpr)
+    int_expr(cfg).map(SpecificationExpr)
 }
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "logical-expr" #1024,
+    F18V007r1 rule "logical-expr" #1024 :
+    "is expr",
 )]
 pub fn logical_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr<S::Span>> + 'a {
     expr(cfg)
@@ -164,7 +125,8 @@ pub struct DefaultCharExpr<Span>(pub Expr<Span>);
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "default-char-expr" #1025,
+    F18V007r1 rule "default-char-expr" #1025 :
+    "is expr",
 )]
 pub fn default_char_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefaultCharExpr<S::Span>> + 'a {
     expr(cfg).map(DefaultCharExpr)
@@ -172,7 +134,8 @@ pub fn default_char_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "numeric-expr" #1027,
+    F18V007r1 rule "numeric-expr" #1027 :
+    "is expr",
 )]
 pub fn numeric_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr<S::Span>> + 'a {
     expr(cfg)
@@ -193,7 +156,15 @@ pub enum Primary<Span> {
 
 // TODO test
 #[syntax_rule(
-    F18V007r1 rule "primary" #1001,
+    F18V007r1 rule "primary" #1001 :
+    "is literal-constant"
+    "or designator"
+    "or array-constructor"
+    "or structure-constructor"
+    "or function-reference"
+    "or type-param-inquiry"
+    "or type-param-name"
+    "or ( expr )",
 )]
 pub fn primary<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Primary<S::Span>> + 'a {
     alt! {
@@ -221,7 +192,7 @@ pub struct Level1Expr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "level-1-expr" #1002,
+    F18V007r1 rule "level-1-expr" #1002 : "is [ defined-unary-op ] primary",
 )]
 pub fn level_1_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level1Expr<S::Span>> + 'a {
     // TODO test
@@ -242,7 +213,7 @@ pub struct MultOperand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "mult-operand" #1004,
+    F18V007r1 rule "mult-operand" #1004 : "is level-1-expr [ power-op mult-operand ]",
 )]
 pub fn mult_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MultOperand<S::Span>> + 'a {
     // TODO test
@@ -267,11 +238,11 @@ pub struct AddOperand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "add-operand" #1005,
+    F18V007r1 rule "add-operand" #1005 : "is [ add-operand mult-op ] mult-operand",
 )]
 pub fn add_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AddOperand<S::Span>> + 'a {
     // TODO test
-    (move |source: S| {
+    move |source: S| {
         let mult_operand = mult_operand(cfg);
         let add_op = mult_op(cfg);
         let right_part = {
@@ -306,7 +277,7 @@ pub fn add_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
         }
 
         Ok((expr, source))
-    })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -316,7 +287,7 @@ pub struct Level2Expr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "level-2-expr" #1006,
+    F18V007r1 rule "level-2-expr" #1006 : "is [ [ level-2-expr ] add-op ] add-operand",
 )]
 pub fn level_2_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level2Expr<S::Span>> + 'a {
     // TODO test
@@ -371,7 +342,7 @@ pub struct Level3Expr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "level-3-expr" #1010,
+    F18V007r1 rule "level-3-expr" #1010 : "is [ level-3-expr concat-op ] level-2-expr",
 )]
 pub fn level_3_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level3Expr<S::Span>> + 'a {
     // TODO test
@@ -420,7 +391,7 @@ pub struct Level4Expr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "level-4-expr" #1012,
+    F18V007r1 rule "level-4-expr" #1012 : "is [ level-3-expr rel-op ] level-3-expr",
 )]
 pub fn level_4_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level4Expr<S::Span>> + 'a {
     // TODO test
@@ -469,7 +440,7 @@ pub struct AndOperand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "and-operand" #1014,
+    F18V007r1 rule "and-operand" #1014 : "is [ not-op ] level-4-expr",
 )]
 pub fn and_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AndOperand<S::Span>> + 'a {
     // TODO test
@@ -489,7 +460,7 @@ pub struct OrOperand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "or-operand" #1015,
+    F18V007r1 rule "or-operand" #1015 : "is [ or-operand and-op ] and-operand",
 )]
 pub fn or_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OrOperand<S::Span>> + 'a {
     // TODO test
@@ -538,7 +509,7 @@ pub struct EquivOperand<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "equiv-operand" #1016,
+    F18V007r1 rule "equiv-operand" #1016 : "is [ equiv-operand or-op ] or-operand",
 )]
 pub fn equiv_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivOperand<S::Span>> + 'a {
     // TODO test
@@ -588,7 +559,7 @@ pub struct Level5Expr<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "level-5-expr" #1017,
+    F18V007r1 rule "level-5-expr" #1017 : "is [ level-5-expr equiv-op ] equiv-operand",
 )]
 pub fn level_5_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level5Expr<S::Span>> + 'a {
     // TODO test
@@ -642,7 +613,14 @@ pub enum Designator<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "designator" #901,
+    F18V007r1 rule "designator" #901 :
+    "is object-name"
+    "or array-element"
+    "or array-section"
+    "or coindexed-named-object"
+    "or complex-part-designator"
+    "or structure-component"
+    "or substring",
 )]
 pub fn designator<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -667,7 +645,9 @@ pub enum Variable<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "variable" #902,
+    F18V007r1 rule "variable" #902 :
+    "is designator"
+    "or function-reference",
 )]
 pub fn variable<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -681,24 +661,10 @@ pub fn variable<'a, S: TextSource + 'a>(
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarVariable<Span>(pub Variable<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-variable",
-)]
-pub fn scalar_variable<'a, S: TextSource + 'a>(
-    cfg: &'a Cfg,
-    not_function_reference: bool,
-) -> impl Parser<S, Token = ScalarVariable<S::Span>> + 'a {
-    // TODO test
-    variable(cfg, not_function_reference).map(ScalarVariable)
-}
-
-#[derive(Debug, Clone)]
 pub struct VariableName<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "variable-name" #903,
+    F18V007r1 rule "variable-name" #903 : "is name",
 )]
 pub fn variable_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = VariableName<S::Span>> + 'a {
     name(cfg, false).map(VariableName)
@@ -708,7 +674,7 @@ pub fn variable_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
 pub struct LogicalVariable<Span>(pub Variable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "logical-variable" #904,
+    F18V007r1 rule "logical-variable" #904 : "is variable",
 )]
 pub fn logical_variable<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -722,7 +688,7 @@ pub fn logical_variable<'a, S: TextSource + 'a>(
 pub struct CharVariable<Span>(pub Variable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "char-variable" #905,
+    F18V007r1 rule "char-variable" #905 : "is variable",
 )]
 pub fn char_variable<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -736,7 +702,7 @@ pub fn char_variable<'a, S: TextSource + 'a>(
 pub struct DefaultCharVariable<Span>(pub Variable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "default-char-variable" #906,
+    F18V007r1 rule "default-char-variable" #906 : "is variable",
 )]
 pub fn default_char_variable<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -747,24 +713,10 @@ pub fn default_char_variable<'a, S: TextSource + 'a>(
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarDefaultCharVariable<Span>(pub DefaultCharVariable<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-default-char-variable",
-)]
-pub fn scalar_default_char_variable<'a, S: TextSource + 'a>(
-    cfg: &'a Cfg,
-    not_function_reference: bool,
-) -> impl Parser<S, Token = ScalarDefaultCharVariable<S::Span>> + 'a {
-    // TODO test
-    default_char_variable(cfg, not_function_reference).map(ScalarDefaultCharVariable)
-}
-
-#[derive(Debug, Clone)]
 pub struct IntVariable<Span>(pub Variable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "int-variable" #907,
+    F18V007r1 rule "int-variable" #907 : "is variable",
 )]
 pub fn int_variable<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -775,27 +727,13 @@ pub fn int_variable<'a, S: TextSource + 'a>(
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarIntVariable<Span>(pub Variable<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-int-variable",
-)]
-pub fn scalar_int_variable<'a, S: TextSource + 'a>(
-    cfg: &'a Cfg,
-    not_function_reference: bool,
-) -> impl Parser<S, Token = ScalarIntVariable<S::Span>> + 'a {
-    // TODO test
-    variable(cfg, not_function_reference).map(ScalarIntVariable)
-}
-
-#[derive(Debug, Clone)]
 pub struct Substring<Span> {
     pub parent: ParentString<Span>,
     pub range: SubstringRange<Span>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "substring" #908,
+    F18V007r1 rule "substring" #908 : "is parent-string ( substring-range )",
 )]
 pub fn substring<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Substring<S::Span>> + 'a {
     // TODO test
@@ -817,12 +755,17 @@ pub enum ParentString<Span> {
     ScalarVariable(VariableName<Span>),
     ArrayElement(ArrayElement<Span>),
     CoindexedNamedObject(CoindexedNamedObject<Span>),
-    ScalarStructureComponent(ScalarStructureComponent<Span>),
-    ScalarConstant(ScalarConstant<Span>),
+    ScalarStructureComponent(StructureComponent<Span>),
+    ScalarConstant(Constant<Span>),
 }
 
 #[syntax_rule(
-    F18V007r1 rule "parent-string" #909,
+    F18V007r1 rule "parent-string" #909 :
+    "is scalar-variable-name"
+    "or array-element"
+    "or coindexed-named-object"
+    "or scalar-structure-component"
+    "or scalar-constant",
 )]
 pub fn parent_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ParentString<S::Span>> + 'a {
     // TODO test
@@ -830,28 +773,28 @@ pub fn parent_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
         variable_name(cfg).map(ParentString::ScalarVariable),
         array_element(cfg).map(ParentString::ArrayElement),
         coindexed_named_object(cfg).map(ParentString::CoindexedNamedObject),
-        scalar_structure_component(cfg).map(ParentString::ScalarStructureComponent),
-        scalar_constant(cfg).map(ParentString::ScalarConstant),
+        structure_component(cfg).map(ParentString::ScalarStructureComponent),
+        constant(cfg).map(ParentString::ScalarConstant),
     )
 }
 
 #[derive(Debug, Clone)]
 pub struct SubstringRange<Span> {
-    pub left: Option<ScalarIntExpr<Span>>,
-    pub right: Option<ScalarIntExpr<Span>>,
+    pub left: Option<IntExpr<Span>>,
+    pub right: Option<IntExpr<Span>>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "substring-range" #910,
+    F18V007r1 rule "substring-range" #910 : "is [ scalar-int-expr ] : [ scalar-int-expr ]",
 )]
 pub fn substring_range<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SubstringRange<S::Span>> + 'a {
     // TODO test
     (
-        scalar_int_expr(cfg).optional(),
+        int_expr(cfg).optional(),
         space(0),
         ':',
         space(0),
-        scalar_int_expr(cfg).optional(),
+        int_expr(cfg).optional(),
     ).map(|(left, _, _, _, right)| SubstringRange {
         left,
         right,
@@ -865,7 +808,7 @@ pub struct DataRef<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "data-ref" #911,
+    F18V007r1 rule "data-ref" #911 : "is part-ref [ % part-ref ] ...",
 )]
 pub fn data_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataRef<S::Span>> + 'a {
     (
@@ -888,7 +831,7 @@ pub struct PartRef<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "part-ref" #912, // part-ref is part-name [ ( section-subscript-list ) ] [ image-selector ]
+    F18V007r1 rule "part-ref" #912 : "is part-name [ ( section-subscript-list ) ] [ image-selector ]",
 )]
 pub fn part_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PartRef<S::Span>> + 'a {
     // TODO test
@@ -914,7 +857,7 @@ pub fn part_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 pub struct StructureComponent<Span>(pub DataRef<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "structure-component" #913,
+    F18V007r1 rule "structure-component" #913 : "is data-ref",
 )]
 pub fn structure_component<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StructureComponent<S::Span>> + 'a {
     // TODO test
@@ -922,21 +865,10 @@ pub fn structure_component<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
 }
 
 #[derive(Debug, Clone)]
-pub struct ScalarStructureComponent<Span>(pub StructureComponent<Span>);
-
-#[syntax_rule(
-    F18V007r1 rule "scalar-structure-component",
-)]
-pub fn scalar_structure_component<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ScalarStructureComponent<S::Span>> + 'a {
-    // TODO test
-    structure_component(cfg).map(ScalarStructureComponent)
-}
-
-#[derive(Debug, Clone)]
 pub struct CoindexedNamedObject<Span>(pub DataRef<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "coindexed-named-object" #914,
+    F18V007r1 rule "coindexed-named-object" #914 : "is data-ref",
 )]
 pub fn coindexed_named_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CoindexedNamedObject<S::Span>> + 'a {
     // TODO test
@@ -950,7 +882,9 @@ pub enum ComplexPartDesignator<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "complex-part-designator" #915,
+    F18V007r1 rule "complex-part-designator" #915 :
+    "is designator % RE"
+    "or designator % IM",
 )]
 pub fn complex_part_designator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ComplexPartDesignator<S::Span>> + 'a {
     alt!(
@@ -966,7 +900,7 @@ pub struct TypeParamInquiry<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "type-param-inquiry" #916,
+    F18V007r1 rule "type-param-inquiry" #916 : "is designator % type-param-name",
 )]
 pub fn type_param_inquiry<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamInquiry<S::Span>> + 'a {
     // TODO test
@@ -984,7 +918,7 @@ pub fn type_param_inquiry<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
 pub struct ArrayElement<Span>(pub DataRef<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "array-element" #917,
+    F18V007r1 rule "array-element" #917 : "is data-ref",
 )]
 pub fn array_element<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayElement<S::Span>> + 'a {
     // TODO test
@@ -998,7 +932,9 @@ pub enum ArraySection<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "array-section" #918,
+    F18V007r1 rule "array-section" #918 :
+    "is data-ref [ ( substring-range ) ]"
+    "or complex-part-designator",
 )]
 pub fn array_section<'a, S: TextSource + 'a>(
     cfg: &'a Cfg,
@@ -1018,14 +954,14 @@ pub fn array_section<'a, S: TextSource + 'a>(
 }
 
 #[derive(Debug, Clone)]
-pub struct Subscript<Span>(pub ScalarIntExpr<Span>);
+pub struct Subscript<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "subscript" #919,
+    F18V007r1 rule "subscript" #919 : "is scalar-int-expr",
 )]
 pub fn subscript<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Subscript<S::Span>> + 'a {
     // TODO test
-    scalar_int_expr(cfg).map(Subscript)
+    int_expr(cfg).map(Subscript)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1036,7 +972,10 @@ pub enum SectionSubscript<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "section-subscript" #920,
+    F18V007r1 rule "section-subscript" #920 :
+    "is subscript"
+    "or subscript-triplet"
+    "or vector-subscript",
 )]
 pub fn section_subscript<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SectionSubscript<S::Span>> + 'a {
     // TODO test
@@ -1055,7 +994,7 @@ pub struct SubscriptTriplet<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "subscript-triplet" #921,
+    F18V007r1 rule "subscript-triplet" #921 : "is [ subscript ] : [ subscript ] [ : stride ]",
 )]
 pub fn subscript_triplet<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SubscriptTriplet<S::Span>> + 'a {
     (
@@ -1074,21 +1013,21 @@ pub fn subscript_triplet<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 }
 
 #[derive(Debug, Clone)]
-pub struct Stride<Span>(pub ScalarIntExpr<Span>);
+pub struct Stride<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "stride" #922,
+    F18V007r1 rule "stride" #922 : "is scalar-int-expr",
 )]
 pub fn stride<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Stride<S::Span>> + 'a {
     // TODO test
-    scalar_int_expr(cfg).map(Stride)
+    int_expr(cfg).map(Stride)
 }
 
 #[derive(Debug, Clone)]
 pub struct VectorSubscript<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "vector-subscript" #923,
+    F18V007r1 rule "vector-subscript" #923 : "is int-expr",
 )]
 pub fn vector_subscript<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = VectorSubscript<S::Span>> + 'a {
     // TODO test
@@ -1102,7 +1041,7 @@ pub struct ImageSelector<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "image-selector" #924,
+    F18V007r1 rule "image-selector" #924 : "is lbracket cosubscript-list [ , image-selector-spec-list ] rbracket",
 )]
 pub fn image_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImageSelector<S::Span>> + 'a {
     (
@@ -1120,44 +1059,47 @@ pub fn image_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 }
 
 #[derive(Debug, Clone)]
-pub struct Cosubscript<Span>(pub ScalarIntExpr<Span>);
+pub struct Cosubscript<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "cosubscript" #925,
+    F18V007r1 rule "cosubscript" #925 : "is scalar-int-expr",
 )]
 pub fn cosubscript<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Cosubscript<S::Span>> + 'a {
     // TODO test
-    scalar_int_expr(cfg).map(Cosubscript)
+    int_expr(cfg).map(Cosubscript)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ImageSelectorSpec<Span> {
     Stat(StatVariable<Span>),
     Team(TeamValue<Span>),
-    TeamNumber(ScalarIntExpr<Span>),
+    TeamNumber(IntExpr<Span>),
 }
 
 #[syntax_rule(
-    F18V007r1 rule "image-selector-spec" #926,
+    F18V007r1 rule "image-selector-spec" #926 :
+    "is STAT = stat-variable"
+    "or TEAM = team-value"
+    "or TEAM_NUMBER = scalar-int-expr",
 )]
 pub fn image_selector_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImageSelectorSpec<S::Span>> + 'a {
     // TODO test
     alt!(
         (kw("stat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| ImageSelectorSpec::Stat(stat_variable)),
         (kw("team", cfg), space(0), '=', space(0), team_value(cfg)).map(|(_, _, _, _, team_value)| ImageSelectorSpec::Team(team_value)),
-        (kw("team_number", cfg), space(0), '=', space(0), scalar_int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| ImageSelectorSpec::TeamNumber(scalar_int_expr)),
+        (kw("team_number", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, int_texpr)| ImageSelectorSpec::TeamNumber(int_texpr)),
     )
 }
 
 #[derive(Debug, Clone)]
-pub struct TeamValue<Span>(pub ScalarExpr<Span>);
+pub struct TeamValue<Span>(pub Expr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "team-value" #1115,
+    F18V007r1 rule "team-value" #1115 : "is scalar-expr",
 )]
 pub fn team_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TeamValue<S::Span>> + 'a {
     // TODO test
-    scalar_expr(cfg).map(TeamValue)
+    expr(cfg).map(TeamValue)
 }
 
 #[derive(Debug, Clone)]
@@ -1169,7 +1111,8 @@ pub struct AllocateStmt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocate-stmt" #927,
+    F18V007r1 rule "allocate-stmt" #927 :
+    "is ALLOCATE ( [ type-spec :: ] allocation-list [ , alloc-opt-list ] )",
 )]
 pub fn allocate_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateStmt<S::Span>> + 'a {
     (
@@ -1203,7 +1146,11 @@ pub enum AllocOpt<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "alloc-opt" #928,
+    F18V007r1 rule "alloc-opt" #928 :
+    "is ERRMSG = errmsg-variable"
+    "or MOLD = source-expr"
+    "or SOURCE = source-expr"
+    "or STAT = stat-variable",
 )]
 pub fn alloc_opt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocOpt<S::Span>> + 'a {
     // TODO test
@@ -1219,7 +1166,7 @@ pub fn alloc_opt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 pub struct ErrmsgVariable<Span>(pub DefaultCharVariable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "errmsg-variable" #929,
+    F18V007r1 rule "errmsg-variable" #929 : "is scalar-default-char-variable",
 )]
 pub fn errmsg_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ErrmsgVariable<S::Span>> + 'a {
     // TODO test
@@ -1230,7 +1177,7 @@ pub fn errmsg_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
 pub struct SourceExpr<Span>(pub Expr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "source-expr" #930,
+    F18V007r1 rule "source-expr" #930 : "is expr",
 )]
 pub fn source_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SourceExpr<S::Span>> + 'a {
     // TODO test
@@ -1245,7 +1192,8 @@ pub struct Allocation<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocation" #931,
+    F18V007r1 rule "allocation" #931 :
+    "is allocate-object [ ( allocate-shape-spec-list ) ] [ lbracket allocate-coarray-spec rbracket ]",
 )]
 pub fn allocation<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Allocation<S::Span>> + 'a {
     // TODO test
@@ -1275,7 +1223,9 @@ pub enum AllocateObject<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocate-object" #932,
+    F18V007r1 rule "allocate-object" #932 :
+    "is variable-name"
+    "or structure-component",
 )]
 pub fn allocate_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateObject<S::Span>> + 'a {
     alt!(
@@ -1291,7 +1241,7 @@ pub struct AllocateShapeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocate-shape-spec" #933,
+    F18V007r1 rule "allocate-shape-spec" #933 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
 pub fn allocate_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateShapeSpec<S::Span>> + 'a {
     // TODO test
@@ -1308,25 +1258,25 @@ pub fn allocate_shape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
 }
 
 #[derive(Debug, Clone)]
-pub struct LowerBoundExpr<Span>(pub ScalarIntExpr<Span>);
+pub struct LowerBoundExpr<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "lower-bound-expr" #934,
+    F18V007r1 rule "lower-bound-expr" #934 : "is scalar-int-expr",
 )]
 pub fn lower_bound_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LowerBoundExpr<S::Span>> + 'a {
     // TODO test
-    scalar_int_expr(cfg).map(LowerBoundExpr)
+    int_expr(cfg).map(LowerBoundExpr)
 }
 
 #[derive(Debug, Clone)]
-pub struct UpperBoundExpr<Span>(pub ScalarIntExpr<Span>);
+pub struct UpperBoundExpr<Span>(pub IntExpr<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "upper-bound-expr" #935,
+    F18V007r1 rule "upper-bound-expr" #935 : "is scalar-int-expr",
 )]
 pub fn upper_bound_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UpperBoundExpr<S::Span>> + 'a {
     // TODO test
-    scalar_int_expr(cfg).map(UpperBoundExpr)
+    int_expr(cfg).map(UpperBoundExpr)
 }
 
 #[derive(Debug, Clone)]
@@ -1336,7 +1286,7 @@ pub struct AllocateCoarraySpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocate-coarray-spec" #936,
+    F18V007r1 rule "allocate-coarray-spec" #936 : "is [ allocate-coshape-spec-list , ] [ lower-bound-expr : ] *",
 )]
 pub fn allocate_coarray_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateCoarraySpec<S::Span>> + 'a {
     (
@@ -1362,7 +1312,7 @@ pub struct AllocateCoshapeSpec<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "allocate-coshape-spec" #937,
+    F18V007r1 rule "allocate-coshape-spec" #937 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
 pub fn allocate_coshape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateCoshapeSpec<S::Span>> + 'a {
     // TODO test
@@ -1380,14 +1330,14 @@ pub fn allocate_coshape_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
 
 
 #[derive(Debug, Clone)]
-pub struct StatVariable<Span>(pub ScalarIntVariable<Span>);
+pub struct StatVariable<Span>(pub IntVariable<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "stat-variable" #942,
+    F18V007r1 rule "stat-variable" #942 : "is scalar-int-variable",
 )]
 pub fn stat_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StatVariable<S::Span>> + 'a {
     // TODO test
-    scalar_int_variable(cfg, false).map(StatVariable)
+    int_variable(cfg, false).map(StatVariable)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1397,7 +1347,9 @@ pub enum ProcPointerObject<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "proc-pointer-object" #1038,
+    F18V007r1 rule "proc-pointer-object" #1038 :
+    "is proc-pointer-name"
+    "or proc-component-ref",
 )]
 pub fn proc_pointer_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcPointerObject<S::Span>> + 'a {
     // TODO test
@@ -1411,7 +1363,7 @@ pub fn proc_pointer_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
 pub struct ProcPointerName<Span>(pub Name<Span>);
 
 #[syntax_rule(
-    F18V007r1 rule "proc-pointer-name" #858,
+    F18V007r1 rule "proc-pointer-name" #858 : "is name",
 )]
 pub fn proc_pointer_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcPointerName<S::Span>> + 'a {
     // TODO test
@@ -1420,17 +1372,17 @@ pub fn proc_pointer_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 
 #[derive(Debug, Clone)]
 pub struct ProcComponentRef<Span> {
-    pub scalar_variable: ScalarVariable<Span>,
+    pub scalar_variable: Variable<Span>,
     pub procedure_component_name: Name<Span>,
 }
 
 #[syntax_rule(
-    F18V007r1 rule "proc-component-ref" #1039,
+    F18V007r1 rule "proc-component-ref" #1039 : "is scalar-variable % procedure-component-name",
 )]
 pub fn proc_component_ref<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcComponentRef<S::Span>> + 'a {
     // TODO test
     (
-        scalar_variable(cfg, true),
+        variable(cfg, true),
         (space(0), '%', space(0)),
         name(cfg, false),
     ).map(|(scalar_variable, _, procedure_component_name)| ProcComponentRef {
@@ -1447,7 +1399,10 @@ pub enum ProcTarget<Span> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "proc-target" #1040,
+    F18V007r1 rule "proc-target" #1040 :
+    "is expr"
+    "or procedure-name"
+    "or proc-component-ref",
 )]
 pub fn proc_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcTarget<S::Span>> + 'a {
     // TODO test

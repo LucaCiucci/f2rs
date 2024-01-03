@@ -8,7 +8,7 @@ URL = "https://j3-fortran.org/doc/year/18/18-007r1.pdf"
 FILE_PATH = 'resources/18-007r1.pdf'
 PROCESSED_FILE_PATH = 'resources/18-007r1.rules.txt'
 OUT_FILE_PATH = 'f2rs-parse/src/rules/report/rules-18-007r1.md'
-OUT_RULE_LIST_PATH = 'f2rs-parse/src/rules/report/rules-18-007r1.rs'
+OUT_RULE_LIST_PATH = 'f2rs-parse/f2rs-parse-derive/src/rules-18-007r1.rs'
 
 # a regexp that matches all line numbers, then space, then "R<some_digits>" then the name of the rule (letters, bumbers, -)
 PDF_RULE_REGEX = re.compile(r'\n(\d+)\s+R(\d+)\s+([A-Za-z0-9-]+)')

@@ -36,9 +36,9 @@ fn test_configs() -> impl Iterator<Item = Cfg> {
 }
 
 #[syntax_rule(
-    F18V007r1 rule "xyz-list" #401,
-    F18V007r1 rule "xyz-name" #402,
-    F18V007r1 rule "scalar-xyz" #403,
+    F18V007r1 rule "xyz-list" #401 : "is xyz [ , xyz ] ...",
+    F18V007r1 rule "xyz-name" #402 : "is name",
+    F18V007r1 rule "scalar-xyz" #403 : "is xyz",
 )]
 pub fn ignored_example_rule<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
     |_| unimplemented!("not a real rule")
