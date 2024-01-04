@@ -75,6 +75,34 @@ pub fn function_reference<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct CallStmt<Span> {
+    pub procedure_designator: ProcedureDesignator<Span>,
+    pub actual_arg_spec_list: Option<Vec<ActualArgSpec<Span>>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "call-stmt" #1521 : "is CALL procedure-designator [ ( [ actual-arg-spec-list ] ) ]",
+)]
+pub fn call_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CallStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("call", cfg),
+        space(0),
+        procedure_designator(cfg),
+        (
+            (space(0), '(', space(0)),
+            list(actual_arg_spec(cfg), 0..),
+            (space(0), ')', space(0)),
+        ).map(|(_, list, _)| list).optional(),
+    ).map(|(_, _, _, procedure_designator, actual_arg_spec_list)| CallStmt {
+        procedure_designator,
+        actual_arg_spec_list,
+        comment: None,
+    })
+}
+
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ProcedureDesignator<Span> {
     Name(Name<Span>),
