@@ -58,17 +58,14 @@ where
 {
     type Token = R;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        let r = self.parser.parse(source);
-        match r {
-            Ok((token, source)) => {
-                if let Some(token) = (self.map)(token) {
-                    Ok((token, source))
-                } else {
-                    Err(source)
-                }
-            }
-            Err(source) => Err(source)
-        }
+        self.parser
+            .parse(source)
+            .map(|(token, source)| if let Some(token) = (self.map)(token) {
+                Some((token, source))
+            } else {
+                None
+            })
+            .flatten()
     }
 }
 
@@ -88,7 +85,7 @@ pub fn matches<S: Source>(test: impl Fn(&S::Element) -> bool + Clone) -> impl Pa
             if test(&element) {
                 let span = source.make_span(source.start(), source.next(source.start(), 1));
                 let next = source.next(source.start(), 1);
-                return Ok((
+                return Some((
                     Match {
                         span,
                         element,
@@ -98,7 +95,7 @@ pub fn matches<S: Source>(test: impl Fn(&S::Element) -> bool + Clone) -> impl Pa
             }
         }
 
-        source.unparsed_result()
+        None
     }
 }
 
@@ -124,15 +121,15 @@ macro_rules! alt {
         move |source: S| {
             if false { unreachable!() }
             $(
-                else if let Ok((token, source)) = $a.parse(source.clone()) {
-                    Ok((
+                else if let Some((token, source)) = $a.parse(source.clone()) {
+                    Some((
                         token,
                         source,
                     ))
                 }
             )*
             else {
-                source.unparsed_result()
+                None
             }
         }
     };
@@ -151,14 +148,12 @@ where
 {
     move |source: S| {
         for parser in parsers() {
-            if let Ok((token, source)) = parser.parse(source.clone()) {
-                return Ok((
-                    token,
-                    source,
-                ))
+            let r = parser.parse(source.clone());
+            if r.is_some() {
+                return r
             }
         }
-        source.unparsed_result()
+        None
     }
 }
 

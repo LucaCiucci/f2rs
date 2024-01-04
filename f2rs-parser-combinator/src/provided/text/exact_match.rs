@@ -27,10 +27,10 @@ impl<Span> Char<Span> {
                         }
                     )
                 } else {
-                    source.unparsed_result()
+                    None
                 }
             } else {
-                source.unparsed_result()
+                None
             }
         }
     }
@@ -139,11 +139,11 @@ impl<Span: Clone> StringMatch<Span> {
             for c in value.chars() {
                 if case_sensitive {
                     if source.get_at(&index) != Some(c) {
-                        return source.unparsed_result();
+                        return None;
                     }
                 } else {
                     if source.get_at(&index).map(|c| c.to_ascii_lowercase()) != Some(c.to_ascii_lowercase()) {
-                        return source.unparsed_result();
+                        return None;
                     }
                 }
                 index = source.next(index, 1);

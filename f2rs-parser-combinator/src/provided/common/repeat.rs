@@ -1,4 +1,4 @@
-use crate::tokenization::{Parser, Source, PResult, ParserCore, unpack_presult};
+use crate::tokenization::{Parser, Source, PResult, ParserCore};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Named<P> {
@@ -49,7 +49,7 @@ where
         if *condition {
             p.parse(source)
         } else {
-            source.unparsed_result()
+            None
         }
     }
 }
@@ -76,14 +76,9 @@ where
     type Token = P2::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Then { p1, fp2 } = self;
-        let r = p1.parse(source);
-        match r {
-            Ok((token, new_source)) => {
-                let p2 = fp2(token);
-                p2.parse(new_source)
-            }
-            Err(new_source) => new_source.unparsed_result(),
-        }
+        let (token, new_source) = p1.parse(source)?;
+        let p2 = fp2(token);
+        p2.parse(new_source)
     }
 }
 
@@ -138,7 +133,7 @@ where
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Or { p1, p2 } = self;
         let r1 = p1.parse(source.clone());
-        if r1.is_ok() {
+        if r1.is_some() {
             return r1;
         } else {
             p2.parse(source)
@@ -164,13 +159,11 @@ where
     type Token = Option<P1::Token>;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Optional { p1 } = self;
-        //let (token, new_source) = unpack_presult(p1.parse(source));
-        //parsed(token, new_source)
-        let r = p1.parse(source);
-        match r {
-            Ok((token, new_source)) => Ok((Some(token), new_source)),
-            Err(new_source) => Ok((None, new_source)),
-        }
+        Some(
+            p1
+                .parse(source.clone())
+                .map_or((None, source), |(token, new_source)| (Some(token), new_source))
+        )
     }
 }
 
@@ -192,11 +185,8 @@ where
     type Token = P1::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let DoNotConsume { p1 } = self;
-        let r = p1.parse(source);
-        match r {
-            Ok((token, source)) => Ok((token, source)),
-            Err(new_source) => new_source.unparsed_result(),
-        }
+        let (token, _consumed) = p1.parse(source.clone())?;
+        Some((token, source))
     }
 }
 
@@ -222,12 +212,12 @@ where
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Condition { p, f } = self;
         let r = p.parse(source.clone());
-        if let Ok((token, new_source)) = r {
+        if let Some((token, new_source)) = r {
             if f(&token, &new_source) {
-                return Ok((token, new_source));
+                return Some((token, new_source));
             }
         }
-        source.unparsed_result()
+        None
     }
 }
 
@@ -244,15 +234,13 @@ pub fn fold_many_until<S: Source, P: Parser<S>, U: Parser<S>, R>(
         let mut count = 0;
         let mut until_result = None;
         loop {
-            let (token, new_source) = unpack_presult(until.parse(source_tail));
-            source_tail = new_source;
-            if let Some(token) = token {
+            if let Some((token, new_source)) = until.parse(source_tail.clone()) {
+                source_tail = new_source;
                 until_result = Some(token);
                 break;
             }
-            let (token, new_source) = unpack_presult(parser.parse(source_tail));
-            source_tail = new_source;
-            if let Some(token) = token {
+            if let Some((token, new_source)) = parser.parse(source_tail.clone()) {
+                source_tail = new_source;
                 let r = fold(result, token);
                 result = r.0;
                 count += 1;
@@ -265,9 +253,9 @@ pub fn fold_many_until<S: Source, P: Parser<S>, U: Parser<S>, R>(
         }
 
         if range.contains(&count) {
-            Ok(((result, until_result), source_tail))
+            Some(((result, until_result), source_tail))
         } else {
-            source.unparsed_result()
+            None
         }
     }
 }
@@ -277,8 +265,8 @@ pub struct Never;
 
 impl<S: Source> ParserCore<S> for Never {
     type Token = ();
-    fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        source.unparsed_result()
+    fn parse(&self, _source: S) -> PResult<Self::Token, S> {
+        None
     }
 }
 
@@ -370,7 +358,7 @@ macro_rules! impl_parser_for_tuple {
         {
             type Token = ();
             fn parse(&self, source: S) -> PResult<Self::Token, S> {
-                Ok(((), source))
+                Some(((), source))
             }
         }
     };
@@ -386,15 +374,14 @@ macro_rules! impl_parser_for_tuple {
                 let ($($P),*,) = self;
                 let mut processing_source = source.clone();
                 $(
-                    let (token, new_source) = unpack_presult($P.parse(processing_source));
-                    processing_source = new_source;
-                    let $P = token;
-                    let $P = match $P {
-                        Some($P) => $P,
-                        None => return source.unparsed_result(),
+                    let $P = if let Some((token, new_source)) = $P.parse(processing_source){
+                        processing_source = new_source;
+                        token
+                    } else {
+                        return None;
                     };
                 )*
-                Ok((($($P),*,), processing_source))
+                Some((($($P),*,), processing_source))
             }
         }
     };

@@ -23,13 +23,13 @@ pub struct DerivedTypeDef<Span> {
     "    end-type-stmt",
 )]
 pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DerivedTypeDef<S::Span>> + 'a {
+    // TODO rewrite better
     // TODO test
     move |source: S| {
         let orig_source = source.clone();
 
         let (s, source) = derived_type_stmt(cfg)
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
         let name = s.name.0.value();
 
@@ -38,11 +38,10 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
             end_type_stmt(cfg, name),
             0..,
         )
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
         if let Some(end) = end {
-            return Ok((DerivedTypeDef {
+            return Some((DerivedTypeDef {
                 decl_stmt: s,
                 type_param_def_stmts,
                 priv_or_seq: vec![],
@@ -57,11 +56,10 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
             end_type_stmt(cfg, name),
             0..,
         )
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
         if let Some(end) = end {
-            return Ok((DerivedTypeDef {
+            return Some((DerivedTypeDef {
                 decl_stmt: s,
                 type_param_def_stmts,
                 priv_or_seq,
@@ -72,11 +70,10 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
         }
 
         let ((component_part, end), source) = component_part(cfg, end_type_stmt(cfg, name))
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
         if let Some(end) = end {
-            return Ok((DerivedTypeDef {
+            return Some((DerivedTypeDef {
                 decl_stmt: s,
                 type_param_def_stmts,
                 priv_or_seq,
@@ -87,11 +84,10 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
         }
 
         let ((type_bound_procedure_part, end), source) = type_bound_procedure_part(cfg, end_type_stmt(cfg, name))
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
         if let Some(end) = end {
-            return Ok((DerivedTypeDef {
+            return Some((DerivedTypeDef {
                 decl_stmt: s,
                 type_param_def_stmts,
                 priv_or_seq,
@@ -106,10 +102,9 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
         let (end, source) = end_type_stmt(cfg, name)
             .map(|end| Some(end))
             .or(eof().map(|_| None))
-            .parse(source)
-            .map_err(|_| orig_source.clone())?;
+            .parse(source)?;
 
-        Ok((DerivedTypeDef {
+        Some((DerivedTypeDef {
             decl_stmt: s,
             type_param_def_stmts,
             priv_or_seq,

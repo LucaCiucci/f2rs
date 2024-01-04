@@ -2,7 +2,6 @@ use crate::tokenization::{Parser, Source, TokenTree, TextSource};
 
 mod exact_match; pub use exact_match::*;
 mod space; pub use space::*;
-pub mod rusty; use rusty::*;
 
 pub struct TextSrc<'a> {
     _text: &'a str,

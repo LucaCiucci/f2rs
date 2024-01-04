@@ -28,7 +28,7 @@ pub fn eof<S: Source>() -> impl Parser<S, Token = ()> {
             let s = source.start();
             source.parsed_result(s, |_| ())
         } else {
-            source.unparsed_result()
+            None
         }
     }
 }

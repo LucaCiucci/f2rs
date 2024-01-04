@@ -11,23 +11,15 @@ pub trait TokenTree<Span> {
     }
 }
 
-pub type PResult<T, S> = Result<(T, S), S>; // TODO parse error
+pub type PResult<T, S> = Option<(T, S)>; // TODO parse error
 
 #[deprecated]
-pub fn unparsed<T, S>(source: S) -> PResult<T, S> {
-    Err(source)
+pub fn unparsed<T, S>() -> PResult<T, S> {
+    None
 }
 #[deprecated]
 pub fn parsed<T, S>(value: T, tail: S) -> PResult<T, S> {
-    Ok((value, tail))
-}
-
-//#[deprecated]
-pub fn unpack_presult<T, S>(result: PResult<T, S>) -> (Option<T>, S) {
-    match result {
-        Ok((token, tail)) => (Some(token), tail),
-        Err(tail) => (None, tail),
-    }
+    Some((value, tail))
 }
 
 pub trait ParserCore<S: Source> {
@@ -45,7 +37,7 @@ where
 // TODO rename to Parser
 pub trait Parser<S: Source>: ParserCore<S> + Clone {
     fn parses(&self, source: S) -> bool {
-        self.parse(source).is_ok()
+        self.parse(source).is_some()
     }
 
     fn named(self, name: &'static str) -> Named<Self>
@@ -159,12 +151,9 @@ pub trait Source: Clone {
         let span = self.make_span(self.start(), end.clone());
         (span, self.tail(end))
     }
-    fn unparsed_result<T>(self) -> PResult<T, Self> {
-        Err(self)
-    }
     fn parsed_result<T>(self, end: Self::Index, token: impl FnOnce(Self::Span) -> T) -> PResult<T, Self> {
         let (span, tail) = self.take(end);
-        Ok((token(span), tail))
+        Some((token(span), tail))
     }
     fn null_span() -> Self::Span;
 }

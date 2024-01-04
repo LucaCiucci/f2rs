@@ -194,7 +194,7 @@ fn definition_line(
         }
         let r = utils::identifier().parse(line.as_str());
         match r {
-            Ok((id, rest)) => {
+            Some((id, rest)) => {
                 if utils::is_rule_keyword(&id) {
                     processed.push_str(&format!("**{}**", id));
                 } else if utils::is_keyword(&id) {
@@ -204,7 +204,7 @@ fn definition_line(
                 }
                 line = rest.to_string();
             },
-            Err(_) => {
+            None => {
                 processed.push(line.chars().next().unwrap());
                 line = line.chars().skip(1).collect();
             }

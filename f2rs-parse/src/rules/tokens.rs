@@ -191,13 +191,13 @@ pub fn special_character<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Spe
         let mut sc = SpecialCharacter::Blank;
         loop {
             let r = sc.parse(source.clone());
-            if r.is_ok() {
+            if r.is_some() {
                 return r;
             }
             if let Some(next) = sc.next() {
                 sc = next;
             } else {
-                return source.unparsed_result();
+                return None;
             }
         }
     }

@@ -32,22 +32,21 @@ pub fn expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = Expr {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 
@@ -261,22 +260,21 @@ pub fn add_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = AddOperand {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 
@@ -305,9 +303,9 @@ pub fn level_2_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             ).map(|(_, op, _, expr)| (op, expr))
         };
 
-        let (lop, source) = match add_op.parse(source) {
-            Ok((op, source)) => (Some(op), source),
-            Err(source) => (None, source),
+        let (lop, source) = match add_op.parse(source.clone()) {
+            Some((op, source)) => (Some(op), source),
+            None => (None, source),
         };
         let (right, mut source) = add_operand.parse(source)?;
         let mut expr = Level2Expr {
@@ -315,22 +313,21 @@ pub fn level_2_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = Level2Expr {
                         left: Some((Some(Box::new(expr)), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     
     }
 }
@@ -365,22 +362,21 @@ pub fn level_3_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = Level3Expr {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 
@@ -414,22 +410,21 @@ pub fn level_4_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = Level4Expr {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 
@@ -483,22 +478,21 @@ pub fn or_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token 
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = OrOperand {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 
@@ -532,23 +526,21 @@ pub fn equiv_operand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = EquivOperand {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
-    
+        Some((expr, source))
     }
 }
 
@@ -582,22 +574,21 @@ pub fn level_5_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             right,
         };
         loop {
-            match right_part.parse(source) {
-                Ok(((op, right), new_source)) => {
+            match right_part.parse(source.clone()) {
+                Some(((op, right), new_source)) => {
                     source = new_source;
                     expr = Level5Expr {
                         left: Some((Box::new(expr), op)),
                         right,
                     };
                 },
-                Err(s) => {
-                    source = s;
+                None => {
                     break
                 },
             }
         }
 
-        Ok((expr, source))
+        Some((expr, source))
     }
 }
 

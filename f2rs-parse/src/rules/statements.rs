@@ -226,7 +226,7 @@ mod test {
             assert!(parser.parse("100").unwrap().0.value == 100);
             assert!(parser.parse("1000").unwrap().0.value == 1000);
             assert!(parser.parse("10000").unwrap().0.value == 10000);
-            assert!(parser.parse("100000").is_err());
+            assert!(parser.parse("100000").is_none());
         }
     }
 
