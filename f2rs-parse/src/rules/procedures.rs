@@ -53,6 +53,28 @@ pub fn defined_io_generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
 }
 
 #[derive(Debug, Clone)]
+pub struct IntrinsicStmt<Span> {
+    pub intrinsic_procedure_name_list: Vec<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "intrinsic-stmt" #1519 : "is INTRINSIC [ :: ] intrinsic-procedure-name-list",
+)]
+pub fn intrinsic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("intrinsic", cfg),
+        (space(0), "::", space(0)).optional(),
+        list(name(cfg, false), 1..),
+        statement_termination(),
+    ).map(|(_, _, _, intrinsic_procedure_name_list, comment)| IntrinsicStmt {
+        intrinsic_procedure_name_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
 pub struct FunctionReference<Span> {
     pub procedure_designator: ProcedureDesignator<Span>,
     pub actual_arg_spec_list: Option<Vec<ActualArgSpec<Span>>>,
@@ -197,6 +219,53 @@ pub fn alt_return_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
     })
 }
 
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum PrefixSpec<Span> {
+    DeclarationTypeSpec(DeclarationTypeSpec<Span>),
+    Elemental,
+    Impure,
+    Module,
+    NonRecursive,
+    Pure,
+    Recursive,
+}
+
+#[derive(Debug, Clone)]
+pub struct Prefix<Span> {
+    pub prefix_specs: Vec<PrefixSpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "prefix" #1526 : "is prefix-spec [ prefix-spec ] ...",
+)]
+pub fn prefix<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Prefix<S::Span>> + 'a {
+    many(prefix_spec(cfg), 1..).map(|prefix_specs| Prefix {
+        prefix_specs,
+    })
+}
+
+#[syntax_rule(
+    F18V007r1 rule "prefix-spec" #1527 :
+    "is declaration-type-spec"
+    "or ELEMENTAL"
+    "or IMPURE"
+    "or MODULE"
+    "or NON_RECURSIVE"
+    "or PURE"
+    "or RECURSIVE",
+)]
+pub fn prefix_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PrefixSpec<S::Span>> + 'a {
+    alt!(
+        declaration_type_spec(cfg).map(PrefixSpec::DeclarationTypeSpec),
+        (kw("elemental", cfg)).map(|_| PrefixSpec::Elemental),
+        (kw("impure", cfg)).map(|_| PrefixSpec::Impure),
+        (kw("module", cfg)).map(|_| PrefixSpec::Module),
+        (kw("non_recursive", cfg)).map(|_| PrefixSpec::NonRecursive),
+        (kw("pure", cfg)).map(|_| PrefixSpec::Pure),
+        (kw("recursive", cfg)).map(|_| PrefixSpec::Recursive),
+    )
+}
+
 #[derive(Debug, Clone)]
 pub struct ProcLanguageBindingSpec<Span>(pub LanguageBindingSpec<Span>);
 
@@ -205,6 +274,61 @@ pub struct ProcLanguageBindingSpec<Span>(pub LanguageBindingSpec<Span>);
 )]
 pub fn proc_language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcLanguageBindingSpec<S::Span>> + 'a {
     language_binding_spec(cfg).map(ProcLanguageBindingSpec)
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionSubprogram<Span> {
+    pub function_stmt: FunctionStmt<Span>,
+    pub specification_part: Option<SpecificationPart<Span>>,
+    pub execution_part: Option<ExecutionPart<Span>>,
+    pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
+    pub end_function_stmt: EndFunctionStmt<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "function-subprogram" #1529 :
+    "is function-stmt"
+    "    [ specification-part ]"
+    "    [ execution-part ]"
+    "    [ internal-subprogram-part ]"
+    "    end-function-stmt",
+)]
+pub fn function_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionSubprogram<S::Span>> + 'a {
+    |_| todo!("TODO: \"function_subprogram\" parser not implemented yet")
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionStmt<Span> {
+    pub prefix: Option<Prefix<Span>>,
+    pub function_name: Name<Span>,
+    pub dummy_arg_name_list: Vec<DummyArgName<Span>>,
+    pub suffix: Option<Suffix<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "function-stmt" #1530 :
+    "is [ prefix ] FUNCTION function-name ( [ dummy-arg-name-list ] ) [ suffix ]",
+)]
+pub fn function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionStmt<S::Span>> + 'a {
+    (
+        space(0),
+        prefix(cfg).optional(),
+        kw("function", cfg),
+        space(0),
+        name(cfg, false),
+        (space(0), '(', space(0)),
+        list(dummy_arg_name(cfg), 0..),
+        (space(0), ')', space(0)),
+        suffix(cfg).optional(),
+        statement_termination(),
+    ).map(|(_, prefix, _, _, function_name, _, dummy_arg_name_list, _, suffix, comment)| FunctionStmt {
+        prefix,
+        function_name,
+        dummy_arg_name_list,
+        suffix,
+        comment,
+    })
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -239,6 +363,34 @@ pub fn suffix<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Su
             proc_language_binding_spec(cfg).optional(),
         ).map(|(_, _, _, _, result_name, _, _, proc_language_binding_spec)| Suffix::Form2(result_name, proc_language_binding_spec)),
     )
+}
+
+#[derive(Debug, Clone)]
+pub struct EndFunctionStmt<Span> {
+    pub function_name: Option<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "end-function-stmt" #1533 : "is END [ FUNCTION [ function-name ] ]",
+)]
+pub fn end_function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndFunctionStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("end", cfg),
+        (
+            space(0),
+            kw("function", cfg),
+            (
+                space(0),
+                name(cfg, false),
+            ).map(|(_, name)| name).optional(),
+        ).map(|(_, _, name)| name).optional(),
+        statement_termination(),
+    ).map(|(_, _, function_name, comment)| EndFunctionStmt {
+        function_name: function_name.flatten(),
+        comment,
+    })
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
