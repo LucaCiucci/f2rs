@@ -1,7 +1,7 @@
 
 use std::ops::RangeBounds;
 
-use crate::{provided::common::fold_many, tokenization::{PResult, unparsed, parsed}};
+use crate::provided::common::fold_many;
 
 use super::*;
 
@@ -25,9 +25,10 @@ pub fn white_spaced<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, To
 pub fn eof<S: Source>() -> impl Parser<S, Token = ()> {
     move |source: S| {
         if source.empty() {
-            parsed((), source)
+            let s = source.start();
+            source.parsed_result(s, |_| ())
         } else {
-            unparsed(source)
+            source.unparsed_result()
         }
     }
 }

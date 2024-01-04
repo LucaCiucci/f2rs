@@ -8,6 +8,7 @@
         "Dealloc",
         "declaree",
         "Errmsg",
-        "Mult"
+        "Mult",
+        "presult"
     ]
 }

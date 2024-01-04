@@ -1,4 +1,4 @@
-use crate::tokenization::{Parser, Source, PResult, ParserCore, unpack_presult, parsed};
+use crate::tokenization::{Parser, Source, PResult, ParserCore, unpack_presult};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Named<P> {
@@ -76,13 +76,14 @@ where
     type Token = P2::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Then { p1, fp2 } = self;
-        let (token, new_source) = unpack_presult(p1.parse(source.clone()));
-        let token = match token {
-            Some(token) => token,
-            None => return source.unparsed_result(),
-        };
-        let p2 = fp2(token);
-        p2.parse(new_source)
+        let r = p1.parse(source);
+        match r {
+            Ok((token, new_source)) => {
+                let p2 = fp2(token);
+                p2.parse(new_source)
+            }
+            Err(new_source) => new_source.unparsed_result(),
+        }
     }
 }
 
@@ -109,7 +110,8 @@ where
         if *condition {
             p1.clone().map(|r| Some(r)).parse(source)
         } else {
-            parsed(None, source)
+            let s = source.start();
+            source.parsed_result(s, |_| None)
         }
     }
 }
@@ -145,37 +147,6 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct OrError<P1, E> {
-    p1: P1,
-    e: E,
-}
-
-impl<P1, E> OrError<P1, E> {
-    pub fn new(p1: P1, e: E) -> Self {
-        Self { p1, e }
-    }
-}
-
-impl<S: Source, P1, E> ParserCore<S> for OrError<P1, E>
-where
-    Self: Clone,
-    P1: Parser<S>,
-    E: Clone,
-{
-    type Token = Result<P1::Token, E>;
-    fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        let OrError { p1, e } = self;
-        let r1 = p1.parse(source.clone());
-        let r1 = unpack_presult(r1);
-        if let Some(token) = r1.0 {
-            parsed(Ok(token), r1.1)
-        } else {
-            parsed(Err(e.clone()), source)
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct Optional<P1> {
     p1: P1,
 }
@@ -193,8 +164,13 @@ where
     type Token = Option<P1::Token>;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Optional { p1 } = self;
-        let (token, new_source) = unpack_presult(p1.parse(source));
-        parsed(token, new_source)
+        //let (token, new_source) = unpack_presult(p1.parse(source));
+        //parsed(token, new_source)
+        let r = p1.parse(source);
+        match r {
+            Ok((token, new_source)) => Ok((Some(token), new_source)),
+            Err(new_source) => Ok((None, new_source)),
+        }
     }
 }
 
@@ -216,11 +192,10 @@ where
     type Token = P1::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let DoNotConsume { p1 } = self;
-        let (token, _) = unpack_presult(p1.parse(source.clone()));
-        if let Some(token) = token {
-            parsed(token, source)
-        } else {
-            source.unparsed_result()
+        let r = p1.parse(source);
+        match r {
+            Ok((token, source)) => Ok((token, source)),
+            Err(new_source) => new_source.unparsed_result(),
         }
     }
 }
@@ -246,10 +221,10 @@ where
     type Token = P::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
         let Condition { p, f } = self;
-        let (token, new_source) = unpack_presult(p.parse(source.clone()));
-        if let Some(token) = token {
+        let r = p.parse(source.clone());
+        if let Ok((token, new_source)) = r {
             if f(&token, &new_source) {
-                return parsed(token, new_source);
+                return Ok((token, new_source));
             }
         }
         source.unparsed_result()
@@ -290,7 +265,7 @@ pub fn fold_many_until<S: Source, P: Parser<S>, U: Parser<S>, R>(
         }
 
         if range.contains(&count) {
-            parsed((result, until_result), source_tail)
+            Ok(((result, until_result), source_tail))
         } else {
             source.unparsed_result()
         }
@@ -395,7 +370,7 @@ macro_rules! impl_parser_for_tuple {
         {
             type Token = ();
             fn parse(&self, source: S) -> PResult<Self::Token, S> {
-                parsed((), source)
+                Ok(((), source))
             }
         }
     };
@@ -419,7 +394,7 @@ macro_rules! impl_parser_for_tuple {
                         None => return source.unparsed_result(),
                     };
                 )*
-                parsed(($($P),*,), processing_source)
+                Ok((($($P),*,), processing_source))
             }
         }
     };

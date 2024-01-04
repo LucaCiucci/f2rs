@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::tokenization::{ParserCore, Parser, Source, PResult, unpack_presult, unparsed};
+use crate::tokenization::{ParserCore, Parser, Source, PResult};
 
 mod repeat; pub use repeat::*;
 
@@ -27,13 +27,7 @@ where
 {
     type Token = F::Output;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        let (token, source) = unpack_presult(self.parser.parse(source));
-        //(token.map(|t| (self.map)(t)), source)
-        if let Some(token) = token {
-            Ok(((self.map)(token), source))
-        } else {
-            Err(source)
-        }
+        self.parser.parse(source).map(|(token, source)| ((self.map)(token), source))
     }
 }
 
@@ -64,16 +58,16 @@ where
 {
     type Token = R;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        let (token, source) = unpack_presult(self.parser.parse(source));
-        // (token.and_then(|t| (self.map)(t)), source)
-        if let Some(token) = token {
-            if let Some(token) = (self.map)(token) {
-                Ok((token, source))
-            } else {
-                Err(source)
+        let r = self.parser.parse(source);
+        match r {
+            Ok((token, source)) => {
+                if let Some(token) = (self.map)(token) {
+                    Ok((token, source))
+                } else {
+                    Err(source)
+                }
             }
-        } else {
-            Err(source)
+            Err(source) => Err(source)
         }
     }
 }
@@ -164,7 +158,7 @@ where
                 ))
             }
         }
-        unparsed(source)
+        source.unparsed_result()
     }
 }
 

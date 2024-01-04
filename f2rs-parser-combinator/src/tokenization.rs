@@ -1,5 +1,5 @@
 
-use crate::{provided::common::{Mapped, Then, Or, Optional, MappedIf, Where_, OrError}, prelude::{DoNotConsume, Named, If_, Condition}};
+use crate::{provided::common::{Mapped, Then, Or, Optional, MappedIf, Where_}, prelude::{DoNotConsume, Named, If_, Condition}};
 
 pub trait TokenTree<Span> {
     fn span<'s>(&'s self) -> &'s Span;
@@ -22,7 +22,7 @@ pub fn parsed<T, S>(value: T, tail: S) -> PResult<T, S> {
     Ok((value, tail))
 }
 
-#[deprecated]
+//#[deprecated]
 pub fn unpack_presult<T, S>(result: PResult<T, S>) -> (Option<T>, S) {
     match result {
         Ok((token, tail)) => (Some(token), tail),
@@ -106,10 +106,6 @@ pub trait Parser<S: Source>: ParserCore<S> + Clone {
         Or::new(self, p2)
     }
 
-    fn or_error<E: Clone>(self, e: E) -> OrError<Self, E> {
-        OrError::new(self, e)
-    }
-
     fn optional(self) -> Optional<Self>
     where
         Self: Sized,
@@ -164,11 +160,11 @@ pub trait Source: Clone {
         (span, self.tail(end))
     }
     fn unparsed_result<T>(self) -> PResult<T, Self> {
-        unparsed(self)
+        Err(self)
     }
     fn parsed_result<T>(self, end: Self::Index, token: impl FnOnce(Self::Span) -> T) -> PResult<T, Self> {
         let (span, tail) = self.take(end);
-        parsed(token(span), tail)
+        Ok((token(span), tail))
     }
     fn null_span() -> Self::Span;
 }
