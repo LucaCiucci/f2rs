@@ -1,3 +1,3 @@
-theme: architect
+theme: jekyll-theme-architect
 title: f2rs
 description: "`f2rs` is a Fortran to Rust transpiler"
