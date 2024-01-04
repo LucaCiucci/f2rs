@@ -276,26 +276,26 @@ pub fn proc_language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl 
     language_binding_spec(cfg).map(ProcLanguageBindingSpec)
 }
 
-//#[derive(Debug, Clone)]
-//pub struct FunctionSubprogram<Span> {
-//    pub function_stmt: FunctionStmt<Span>,
-//    pub specification_part: Option<SpecificationPart<Span>>,
-//    pub execution_part: Option<ExecutionPart<Span>>,
-//    pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
-//    pub end_function_stmt: EndFunctionStmt<Span>,
-//}
-//
-//#[syntax_rule(
-//    F18V007r1 rule "function-subprogram" #1529 :
-//    "is function-stmt"
-//    "    [ specification-part ]"
-//    "    [ execution-part ]"
-//    "    [ internal-subprogram-part ]"
-//    "    end-function-stmt",
-//)]
-//pub fn function_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionSubprogram<S::Span>> + 'a {
-//    |_| todo!("TODO: \"function_subprogram\" parser not implemented yet")
-//}
+#[derive(Debug, Clone)]
+pub struct FunctionSubprogram<Span> {
+    pub function_stmt: FunctionStmt<Span>,
+    pub specification_part: Option<SpecificationPart<Span>>,
+    pub execution_part: Option<ExecutionPart<Span>>,
+    pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
+    pub end_function_stmt: EndFunctionStmt<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "function-subprogram" #1529 :
+    "is function-stmt"
+    "    [ specification-part ]"
+    "    [ execution-part ]"
+    "    [ internal-subprogram-part ]"
+    "    end-function-stmt",
+)]
+pub fn function_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FunctionSubprogram<S::Span>> + 'a {
+    |_| todo!("TODO: \"function_subprogram\" parser not implemented yet")
+}
 
 #[derive(Debug, Clone)]
 pub struct FunctionStmt<Span> {

@@ -26,8 +26,6 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
     // TODO rewrite better
     // TODO test
     move |source: S| {
-        let orig_source = source.clone();
-
         let (s, source) = derived_type_stmt(cfg)
             .parse(source)?;
 
