@@ -1,7 +1,7 @@
 # f2rs
 A WIP Fortran to Rust transpiler
 
-`f2rs` will transpile modern Fortran code to human-friendly Rust code and will provide [`f2rs-adapter`](https://github.com/LucaCiucci/f2rs/tree/main/f2rs-adapter) crate that mimics the Fortran standard library.
+`f2rs` will transpile modern Fortran code to human-friendly Rust code and will provide a [`f2rs-adapter`](https://github.com/LucaCiucci/f2rs/tree/main/f2rs-adapter) crate that mimics the Fortran standard library.
 
 At the moment, only `Fortran -> Rust` is planned since this is the most straightforward, but other languages may be supported in the future as the project evolves.
 

@@ -412,6 +412,27 @@ pub fn dummy_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 }
 
 #[derive(Debug, Clone)]
+pub struct SeparateModuleSubprogram<Span> {
+    pub mp_subprogram_stmt: MpSubprogramStmt<Span>,
+    pub specification_part: Option<SpecificationPart<Span>>,
+    pub execution_part: Option<ExecutionPart<Span>>,
+    pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
+    pub end_mp_subprogram_stmt: EndMpSubprogramStmt<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "separate-module-subprogram" #1538 :
+    "is mp-subprogram-stmt"
+    "    [ specification-part ]"
+    "    [ execution-part ]"
+    "    [ internal-subprogram-part ]"
+    "    end-mp-subprogram-stmt",
+)]
+pub fn separate_module_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SeparateModuleSubprogram<S::Span>> + 'a {
+    //|_| todo!("TODO: \"separate_module_subprogram\" parser not implemented yet")
+}
+
+#[derive(Debug, Clone)]
 pub struct EntryStmt<Span> {
     pub entry_name: Name<Span>,
     pub dummy_arg_list: Vec<DummyArg<Span>>,

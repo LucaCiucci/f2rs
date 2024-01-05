@@ -2,6 +2,8 @@ use std::marker::PhantomData;
 
 use super::*;
 
+mod import_stmt; pub use import_stmt::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumAsInner)]
 pub enum AccessSpec {
     Public,
@@ -623,5 +625,420 @@ pub fn language_binding_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
         ')',
     ).map(|(_, _, _, _, _, _, name, _)| LanguageBindingSpec {
         name,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ParameterStmt<Span> {
+    pub named_constant_def_list: Vec<NamedConstantDef<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "parameter-stmt" #851 : "is PARAMETER ( named-constant-def-list )",
+)]
+pub fn parameter_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ParameterStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("parameter", cfg), space(0), '(', space(0)),
+        list(named_constant_def(cfg), 0..),
+        (space(0), ')'),
+        statement_termination(),
+    ).map(|(_, named_constant_def_list, _, comment)| ParameterStmt {
+        named_constant_def_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct NamedConstantDef<Span> {
+    pub named_constant: NamedConstant<Span>,
+    pub constant_expr: ConstantExpr<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "named-constant-def" #852 : "is named-constant = constant-expr",
+)]
+pub fn named_constant_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NamedConstantDef<S::Span>> + 'a {
+    (
+        named_constant(cfg),
+        space(0), '=', space(0),
+        constant_expr(cfg),
+    ).map(|(named_constant, _, _, _, constant_expr)| NamedConstantDef {
+        named_constant,
+        constant_expr,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct TargetStmt<Span> {
+    pub target_decl_list: Vec<TargetDecl<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "target-stmt" #859 : "is TARGET [ :: ] target-decl-list",
+)]
+pub fn target_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TargetStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("target", cfg), space(0)),
+        ("::", space(0)).optional(),
+        list(target_decl(cfg), 1..),
+        statement_termination(),
+    ).map(|(_, _, target_decl_list, comment)| TargetStmt {
+        target_decl_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct TargetDecl<Span> {
+    pub object_name: ObjectName<Span>,
+    pub array_spec: Option<ArraySpec<Span>>,
+    pub coarray_spec: Option<CoarraySpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "target-decl" #860 :
+    "is object-name [ ( array-spec ) ] [ lbracket coarray-spec rbracket ]",
+)]
+pub fn target_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TargetDecl<S::Span>> + 'a {
+    (
+        object_name(cfg),
+        space(0),
+        (
+            '(', space(0), array_spec(cfg), space(0), ')', space(0),
+        ).map(|(_, _, array_spec, _, _, _)| array_spec).optional(),
+        (
+            lbracket(cfg), space(0),
+            coarray_spec(cfg),
+            space(0), rbracket(cfg), space(0),
+        ).map(|(_, _, coarray_spec, _, _, _)| coarray_spec).optional(),
+    ).map(|(object_name, _, array_spec, coarray_spec)| TargetDecl {
+        object_name,
+        array_spec,
+        coarray_spec,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ValueStmt<Span> {
+    pub dummy_arg_name_list: Vec<DummyArgName<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "value-stmt" #861 : "is VALUE [ :: ] dummy-arg-name-list",
+)]
+pub fn value_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ValueStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("value", cfg), space(0)),
+        ("::", space(0)).optional(),
+        list(dummy_arg_name(cfg), 1..),
+        statement_termination(),
+    ).map(|(_, _, dummy_arg_name_list, comment)| ValueStmt {
+        dummy_arg_name_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct VolatileStmt<Span> {
+    pub object_name_list: Vec<ObjectName<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "volatile-stmt" #862 : "is VOLATILE [ :: ] object-name-list",
+)]
+pub fn volatile_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = VolatileStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("volatile", cfg), space(0)),
+        ("::", space(0)).optional(),
+        list(object_name(cfg), 1..),
+        statement_termination(),
+    ).map(|(_, _, object_name_list, comment)| VolatileStmt {
+        object_name_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ImplicitStmt<Span> {
+    Implicit {
+        implicit_spec_list: Vec<ImplicitSpec<Span>>,
+        comment: Option<LineComment<Span>>,
+    },
+    ImplicitNone {
+        implicit_none_spec_list: Option<Vec<ImplicitNoneSpec>>,
+        comment: Option<LineComment<Span>>,
+    },
+}
+
+#[syntax_rule(
+    F18V007r1 rule "implicit-stmt" #863 :
+    "is IMPLICIT implicit-spec-list"
+    "or IMPLICIT NONE [ ( [ implicit-none-spec-list ] ) ]",
+)]
+pub fn implicit_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImplicitStmt<S::Span>> + 'a {
+    alt!(
+        (
+            (space(0), kw("implicit", cfg), space(0)),
+            list(implicit_spec(cfg), 0..),
+            statement_termination(),
+        ).map(|(_, implicit_spec_list, comment)| ImplicitStmt::Implicit {
+            implicit_spec_list,
+            comment,
+        }),
+        (
+            (space(0), kw("implicit", cfg), space(0)),
+            kw("none", cfg),
+            (
+                (space(0), '(', space(0)),
+                list(implicit_none_spec(cfg), 0..),
+                (space(0), ')', space(0)),
+            ).map(|(_, implicit_none_spec_list, _)| implicit_none_spec_list).optional(),
+            statement_termination(),
+        ).map(|(_, _, implicit_none_spec_list, comment)| ImplicitStmt::ImplicitNone {
+            implicit_none_spec_list,
+            comment,
+        }),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct ImplicitSpec<Span> {
+    pub declaration_type_spec: DeclarationTypeSpec<Span>,
+    pub letter_spec_list: Vec<LetterSpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "implicit-spec" #864 : "is declaration-type-spec ( letter-spec-list )",
+)]
+pub fn implicit_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImplicitSpec<S::Span>> + 'a {
+    (
+        declaration_type_spec(cfg),
+        space(0),
+        '(', space(0),
+        list(letter_spec(cfg), 1..),
+        space(0), ')',
+    ).map(|(declaration_type_spec, _, _, _, letter_spec_list, _, _)| ImplicitSpec {
+        declaration_type_spec,
+        letter_spec_list,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct LetterSpec<Span> {
+    pub first: Char<Span>,
+    pub second: Option<Char<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "letter-spec" #865 : "is letter [ - letter ]",
+)]
+pub fn letter_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LetterSpec<S::Span>> + 'a {
+    (
+        letter(cfg),
+        (
+            (space(0), '-', space(0)),
+            letter(cfg),
+        ).map(|(_, letter)| letter).optional(),
+    ).map(|(first, second)| LetterSpec {
+        first,
+        second,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ImplicitNoneSpec {
+    External,
+    Type,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "implicit-none-spec" #866 :
+    "is EXTERNAL"
+    "or TYPE",
+)]
+pub fn implicit_none_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImplicitNoneSpec> + 'a {
+    alt!(
+        kw("external", cfg).map(|_| ImplicitNoneSpec::External),
+        kw("type", cfg).map(|_| ImplicitNoneSpec::Type),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct NamelistStmtPart<Span> {
+    pub namelist_group_name: Name<Span>,
+    pub namelist_group_object_list: Vec<NamelistGroupObject<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 : "/ namelist-group-name / namelist-group-object-list",
+)]
+pub fn namelist_stmt_part<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NamelistStmtPart<S::Span>> + 'a {
+    (
+        ('/', space(0)),
+        name(cfg, false),
+        ('/', space(0)),
+        list(namelist_group_object(cfg), 0..),
+    ).map(|(_, namelist_group_name, _, namelist_group_object_list)| NamelistStmtPart {
+        namelist_group_name,
+        namelist_group_object_list,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct NamelistStmt<Span> {
+    pub parts: Vec<NamelistStmtPart<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "namelist-stmt" #868 :
+    "is NAMELIST / namelist-group-name / namelist-group-object-list [ [ , ] / namelist-group-name / namelist-group-object-list ] ..."
+,
+)]
+pub fn namelist_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NamelistStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("namelist", cfg), space(0)),
+        list(namelist_stmt_part(cfg), 1..),
+    ).map(|(_, parts)| NamelistStmt {
+        parts,
+        comment: None,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct NamelistGroupObject<Span>(pub VariableName<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "namelist-group-object" #869 : "is variable-name",
+)]
+pub fn namelist_group_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NamelistGroupObject<S::Span>> + 'a {
+    variable_name(cfg).map(NamelistGroupObject)
+}
+
+#[derive(Debug, Clone)]
+pub struct EquivalenceStmt<Span> {
+    pub equivalence_set_list: Vec<EquivalenceSet<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "equivalence-stmt" #870 : "is EQUIVALENCE equivalence-set-list",
+)]
+pub fn equivalence_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivalenceStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("equivalence", cfg), space(0)),
+        list(equivalence_set(cfg), 1..),
+        statement_termination(),
+    ).map(|(_, equivalence_set_list, comment)| EquivalenceStmt {
+        equivalence_set_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct EquivalenceSet<Span> {
+    pub equivalence_object: EquivalenceObject<Span>,
+    pub equivalence_object_list: Vec<EquivalenceObject<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "equivalence-set" #871 : "is ( equivalence-object , equivalence-object-list )",
+)]
+pub fn equivalence_set<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivalenceSet<S::Span>> + 'a {
+    (
+        '(', space(0),
+        equivalence_object(cfg),
+        (space(0), ',', space(0)),
+        list(equivalence_object(cfg), 0..),
+        (space(0), ')'),
+    ).map(|(_, _, equivalence_object, _, equivalence_object_list, _)| EquivalenceSet {
+        equivalence_object,
+        equivalence_object_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum EquivalenceObject<Span> {
+    VariableName(VariableName<Span>),
+    ArrayElement(ArrayElement<Span>),
+    Substring(Substring<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "equivalence-object" #872 :
+    "is variable-name"
+    "or array-element"
+    "or substring",
+)]
+pub fn equivalence_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivalenceObject<S::Span>> + 'a {
+    alt!(
+        variable_name(cfg).map(EquivalenceObject::VariableName),
+        array_element(cfg).map(EquivalenceObject::ArrayElement),
+        substring(cfg).map(EquivalenceObject::Substring),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct CommonStmt<Span> {
+    pub first_common_block_name: Option<Name<Span>>,
+    pub first_common_block_object_list: Vec<CommonBlockObject<Span>>,
+    pub rest: Vec<(Option<Name<Span>>, Vec<CommonBlockObject<Span>>)>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "common-stmt" #873 :
+    "is COMMON [ / [ common-block-name ] / ] common-block-object-list [ [ , ] / [ common-block-name ] / common-block-object-list ] ...",
+)]
+pub fn common_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CommonStmt<S::Span>> + 'a {
+    (
+        space(0),
+        (
+            (space(0), '/', space(0)),
+            name(cfg, false),
+            (space(0), '/', space(0)),
+        ).map(|(_, name, _)| name).optional(),
+        list(common_block_object(cfg), 1..),
+        many(
+            (
+                (space(0), ',', space(0)).optional(),
+                (space(0), '/', space(0)),
+                name(cfg, false).optional(),
+                (space(0), '/', space(0)),
+                list(common_block_object(cfg), 1..),
+            ).map(|(_, _, name, _, common_block_object_list)| (name, common_block_object_list)),
+            0..,
+        ),
+        statement_termination(),
+    ).map(|(_, first_common_block_name, first_common_block_object_list, rest, comment)| CommonStmt {
+        first_common_block_name,
+        first_common_block_object_list,
+        rest,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct CommonBlockObject<Span> {
+    pub variable_name: VariableName<Span>,
+    pub array_spec: Option<ArraySpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "common-block-object" #874 : "is variable-name [ ( array-spec ) ]",
+)]
+pub fn common_block_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CommonBlockObject<S::Span>> + 'a {
+    (
+        variable_name(cfg),
+        (
+            '(', space(0), array_spec(cfg), space(0), ')', space(0),
+        ).map(|(_, _, array_spec, _, _, _)| array_spec).optional(),
+    ).map(|(variable_name, array_spec)| CommonBlockObject {
+        variable_name,
+        array_spec,
     })
 }

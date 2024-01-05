@@ -1,5 +1,50 @@
 use super::*;
 
+#[derive(Debug, Clone)]
+pub struct ModuleSubprogramPart<Span> {
+    pub contains_stmt: Option<ContainsStmt<Span>>,
+    pub module_subprograms: Vec<ModuleSubprogram<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "module-subprogram-part" #1407 :
+    "is contains-stmt"
+    "[ module-subprogram ] ...",
+)]
+pub fn module_subprogram_part<'a, S: TextSource + 'a, U: 'a>(
+    cfg: &'a Cfg,
+    until: impl Parser<S, Token = U> + 'a,
+) -> impl Parser<S, Token = (ModuleSubprogramPart<S::Span>, U)> + 'a {
+    (
+        contains_stmt(cfg).optional(),
+        many_until(module_subprogram(cfg), until, 0..),
+    ).map(|(contains_stmt, (module_subprograms, u))| (ModuleSubprogramPart {
+        contains_stmt,
+        module_subprograms,
+    }, u))
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ModuleSubprogram<Span> {
+    FunctionSubprogram(FunctionSubprogram<Span>),
+    SubroutineSubprogram(SubroutineSubprogram<Span>),
+    SeparateModuleSubprogram(SeparateModuleSubprogram<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "module-subprogram" #1408 :
+    "is function-subprogram"
+    "or subroutine-subprogram"
+    "or separate-module-subprogram",
+)]
+pub fn module_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ModuleSubprogram<S::Span>> + 'a {
+    alt!(
+        function_subprogram(cfg).map(ModuleSubprogram::FunctionSubprogram),
+        subroutine_subprogram(cfg).map(ModuleSubprogram::SubroutineSubprogram),
+        separate_module_subprogram(cfg).map(ModuleSubprogram::SeparateModuleSubprogram),
+    )
+}
+
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum UseStmt<Span> {
     Use {
