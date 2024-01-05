@@ -9,7 +9,10 @@ use syn::{parse::Parse, punctuated::Punctuated, Token, Stmt};
 
 #[proc_macro_attribute]
 pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut f: syn::ItemFn = syn::parse(item).unwrap();
+    let mut f: syn::ItemFn = match syn::parse(item) {
+        Ok(f) => f,
+        Err(e) => return e.to_compile_error().into(),
+    };
     let attrs = syn::parse_macro_input!(attr as Attributes);
 
     let mut doc_string = "\n".to_string();
