@@ -14,7 +14,7 @@ pub struct ModuleSubprogramPart<Span> {
 pub fn module_subprogram_part<'a, S: TextSource + 'a, U: 'a>(
     cfg: &'a Cfg,
     until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = (ModuleSubprogramPart<S::Span>, U)> + 'a {
+) -> impl Parser<S, Token = (ModuleSubprogramPart<S::Span>, Option<U>)> + 'a {
     (
         contains_stmt(cfg).optional(),
         many_until(module_subprogram(cfg), until, 0..),

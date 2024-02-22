@@ -12,6 +12,7 @@
         "Interp",
         "Mult",
         "namelist",
-        "presult"
+        "presult",
+        "Subobject"
     ]
 }

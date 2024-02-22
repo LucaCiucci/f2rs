@@ -349,6 +349,7 @@ pub fn eol<S: TextSource>() -> impl Parser<S, Token = ()> {
     }
     .map(|_| ())
     .or(eof())
+    .map(|o| o.inner())
 }
 
 // TODO ???

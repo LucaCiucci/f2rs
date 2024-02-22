@@ -18,7 +18,7 @@ pub struct SpecificationPart<Span> {
 pub fn specification_part<'a, S: TextSource + 'a, U: 'a>(
     cfg: &'a Cfg,
     until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = SpecificationPart<S::Span>> + 'a {
+) -> impl Parser<S, Token = (SpecificationPart<S::Span>, Option<U>)> + 'a {
     move |source: S| {
         let mut result = SpecificationPart {
             use_stmts: Vec::new(),
@@ -27,13 +27,13 @@ pub fn specification_part<'a, S: TextSource + 'a, U: 'a>(
             declaration_constructs: Vec::new(),
         };
 
-        let ((use_stmts, u), source) = many_until(use_stmt(cfg), until, 0..)?;
+        let ((use_stmts, u), source) = many_until(use_stmt(cfg), until, 0..).parse(source)?;
         result.use_stmts = use_stmts;
         if u.is_some() {
             return Some(((result, u), source));
         }
 
-        let ((import_stmts, u), source) = many_until(import_stmt(cfg), until, u..)?;
+        let ((import_stmts, u), source) = many_until(import_stmt(cfg), until, 0..).parse(source)?;
         result.import_stmts = import_stmts;
         if u.is_some() {
             return Some(((result, u), source));

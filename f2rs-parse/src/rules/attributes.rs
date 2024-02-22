@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use super::*;
 
 mod import_stmt; pub use import_stmt::*;
+mod attribute_specification_statements; pub use attribute_specification_statements::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumAsInner)]
 pub enum AccessSpec {

@@ -112,6 +112,94 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum OrResult<A, B> {
+    First(A),
+    Second(B),
+}
+
+impl<A, B> OrResult<A, B> {
+    fn new_first(a: A) -> Self {
+        Self::First(a)
+    }
+
+    fn new_second(b: B) -> Self {
+        Self::Second(b)
+    }
+
+    pub fn as_first(&self) -> Option<&A> {
+        match self {
+            OrResult::First(a) => Some(a),
+            OrResult::Second(_) => None,
+        }
+    }
+
+    pub fn as_second(&self) -> Option<&B> {
+        match self {
+            OrResult::First(_) => None,
+            OrResult::Second(b) => Some(b),
+        }
+    }
+
+    pub fn into_first(self) -> Option<A> {
+        match self {
+            OrResult::First(a) => Some(a),
+            OrResult::Second(_) => None,
+        }
+    }
+
+    pub fn into_second(self) -> Option<B> {
+        match self {
+            OrResult::First(_) => None,
+            OrResult::Second(b) => Some(b),
+        }
+    }
+
+    pub fn is_first(&self) -> bool {
+        match self {
+            OrResult::First(_) => true,
+            OrResult::Second(_) => false,
+        }
+    }
+
+    pub fn is_second(&self) -> bool {
+        match self {
+            OrResult::First(_) => false,
+            OrResult::Second(_) => true,
+        }
+    }
+
+    pub fn map_first<C>(self, f: impl FnOnce(A) -> C) -> OrResult<C, B> {
+        match self {
+            OrResult::First(a) => OrResult::First(f(a)),
+            OrResult::Second(b) => OrResult::Second(b),
+        }
+    }
+
+    pub fn map_second<C>(self, f: impl FnOnce(B) -> C) -> OrResult<A, C> {
+        match self {
+            OrResult::First(a) => OrResult::First(a),
+            OrResult::Second(b) => OrResult::Second(f(b)),
+        }
+    }
+}
+
+impl<A> OrResult<A, A> {
+    pub fn inner(self) -> A {
+        match self {
+            OrResult::First(a) => a,
+            OrResult::Second(a) => a,
+        }
+    }
+
+    pub fn as_inner(&self) -> &A {
+        match self {
+            OrResult::First(a) => a,
+            OrResult::Second(a) => a,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Or<P1, P2> {
     p1: P1,
     p2: P2,
@@ -127,16 +215,21 @@ impl<S: Source, P1, P2> ParserCore<S> for Or<P1, P2>
 where
     Self: Clone,
     P1: Parser<S>,
-    P2: Parser<S, Token = P1::Token>,
+    P2: Parser<S>,
 {
-    type Token = P1::Token;
+    type Token = OrResult<P1::Token, P2::Token>;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
+        use OrResult::*;
+
         let Or { p1, p2 } = self;
         let r1 = p1.parse(source.clone());
-        if r1.is_some() {
-            return r1;
-        } else {
-            p2.parse(source)
+        match r1 {
+            Some((token, new_source)) => Some((First(token), new_source)),
+            None => {
+                p2
+                    .parse(source)
+                    .map(|(token, new_source)| (Second(token), new_source))
+            }
         }
     }
 }

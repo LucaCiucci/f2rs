@@ -119,7 +119,7 @@ mod utils {
             many(Char::alphanumeric::<S>().or(Char::exact('-')), 0..),
         ).map(|(first, rest)| {
             let value = std::iter::once(first.value)
-                .chain(rest.into_iter().map(|c| c.value))
+                .chain(rest.into_iter().map(|c| c.inner().value))
                 .collect::<String>();
             value
         })

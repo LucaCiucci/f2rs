@@ -38,7 +38,7 @@ impl<Span> Sign<Span> {
 )]
 pub fn sign<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Sign<S::Span>> {
     Char::exact('+')
-        .or(Char::exact('-'))
+        .or(Char::exact('-')).map(|o| o.inner())
         .map(|c| match &c.value {
             '+' => Sign::Plus(c.span),
             '-' => Sign::Minus(c.span),

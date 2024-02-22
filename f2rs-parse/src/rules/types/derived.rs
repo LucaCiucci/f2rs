@@ -100,6 +100,7 @@ pub fn derived_type_def<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
         let (end, source) = end_type_stmt(cfg, name)
             .map(|end| Some(end))
             .or(eof().map(|_| None))
+            .map(|o| o.inner())
             .parse(source)?;
 
         Some((DerivedTypeDef {

@@ -19,3 +19,4 @@ This proof of concept is currently stale as a proper parser is being developed i
   - [ ] ...
 - [ ] [`f2rs-adapter`](https://github.com/LucaCiucci/f2rs/tree/main/f2rs-adapter) crate
 - [ ] code generation
+- [ ] OpenMP support

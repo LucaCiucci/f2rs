@@ -1,6 +1,241 @@
 use super::*;
 
 #[derive(Debug, Clone)]
+pub struct InterfaceBlock<Span> {
+    pub interface_stmt: InterfaceStmt<Span>,
+    pub interface_specification: Vec<InterfaceSpecification<Span>>,
+    pub end_interface_stmt: Option<EndInterfaceStmt<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "interface-block" #1501 :
+    "is interface-stmt"
+    "    [ interface-specification ] ..."
+    "    end-interface-stmt",
+)]
+pub fn interface_block<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceBlock<S::Span>> + 'a {
+    |source: S| {
+        let (interface_stmt, source) = interface_stmt(cfg).parse(source)?;
+
+        let ((interface_specification, end), source) = many_until(interface_specification(cfg), end_interface_stmt(cfg), 0..).parse(source)?;
+        if let Some(end) = end {
+            return Some((InterfaceBlock {
+                interface_stmt,
+                interface_specification,
+                end_interface_stmt: Some(end),
+            }, source));
+        }
+
+        let (end_interface_stmt, source) = end_interface_stmt(cfg).optional().parse(source)?;
+
+        Some((InterfaceBlock {
+            interface_stmt,
+            interface_specification,
+            end_interface_stmt,
+        }, source))
+    }
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InterfaceSpecification<Span> {
+    InterfaceBody(InterfaceBody<Span>),
+    ProcedureStmt(ProcedureStmt<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "interface-specification" #1502 :
+    "is interface-body"
+    "or procedure-stmt",
+)]
+pub fn interface_specification<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceSpecification<S::Span>> + 'a {
+    alt!(
+        interface_body(cfg).map(InterfaceSpecification::InterfaceBody),
+        procedure_stmt(cfg).map(InterfaceSpecification::ProcedureStmt),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InterfaceStmt<Span> {
+    Interface {
+        generic_spec: Option<GenericSpec<Span>>,
+        comment: Option<LineComment<Span>>,
+    },
+    AbstractInterface {
+        comment: Option<LineComment<Span>>,
+    },
+}
+
+#[syntax_rule(
+    F18V007r1 rule "interface-stmt" #1503 :
+    "is INTERFACE [ generic-spec ]"
+    "or ABSTRACT INTERFACE",
+)]
+pub fn interface_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceStmt<S::Span>> + 'a {
+    alt!(
+        (
+            space(0),
+            kw("interface", cfg),
+            (space(0), generic_spec(cfg)).map(|(_, generic_spec)| generic_spec).optional(),
+            statement_termination(),
+        ).map(|(_, _, generic_spec, comment)| InterfaceStmt::Interface {
+            generic_spec,
+            comment,
+        }),
+        (
+            space(0),
+            kw("abstract", cfg),
+            space(0),
+            kw("interface", cfg),
+            statement_termination(),
+        ).map(|(_, _, _, _, comment)| InterfaceStmt::AbstractInterface {
+            comment,
+        }),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct EndInterfaceStmt<Span> {
+    pub generic_spec: Option<GenericSpec<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "end-interface-stmt" #1504 : "is END INTERFACE [ generic-spec ]",
+)]
+pub fn end_interface_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndInterfaceStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("end", cfg),
+        space(0),
+        kw("interface", cfg),
+        (space(0), generic_spec(cfg)).map(|(_, generic_spec)| generic_spec).optional(),
+        statement_termination(),
+    ).map(|(_, _, _, _, generic_spec, comment)| EndInterfaceStmt {
+        generic_spec,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InterfaceBody<Span> {
+    Function {
+        function_stmt: FunctionStmt<Span>,
+        specification_part: Option<SpecificationPart<Span>>,
+        end_function_stmt: Option<EndFunctionStmt<Span>>,
+    },
+    Subroutine {
+        subroutine_stmt: SubroutineStmt<Span>,
+        specification_part: Option<SpecificationPart<Span>>,
+        end_subroutine_stmt: Option<EndSubroutineStmt<Span>>,
+    },
+}
+
+#[syntax_rule(
+    F18V007r1 rule "interface-body" #1505 :
+    "is function-stmt"
+    "   [ specification-part ]"
+    "   end-function-stmt"
+    "or subroutine-stmt"
+    "   [ specification-part ]"
+    "   end-subroutine-stmt",
+)]
+pub fn interface_body<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceBody<S::Span>> + 'a {
+    let function = |source: S| {
+        let (function_stmt, source) = function_stmt(cfg).parse(source)?;
+        let mut specification = None;
+        let mut end_function = None;
+
+        let (r, source) = specification_part(cfg, end_function_stmt(cfg)).optional().parse(source)?;
+        if let Some((specification_part, end)) = r {
+            specification = Some(specification_part);
+            if let Some(end) = end {
+                end_function = Some(end);
+                return Some((InterfaceBody::Function {
+                    function_stmt,
+                    specification_part: specification,
+                    end_function_stmt: end_function,
+                }, source));
+            }
+        }
+
+        let (end_function_stmt, source) = end_function_stmt(cfg).optional().parse(source)?;
+
+        Some((InterfaceBody::Function {
+            function_stmt,
+            specification_part: specification,
+            end_function_stmt,
+        }, source))
+    };
+
+    let subroutine = |source: S| {
+        let (subroutine_stmt, source) = subroutine_stmt(cfg).parse(source)?;
+        let mut specification = None;
+        let mut end_subroutine = None;
+
+        let (r, source) = specification_part(cfg, end_subroutine_stmt(cfg)).optional().parse(source)?;
+        if let Some((specification_part, end)) = r {
+            specification = Some(specification_part);
+            if let Some(end) = end {
+                end_subroutine = Some(end);
+                return Some((InterfaceBody::Subroutine {
+                    subroutine_stmt,
+                    specification_part: specification,
+                    end_subroutine_stmt: end_subroutine,
+                }, source));
+            }
+        }
+
+        let (end_subroutine_stmt, source) = end_subroutine_stmt(cfg).optional().parse(source)?;
+
+        Some((InterfaceBody::Subroutine {
+            subroutine_stmt,
+            specification_part: specification,
+            end_subroutine_stmt,
+        }, source))
+    };
+
+    alt!(
+        function,
+        subroutine,
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcedureStmt<Span> {
+    pub module: bool,
+    pub specific_procedure_list: Vec<SpecificProcedure<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "procedure-stmt" #1506 :
+    "is [ MODULE ] PROCEDURE [ :: ] specific-procedure-list",
+)]
+pub fn procedure_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureStmt<S::Span>> + 'a {
+    (
+        space(0),
+        (kw("module", cfg), space(0)).optional(),
+        kw("procedure", cfg),
+        (space(0), "::", space(0)).optional(),
+        list(specific_procedure(cfg), 1..),
+    ).map(|(_, module, _, _, specific_procedure_list)| ProcedureStmt {
+        module: module.is_some(),
+        specific_procedure_list,
+        comment: None,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct SpecificProcedure<Span>(pub Name<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "specific-procedure" #1507 : "is procedure-name",
+)]
+pub fn specific_procedure<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SpecificProcedure<S::Span>> + 'a {
+    name(cfg, false).map(SpecificProcedure)
+}
+
+#[derive(Debug, Clone)]
 pub enum GenericSpec<Span> {
     GenericName(Name<Span>),
     Operator(DefinedOperator<Span>),
@@ -50,6 +285,207 @@ pub fn defined_io_generic_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Par
         (kw("write", cfg), space(0), '(', space(0), kw("formatted", cfg), space(0), ')').map(|_| DefinedIoGenericSpec::WriteFormatted),
         (kw("write", cfg), space(0), '(', space(0), kw("unformatted", cfg), space(0), ')').map(|_| DefinedIoGenericSpec::WriteUnformatted),
     )
+}
+
+#[derive(Debug, Clone)]
+pub struct GenericStmt<Span> {
+    pub access_spec: Option<AccessSpec>,
+    pub generic_spec: GenericSpec<Span>,
+    pub specific_procedure_list: Vec<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "generic-stmt" #1510 :
+    "is GENERIC [ , access-spec ] :: generic-spec => specific-procedure-list",
+)]
+pub fn generic_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = GenericStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("generic", cfg)),
+        (
+            (space(0), ',', space(0)),
+            access_spec(cfg),
+        ).map(|(_, access_spec)| access_spec).optional(),
+        (space(0), "::", space(0)),
+        generic_spec(cfg),
+        (space(0), "=>", space(0)),
+        list(name(cfg, false), 1..),
+        statement_termination(),
+    ).map(|(_, access_spec, _, generic_spec, _, specific_procedure_list, comment)| GenericStmt {
+        access_spec,
+        generic_spec,
+        specific_procedure_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalStmt<Span> {
+    pub external_name_list: Vec<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "external-stmt" #1511 : "is EXTERNAL [ :: ] external-name-list",
+)]
+pub fn external_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExternalStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("external", cfg),
+        space(0),
+        ("::", space(0)).optional(),
+        list(name(cfg, false), 1..),
+        statement_termination(),
+    ).map(|(_, _, _, _, external_name_list, comment)| ExternalStmt {
+        external_name_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcedureDeclarationStmt<Span> {
+    pub proc_interface: Option<ProcInterface<Span>>,
+    pub proc_attr_spec_list: Option<Vec<ProcAttrSpec<Span>>>,
+    pub proc_decl_list: Vec<ProcDecl<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "procedure-declaration-stmt" #1512 :
+    "is PROCEDURE ( [ proc-interface ] ) [ [ , proc-attr-spec ] ... :: ] proc-decl-list",
+)]
+pub fn procedure_declaration_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcedureDeclarationStmt<S::Span>> + 'a {
+    (
+        (space(0), kw("procedure", cfg), space(0), '(', space(0)),
+        proc_interface(cfg).optional(),
+        (space(0), ')', space(0)),
+        (
+            (space(0), ',', space(0)),
+            many(
+                (space(0), ',', space(0), proc_attr_spec(cfg)).map(|(_, _, _, proc_attr_spec)| proc_attr_spec),
+                0..,
+            ),
+            (space(0), "::", space(0)),
+        ).map(|(_, proc_attr_spec_list, _)| proc_attr_spec_list).optional(),
+        list(proc_decl(cfg), 1..),
+        statement_termination(),
+    ).map(|(_, proc_interface, _, proc_attr_spec_list, proc_decl_list, comment)| ProcedureDeclarationStmt {
+        proc_interface,
+        proc_attr_spec_list: proc_attr_spec_list,
+        proc_decl_list,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ProcInterface<Span> {
+    InterfaceName(InterfaceName<Span>),
+    DeclarationTypeSpec(DeclarationTypeSpec<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "proc-interface" #1513 :
+    "is interface-name"
+    "or declaration-type-spec",
+)]
+pub fn proc_interface<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcInterface<S::Span>> + 'a {
+    alt!(
+        interface_name(cfg).map(ProcInterface::InterfaceName),
+        declaration_type_spec(cfg).map(ProcInterface::DeclarationTypeSpec),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ProcAttrSpec<Span> {
+    AccessSpec(AccessSpec),
+    ProcLanguageBindingSpec(ProcLanguageBindingSpec<Span>),
+    Intent(IntentSpec<Span>),
+    Optional,
+    Pointer,
+    Protected,
+    Save,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "proc-attr-spec" #1514 :
+    "is access-spec"
+    "or proc-language-binding-spec"
+    "or INTENT ( intent-spec )"
+    "or OPTIONAL"
+    "or POINTER"
+    "or PROTECTED"
+    "or SAVE",
+)]
+pub fn proc_attr_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcAttrSpec<S::Span>> + 'a {
+    alt!(
+        access_spec(cfg).map(ProcAttrSpec::AccessSpec),
+        proc_language_binding_spec(cfg).map(ProcAttrSpec::ProcLanguageBindingSpec),
+        (kw("intent", cfg), space(0), '(', space(0), intent_spec(cfg), (space(0), ')')).map(|(_, _, _, _, intent_spec, _)| ProcAttrSpec::Intent(intent_spec)),
+        (kw("optional", cfg)).map(|_| ProcAttrSpec::Optional),
+        (kw("pointer", cfg)).map(|_| ProcAttrSpec::Pointer),
+        (kw("protected", cfg)).map(|_| ProcAttrSpec::Protected),
+        (kw("save", cfg)).map(|_| ProcAttrSpec::Save),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcDecl<Span> {
+    pub procedure_entity_name: Name<Span>,
+    pub proc_pointer_init: Option<ProcPointerInit<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "proc-decl" #1515 : "is procedure-entity-name [ => proc-pointer-init ]",
+)]
+pub fn proc_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcDecl<S::Span>> + 'a {
+    (
+        name(cfg, false),
+        (
+            (space(0), "=>", space(0)),
+            proc_pointer_init(cfg).map(Some),
+        ).map(|(_, proc_pointer_init)| proc_pointer_init).optional(),
+    ).map(|(procedure_entity_name, proc_pointer_init)| ProcDecl {
+        procedure_entity_name,
+        proc_pointer_init: proc_pointer_init.flatten(),
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct InterfaceName<Span>(pub Name<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "interface-name" #1516 : "is name",
+)]
+pub fn interface_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InterfaceName<S::Span>> + 'a {
+    name(cfg, false).map(InterfaceName)
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ProcPointerInit<Span> {
+    NullInit,
+    InitialProcTarget(InitialProcTarget<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "proc-pointer-init" #1517 :
+    "is null-init"
+    "or initial-proc-target",
+)]
+pub fn proc_pointer_init<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcPointerInit<S::Span>> + 'a {
+    alt!(
+        (kw("null", cfg)).map(|_| ProcPointerInit::NullInit),
+        initial_proc_target(cfg).map(|t| ProcPointerInit::InitialProcTarget(t)),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct InitialProcTarget<Span>(pub Name<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "initial-proc-target" #1518 : "is procedure-name",
+)]
+pub fn initial_proc_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InitialProcTarget<S::Span>> + 'a {
+    name(cfg, false).map(InitialProcTarget)
 }
 
 #[derive(Debug, Clone)]
@@ -393,6 +829,109 @@ pub fn end_function_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct SubroutineSubprogram<Span> {
+    pub subroutine_stmt: SubroutineStmt<Span>,
+    pub specification_part: Option<SpecificationPart<Span>>,
+    pub execution_part: Option<ExecutionPart<Span>>,
+    pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
+    pub end_subroutine_stmt: Option<EndSubroutineStmt<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "subroutine-subprogram" #1534 :
+    "is subroutine-stmt"
+    "    [ specification-part ]"
+    "    [ execution-part ]"
+    "    [ internal-subprogram-part ]"
+    "    end-subroutine-stmt",
+)]
+pub fn subroutine_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SubroutineSubprogram<S::Span>> + 'a {
+    move |source: S| {
+        let (subroutine_stmt, source) = subroutine_stmt(cfg).parse(source)?;
+        let mut result = SubroutineSubprogram {
+            subroutine_stmt,
+            specification_part: None,
+            execution_part: None,
+            internal_subprogram_part: None,
+            end_subroutine_stmt: None,
+        };
+
+        let (r, source) = specification_part(cfg, end_subroutine_stmt(cfg)).optional().parse(source)?;
+        if let Some((specification_part, e)) = r {
+            result.specification_part = Some(specification_part);
+            if let Some(e) = e {
+                result.end_subroutine_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (r, source) = execution_part(cfg, end_subroutine_stmt(cfg)).optional().parse(source)?;
+        if let Some((execution_part, e)) = r {
+            result.execution_part = Some(execution_part);
+            if let Some(e) = e {
+                result.end_subroutine_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (r, source) = internal_subprogram_part(cfg, end_subroutine_stmt(cfg)).optional().parse(source)?;
+        if let Some((internal_subprogram_part, e)) = r {
+            result.internal_subprogram_part = Some(internal_subprogram_part);
+            if let Some(e) = e {
+                result.end_subroutine_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (end_subroutine_stmt, source) = end_subroutine_stmt(cfg).optional().parse(source)?;
+        result.end_subroutine_stmt = end_subroutine_stmt;
+
+        Some((result, source))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SubroutineStmt<Span> {
+    pub prefix: Option<Prefix<Span>>,
+    pub subroutine_name: Name<Span>,
+    pub dummy_arg_list: Vec<DummyArg<Span>>,
+    pub proc_language_binding_spec: Option<ProcLanguageBindingSpec<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "subroutine-stmt" #1535 :
+    "is [ prefix ] SUBROUTINE subroutine-name [ ( [ dummy-arg-list ] ) [ proc-language-binding-spec ] ]",
+)]
+pub fn subroutine_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SubroutineStmt<S::Span>> + 'a {
+    (
+        space(0),
+        (prefix(cfg), space(0)).map(|(prefix, _)| prefix).optional(),
+        (kw("subroutine", cfg), space(0)),
+        name(cfg, false), space(0),
+        (
+            (space(0), '(', space(0)),
+            list(dummy_arg(cfg), 0..),
+            (space(0), ')', space(0)),
+            proc_language_binding_spec(cfg).optional(),
+        ).map(|(_, list, _, proc_language_binding_spec)| (list, proc_language_binding_spec)).optional(),
+        statement_termination(),
+    ).map(|(_, prefix, _, subroutine_name, _, dummy_arg_list_proc_language_binding_spec, comment)| {
+        let (dummy_arg_list, proc_language_binding_spec) = match dummy_arg_list_proc_language_binding_spec {
+            Some((dummy_arg_list, proc_language_binding_spec)) => (dummy_arg_list, proc_language_binding_spec),
+            None => (vec![], None),
+        };
+        SubroutineStmt {
+            prefix,
+            subroutine_name,
+            dummy_arg_list,
+            proc_language_binding_spec,
+            comment,
+        }
+    })
+}
+
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum DummyArg<Span> {
     Name(DummyArgName<Span>),
@@ -412,12 +951,40 @@ pub fn dummy_arg<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 }
 
 #[derive(Debug, Clone)]
+pub struct EndSubroutineStmt<Span> {
+    pub subroutine_name: Option<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "end-subroutine-stmt" #1537 : "is END [ SUBROUTINE [ subroutine-name ] ]",
+)]
+pub fn end_subroutine_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndSubroutineStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("end", cfg),
+        (
+            space(0),
+            kw("subroutine", cfg),
+            (
+                space(0),
+                name(cfg, false),
+            ).map(|(_, name)| name).optional(),
+        ).map(|(_, _, name)| name).optional(),
+        statement_termination(),
+    ).map(|(_, _, subroutine_name, comment)| EndSubroutineStmt {
+        subroutine_name: subroutine_name.flatten(),
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
 pub struct SeparateModuleSubprogram<Span> {
     pub mp_subprogram_stmt: MpSubprogramStmt<Span>,
     pub specification_part: Option<SpecificationPart<Span>>,
     pub execution_part: Option<ExecutionPart<Span>>,
     pub internal_subprogram_part: Option<InternalSubprogramPart<Span>>,
-    pub end_mp_subprogram_stmt: EndMpSubprogramStmt<Span>,
+    pub end_mp_subprogram_stmt: Option<EndMpSubprogramStmt<Span>>,
 }
 
 #[syntax_rule(
@@ -429,7 +996,48 @@ pub struct SeparateModuleSubprogram<Span> {
     "    end-mp-subprogram-stmt",
 )]
 pub fn separate_module_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SeparateModuleSubprogram<S::Span>> + 'a {
-    //|_| todo!("TODO: \"separate_module_subprogram\" parser not implemented yet")
+    move |source: S| {
+        let (mp_subprogram_stmt, source) = mp_subprogram_stmt(cfg).parse(source)?;
+        let mut result = SeparateModuleSubprogram {
+            mp_subprogram_stmt,
+            specification_part: None,
+            execution_part: None,
+            internal_subprogram_part: None,
+            end_mp_subprogram_stmt: None,
+        };
+
+        let (r, source) = specification_part(cfg, end_mp_subprogram_stmt(cfg)).optional().parse(source)?;
+        if let Some((specification_part, e)) = r {
+            result.specification_part = Some(specification_part);
+            if let Some(e) = e {
+                result.end_mp_subprogram_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (r, source) = execution_part(cfg, end_mp_subprogram_stmt(cfg)).optional().parse(source)?;
+        if let Some((execution_part, e)) = r {
+            result.execution_part = Some(execution_part);
+            if let Some(e) = e {
+                result.end_mp_subprogram_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (r, source) = internal_subprogram_part(cfg, end_mp_subprogram_stmt(cfg)).optional().parse(source)?;
+        if let Some((internal_subprogram_part, e)) = r {
+            result.internal_subprogram_part = Some(internal_subprogram_part);
+            if let Some(e) = e {
+                result.end_mp_subprogram_stmt = Some(e);
+                return Some((result, source));
+            }
+        }
+
+        let (end_mp_subprogram_stmt, source) = end_mp_subprogram_stmt(cfg).optional().parse(source)?;
+        result.end_mp_subprogram_stmt = end_mp_subprogram_stmt;
+
+        Some((result, source))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -438,6 +1046,58 @@ pub struct EntryStmt<Span> {
     pub dummy_arg_list: Vec<DummyArg<Span>>,
     pub suffix: Option<Suffix<Span>>,
     pub comment: Option<LineComment<Span>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MpSubprogramStmt<Span> {
+    pub procedure_name: Name<Span>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "mp-subprogram-stmt" #1539 : "is MODULE PROCEDURE procedure-name",
+)]
+pub fn mp_subprogram_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MpSubprogramStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("module", cfg),
+        space(0),
+        kw("procedure", cfg),
+        space(0),
+        name(cfg, false),
+        statement_termination(),
+    ).map(|(_, _, _, _, _, procedure_name, comment)| MpSubprogramStmt {
+        procedure_name,
+        comment,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct EndMpSubprogramStmt<Span> {
+    pub procedure_name: Option<Name<Span>>,
+    pub comment: Option<LineComment<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "end-mp-subprogram-stmt" #1540 : "is END [PROCEDURE [procedure-name]]",
+)]
+pub fn end_mp_subprogram_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndMpSubprogramStmt<S::Span>> + 'a {
+    (
+        space(0),
+        kw("end", cfg),
+        (
+            space(0),
+            kw("procedure", cfg),
+            (
+                space(0),
+                name(cfg, false),
+            ).map(|(_, name)| name).optional(),
+        ).map(|(_, _, name)| name).optional(),
+        statement_termination(),
+    ).map(|(_, _, procedure_name, comment)| EndMpSubprogramStmt {
+        procedure_name: procedure_name.flatten(),
+        comment,
+    })
 }
 
 /// ENTRY entry-name
