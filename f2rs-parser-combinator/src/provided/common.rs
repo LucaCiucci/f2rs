@@ -99,6 +99,22 @@ pub fn matches<S: Source>(test: impl Fn(&S::Element) -> bool + Clone) -> impl Pa
     }
 }
 
+pub fn matches_map<S: Source, R>(test: impl Fn(S::Element) -> Option<R> + Clone) -> impl Parser<S, Token = R> {
+    move |source: S| {
+        if let Some(element) = source.get_at(&source.start()) {
+            if let Some(r) = test(element) {
+                let next = source.next(source.start(), 1);
+                return Some((
+                    r,
+                    source.tail(next),
+                ))
+            }
+        }
+
+        None
+    }
+}
+
 #[macro_export]
 macro_rules! match_variant {
     ($($variant:tt)+) => {

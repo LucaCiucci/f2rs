@@ -4,24 +4,21 @@ use super::*;
 pub struct AccessStmt<Span> {
     pub access_spec: AccessSpec,
     pub access_id_list: Option<Vec<AccessId<Span>>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "access-stmt" #827 : "is access-spec [ [ :: ] access-id-list ]",
 )]
-pub fn access_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessStmt<S::Span>> + 'a {
+pub fn access_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessStmt<S::Span>> + 'a {
     (
         space(0), access_spec(cfg), space(0),
         (
             (space(0), "::", space(0)),
             list(access_id(cfg), 0..),
         ).map(|(_, access_id_list)| access_id_list).optional(),
-        statement_termination(),
-    ).map(|(_, access_spec, _, access_id_list, comment)| AccessStmt {
+    ).map(|(_, access_spec, _, access_id_list)| AccessStmt {
         access_spec,
         access_id_list,
-        comment,
     })
 }
 
@@ -46,21 +43,18 @@ pub fn access_id<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
 #[derive(Debug, Clone)]
 pub struct AllocatableStmt<Span> {
     pub allocatable_decl_list: Vec<AllocatableDecl<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "allocatable-stmt" #829 : "is ALLOCATABLE [ :: ] allocatable-decl-list",
 )]
-pub fn allocatable_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableStmt<S::Span>> + 'a {
+pub fn allocatable_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableStmt<S::Span>> + 'a {
     (
         (space(0), kw("allocatable", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(allocatable_decl(cfg), 1..),
-        statement_termination(),
-    ).map(|(_, _, allocatable_decl_list, comment)| AllocatableStmt {
+    ).map(|(_, _, allocatable_decl_list)| AllocatableStmt {
         allocatable_decl_list,
-        comment,
     })
 }
 
@@ -98,21 +92,18 @@ pub fn allocatable_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
 #[derive(Debug, Clone)]
 pub struct AsynchronousStmt<Span> {
     pub object_name_list: Vec<ObjectName<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "asynchronous-stmt" #831 : "is ASYNCHRONOUS [ :: ] object-name-list",
 )]
-pub fn asynchronous_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AsynchronousStmt<S::Span>> + 'a {
+pub fn asynchronous_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AsynchronousStmt<S::Span>> + 'a {
     (
         (space(0), kw("asynchronous", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(object_name(cfg), 1..),
-        statement_termination(),
-    ).map(|(_, _, object_name_list, comment)| AsynchronousStmt {
+    ).map(|(_, _, object_name_list)| AsynchronousStmt {
         object_name_list,
-        comment,
     })
 }
 
@@ -120,23 +111,20 @@ pub fn asynchronous_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 pub struct BindStmt<Span> {
     pub language_binding_spec: LanguageBindingSpec<Span>,
     pub bind_entity_list: Vec<BindEntity<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "bind-stmt" #832 : "is language-binding-spec [ :: ] bind-entity-list",
 )]
-pub fn bind_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindStmt<S::Span>> + 'a {
+pub fn bind_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindStmt<S::Span>> + 'a {
     (
         space(0),
         language_binding_spec(cfg),
         (space(0), "::", space(0)).optional(),
         list(bind_entity(cfg), 1..),
-        statement_termination(),
-    ).map(|(_, language_binding_spec, _, bind_entity_list, comment)| BindStmt {
+    ).map(|(_, language_binding_spec, _, bind_entity_list)| BindStmt {
         language_binding_spec,
         bind_entity_list,
-        comment,
     })
 }
 
@@ -165,20 +153,18 @@ pub fn bind_entity<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
 #[derive(Debug, Clone)]
 pub struct CodimensionStmt<Span> {
     pub codimension_decl_list: Vec<CodimensionDecl<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "codimension-stmt" #834 : "is CODIMENSION [ :: ] codimension-decl-list",
 )]
-pub fn codimension_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionStmt<S::Span>> + 'a {
+pub fn codimension_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionStmt<S::Span>> + 'a {
     (
         (space(0), kw("codimension", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(codimension_decl(cfg), 1..),
     ).map(|(_, _, codimension_decl_list)| CodimensionStmt {
         codimension_decl_list,
-        comment: None,
     })
 }
 
@@ -208,21 +194,18 @@ pub fn codimension_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
 #[derive(Debug, Clone)]
 pub struct ContiguousStmt<Span> {
     pub object_name_list: Vec<Name<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "contiguous-stmt" #836 : "is CONTIGUOUS [ :: ] object-name-list",
 )]
-pub fn contiguous_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ContiguousStmt<S::Span>> + 'a {
+pub fn contiguous_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ContiguousStmt<S::Span>> + 'a {
     (
         (space(0), kw("contiguous", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(name(cfg, false), 1..),
-        statement_termination(),
-    ).map(|(_, _, object_name_list, comment)| ContiguousStmt {
+    ).map(|(_, _, object_name_list)| ContiguousStmt {
         object_name_list,
-        comment,
     })
 }
 
@@ -400,6 +383,7 @@ pub fn data_stmt_repeat<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
     )
 }
 
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum DataStmtConstant<Span> {
     ScalarConstant(Constant<Span>),
     ScalarConstantSubobject(ConstantSubobject<Span>),
@@ -452,16 +436,16 @@ pub fn constant_subobject<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S
     designator(cfg, false).map(ConstantSubobject)
 }
 
+#[derive(Debug, Clone)]
 pub struct DimensionStmt<Span> {
     pub list: Vec<(Name<Span>, ArraySpec<Span>)>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "dimension-stmt" #848 :
     "is DIMENSION [ :: ] array-name ( array-spec ) [ , array-name ( array-spec ) ] ...",
 )]
-pub fn dimension_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DimensionStmt<S::Span>> + 'a {
+pub fn dimension_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DimensionStmt<S::Span>> + 'a {
     (
         (space(0), kw("dimension", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
@@ -476,7 +460,6 @@ pub fn dimension_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
         ),
     ).map(|(_, _, list)| DimensionStmt {
         list,
-        comment: None,
     })
 }
 
@@ -484,66 +467,57 @@ pub fn dimension_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 pub struct IntentStmt<Span> {
     pub intent_spec: IntentSpec<Span>,
     pub dummy_arg_name_list: Vec<DummyArgName<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "intent-stmt" #849 : "is INTENT ( intent-spec ) [ :: ] dummy-arg-name-list",
 )]
-pub fn intent_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntentStmt<S::Span>> + 'a {
+pub fn intent_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntentStmt<S::Span>> + 'a {
     (
         (space(0), kw("intent", cfg), space(0), '(', space(0)),
         intent_spec(cfg),
         (space(0), ')', space(0)),
         (space(0), "::", space(0)).optional(),
         list(dummy_arg_name(cfg), 0..),
-        statement_termination(),
-    ).map(|(_, intent_spec, _, _, dummy_arg_name_list, comment)| IntentStmt {
+    ).map(|(_, intent_spec, _, _, dummy_arg_name_list)| IntentStmt {
         intent_spec,
         dummy_arg_name_list,
-        comment,
     })
 }
 
 #[derive(Debug, Clone)]
 pub struct OptionalStmt<Span> {
     pub dummy_arg_name_list: Vec<DummyArgName<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "optional-stmt" #850 : "is OPTIONAL [ :: ] dummy-arg-name-list",
 )]
-pub fn optional_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OptionalStmt<S::Span>> + 'a {
+pub fn optional_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OptionalStmt<S::Span>> + 'a {
     (
         (space(0), kw("optional", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(dummy_arg_name(cfg), 0..),
-        statement_termination(),
-    ).map(|(_, _, dummy_arg_name_list, comment)| OptionalStmt {
+    ).map(|(_, _, dummy_arg_name_list)| OptionalStmt {
         dummy_arg_name_list,
-        comment,
     })
 }
 
 #[derive(Debug, Clone)]
 pub struct PointerStmt<Span> {
     pub pointer_decl_list: Vec<PointerDecl<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "pointer-stmt" #853 : "is POINTER [ :: ] pointer-decl-list",
 )]
-pub fn pointer_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerStmt<S::Span>> + 'a {
+pub fn pointer_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerStmt<S::Span>> + 'a {
     (
         (space(0), kw("pointer", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(pointer_decl(cfg), 1..),
-        statement_termination(),
-    ).map(|(_, _, pointer_decl_list, comment)| PointerStmt {
+    ).map(|(_, _, pointer_decl_list)| PointerStmt {
         pointer_decl_list,
-        comment,
     })
 }
 
@@ -579,44 +553,38 @@ pub fn pointer_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
 #[derive(Debug, Clone)]
 pub struct ProtectedStmt<Span> {
     pub entity_name_list: Vec<Name<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "protected-stmt" #855 : "is PROTECTED [ :: ] entity-name-list",
 )]
-pub fn protected_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProtectedStmt<S::Span>> + 'a {
+pub fn protected_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProtectedStmt<S::Span>> + 'a {
     (
         (space(0), kw("protected", cfg), space(0)),
         (space(0), "::", space(0)).optional(),
         list(name(cfg, false), 1..),
-        statement_termination(),
-    ).map(|(_, _, entity_name_list, comment)| ProtectedStmt {
+    ).map(|(_, _, entity_name_list)| ProtectedStmt {
         entity_name_list,
-        comment,
     })
 }
 
 #[derive(Debug, Clone)]
 pub struct SaveStmt<Span> {
     pub saved_entity_list: Option<Vec<SavedEntity<Span>>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "save-stmt" #856 : "SAVE [ [ :: ] saved-entity-list ]",
 )]
-pub fn save_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SaveStmt<S::Span>> + 'a {
+pub fn save_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SaveStmt<S::Span>> + 'a {
     (
         (space(0), kw("save", cfg), space(0)),
         (
             (space(0), "::", space(0)),
             list(saved_entity(cfg), 0..),
         ).map(|(_, saved_entity_list)| saved_entity_list).optional(),
-        statement_termination(),
-    ).map(|(_, saved_entity_list, comment)| SaveStmt {
+    ).map(|(_, saved_entity_list)| SaveStmt {
         saved_entity_list,
-        comment,
     })
 }
 

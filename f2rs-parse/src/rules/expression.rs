@@ -1098,14 +1098,13 @@ pub struct AllocateStmt<Span> {
     pub type_spec: Option<TypeSpec<Span>>,
     pub allocation_list: Vec<Allocation<Span>>,
     pub alloc_opt_list: Option<Vec<AllocOpt<Span>>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "allocate-stmt" #927 :
     "is ALLOCATE ( [ type-spec :: ] allocation-list [ , alloc-opt-list ] )",
 )]
-pub fn allocate_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateStmt<S::Span>> + 'a {
+pub fn allocate_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateStmt<S::Span>> + 'a {
     (
         (kw("allocate", cfg)),
         (space(0), '(', space(0)),
@@ -1119,12 +1118,10 @@ pub fn allocate_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
             list(alloc_opt(cfg), 0..),
         ).map(|(_, _, _, alloc_opt_list)| alloc_opt_list).optional(),
         (space(0), ')', space(0)),
-        statement_termination(),
-    ).map(|(_, _, type_spec, allocation_list, alloc_opt_list, _, comment)| AllocateStmt {
+    ).map(|(_, _, type_spec, allocation_list, alloc_opt_list, _)| AllocateStmt {
         type_spec,
         allocation_list,
         alloc_opt_list,
-        comment,
     })
 }
 
@@ -1362,6 +1359,1161 @@ pub fn proc_pointer_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 }
 
 #[derive(Debug, Clone)]
+pub struct AssignmentStmt<Span> {
+    pub variable: Variable<Span>,
+    pub expr: Expr<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "assignment-stmt" #1032 : "is variable = expr",
+)]
+pub fn assignment_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssignmentStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        variable(cfg, true),
+        (space(0), '=', space(0)),
+        expr(cfg),
+    ).map(|(variable, _, expr)| AssignmentStmt {
+        variable,
+        expr,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum PointerAssignmentStmt<Span> {
+    Form1 {
+        data_pointer_object: DataPointerObject<Span>,
+        bounds_spec_list: Option<Vec<BoundsSpec<Span>>>,
+        data_target: DataTarget<Span>,
+    },
+    Form2 {
+        data_pointer_object: DataPointerObject<Span>,
+        bounds_remapping_list: Vec<BoundsRemapping<Span>>,
+        data_target: DataTarget<Span>,
+    },
+    Form3 {
+        proc_pointer_object: ProcPointerObject<Span>,
+        proc_target: ProcTarget<Span>,
+    },
+}
+
+#[syntax_rule(
+    F18V007r1 rule "pointer-assignment-stmt" #1033 :
+    "is data-pointer-object [ (bounds-spec-list) ] => data-target"
+    "or data-pointer-object (bounds-remapping-list ) => data-target"
+    "or proc-pointer-object => proc-target",
+)]
+pub fn pointer_assignment_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerAssignmentStmt<S::Span>> + 'a {
+    alt!(
+        (
+            data_pointer_object(cfg),
+            (
+                (space(0), '(', space(0)),
+                list(bounds_spec(cfg), 0..),
+                (space(0), ')', space(0)),
+            ).map(|(_, bounds_spec_list, _)| bounds_spec_list).optional(),
+            (space(0), "=>", space(0)),
+            data_target(cfg),
+        ).map(|(data_pointer_object, bounds_spec_list, _, data_target)| PointerAssignmentStmt::Form1 {
+            data_pointer_object,
+            bounds_spec_list,
+            data_target,
+        }),
+        (
+            data_pointer_object(cfg),
+            (space(0), '(', space(0)),
+            list(bounds_remapping(cfg), 0..),
+            (space(0), ')', space(0)),
+            (space(0), "=>", space(0)),
+            data_target(cfg),
+        ).map(|(data_pointer_object, _, bounds_remapping_list, _, _, data_target)| PointerAssignmentStmt::Form2 {
+            data_pointer_object,
+            bounds_remapping_list,
+            data_target,
+        }),
+        (
+            proc_pointer_object(cfg),
+            (space(0), "=>", space(0)),
+            proc_target(cfg),
+        ).map(|(proc_pointer_object, _, proc_target)| PointerAssignmentStmt::Form3 {
+            proc_pointer_object,
+            proc_target,
+        }),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum DataPointerObject<Span> {
+    VariableName(VariableName<Span>),
+    Component {
+        scalar_variable: Variable<Span>,
+        data_pointer_component_name: Name<Span>,
+    },
+}
+
+#[syntax_rule(
+    F18V007r1 rule "data-pointer-object" #1034 :
+    "is variable-name"
+    "or scalar-variable % data-pointer-component-name",
+)]
+pub fn data_pointer_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataPointerObject<S::Span>> + 'a {
+    alt!(
+        variable_name(cfg).map(DataPointerObject::VariableName),
+        (
+            variable(cfg, true),
+            space(0), '%', space(0),
+            name(cfg, false),
+        ).map(|(scalar_variable, _, _, _, data_pointer_component_name)| DataPointerObject::Component {
+            scalar_variable,
+            data_pointer_component_name,
+        }),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct BoundsSpec<Span> {
+    pub lower_bound: LowerBoundExpr<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "bounds-spec" #1035 : "is lower-bound-expr :",
+)]
+pub fn bounds_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BoundsSpec<S::Span>> + 'a {
+    // TODO test
+    (
+        lower_bound_expr(cfg),
+        (space(0), ':', space(0)),
+    ).map(|(lower_bound, _)| BoundsSpec {
+        lower_bound,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct BoundsRemapping<Span> {
+    pub lower_bound_expr: LowerBoundExpr<Span>,
+    pub upper_bound_expr: UpperBoundExpr<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "bounds-remapping" #1036 : "is lower-bound-expr : upper-bound-expr",
+)]
+pub fn bounds_remapping<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BoundsRemapping<S::Span>> + 'a {
+    // TODO test
+    (
+        lower_bound_expr(cfg),
+        (space(0), ':', space(0)),
+        upper_bound_expr(cfg),
+    ).map(|(lower_bound_expr, _, upper_bound_expr)| BoundsRemapping {
+        lower_bound_expr,
+        upper_bound_expr,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct DataTarget<Span>(pub Expr<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "data-target" #1037 : "is expr",
+)]
+pub fn data_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataTarget<S::Span>> + 'a {
+    expr(cfg).map(DataTarget)
+}
+
+#[derive(Debug, Clone)]
+pub struct WhereStmt<Span> {
+    pub mask_expr: MaskExpr<Span>,
+    pub where_assignment_stmt: WhereAssignmentStmt<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "where-stmt" #1041 : "is WHERE ( mask-expr ) where-assignment-stmt",
+)]
+pub fn where_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WhereStmt<S::Span>> + 'a {
+    (
+        (kw("where", cfg), space(0), '(', space(0)),
+        mask_expr(cfg),
+        (space(0), ')', space(0)),
+        where_assignment_stmt(cfg),
+    ).map(|(_, mask_expr, _, where_assignment_stmt)| WhereStmt {
+        mask_expr,
+        where_assignment_stmt,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct WhereConstructStmt<Span> {
+    pub where_construct_name: Option<Name<Span>>,
+    pub mask_expr: MaskExpr<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "where-construct-stmt" #1043 : "is [where-construct-name:] WHERE ( mask-expr )",
+)]
+pub fn where_construct_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WhereConstructStmt<S::Span>> + 'a {
+    (
+        (
+            name(cfg, false),
+            (space(0), ':', space(0)),
+        ).map(|(name, (_, _, _))| name).optional(),
+        (kw("where", cfg), space(0), '(', space(0)),
+        mask_expr(cfg),
+        (space(0), ')', space(0)),
+    ).map(|(where_construct_name, _, mask_expr, _)| WhereConstructStmt {
+        where_construct_name,
+        mask_expr,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct WhereAssignmentStmt<Span> {
+    pub assignment_stmt: AssignmentStmt<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "where-assignment-stmt" #1045 : "is assignment-stmt",
+)]
+pub fn where_assignment_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WhereAssignmentStmt<S::Span>> + 'a {
+    |_| todo!("TODO: \"where_assignment_stmt\" parser not implemented yet")
+}
+
+#[derive(Debug, Clone)]
+pub struct MaskedElsewhereStmt<Span> {
+    pub mask_expr: MaskExpr<Span>,
+    pub where_construct_name: Option<Name<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "masked-elsewhere-stmt" #1047 : "is ELSEWHERE (mask-expr) [where-construct-name]",
+)]
+pub fn masked_elsewhere_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MaskedElsewhereStmt<S::Span>> + 'a {
+    (
+        (kw("elsewhere", cfg), space(0), '(', space(0)),
+        mask_expr(cfg),
+        (space(0), ')', space(0)),
+        name(cfg, false).optional(),
+    ).map(|(_, mask_expr, _, where_construct_name)| MaskedElsewhereStmt {
+        mask_expr,
+        where_construct_name,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ElsewhereStmt<Span> {
+    pub where_construct_name: Option<Name<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "elsewhere-stmt" #1048 : "is ELSEWHERE [where-construct-name]",
+)]
+pub fn elsewhere_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ElsewhereStmt<S::Span>> + 'a {
+    (
+        kw("elsewhere", cfg),
+        name(cfg, false).optional(),
+    ).map(|(_, where_construct_name)| ElsewhereStmt {
+        where_construct_name,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct EndWhereStmt<Span> {
+    pub where_construct_name: Option<Name<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "end-where-stmt" #1049 : "is END WHERE [where-construct-name]",
+)]
+pub fn end_where_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndWhereStmt<S::Span>> + 'a {
+    (
+        kw("end", cfg), space(0), kw("where", cfg),
+        name(cfg, false).optional(),
+    ).map(|(_, _, _, where_construct_name)| EndWhereStmt {
+        where_construct_name,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ForallConstructStmt<Span> {
+    pub forall_construct_name: Option<Name<Span>>,
+    pub concurrent_header: ConcurrentHeader<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "forall-construct-stmt" #1051 : "is [forall-construct-name :] FORALL concurrent-header",
+)]
+pub fn forall_construct_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ForallConstructStmt<S::Span>> + 'a {
+    (
+        (name(cfg, false), (space(0), ':', space(0))).map(|(name, (_, _, _))| name).optional(),
+        kw("forall", cfg),
+        concurrent_header(cfg),
+    ).map(|(forall_construct_name, _, concurrent_header)| ForallConstructStmt {
+        forall_construct_name,
+        concurrent_header,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum IoUnit<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    Star,
+    InternalFileVariable(InternalFileVariable<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "io-unit" #1201 :
+    "is file-unit-number"
+    "or *"
+    "or internal-file-variable",
+)]
+pub fn io_unit<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoUnit<S::Span>> + 'a {
+    |_| todo!("TODO: \"io_unit\" parser not implemented yet")
+}
+
+#[derive(Debug, Clone)]
+pub struct FileUnitNumber<Span>(pub IntExpr<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "file-unit-number" #1202 : "is scalar-int-expr",
+)]
+pub fn file_unit_number<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FileUnitNumber<S::Span>> + 'a {
+    // TODO test
+    int_expr(cfg).map(FileUnitNumber)
+}
+
+#[derive(Debug, Clone)]
+pub struct InternalFileVariable<Span>(pub CharVariable<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "internal-file-variable" #1203 : "is char-variable",
+)]
+pub fn internal_file_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InternalFileVariable<S::Span>> + 'a {
+    // TODO test
+    char_variable(cfg, true).map(InternalFileVariable) // TODO true???
+}
+
+#[derive(Debug, Clone)]
+pub struct OpenStmt<Span> {
+    pub connect_spec_list: Vec<ConnectSpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "open-stmt" #1204 : "is OPEN ( connect-spec-list )",
+)]
+pub fn open_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OpenStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        (kw("open", cfg), space(0), '(', space(0)),
+        list(connect_spec(cfg), 1..),
+        (space(0), ')', space(0)),
+    ).map(|(_, connect_spec_list, _)| OpenStmt {
+        connect_spec_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ConnectSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    Access(DefaultCharExpr<Span>),
+    Action(DefaultCharExpr<Span>),
+    Asynchronous(DefaultCharExpr<Span>),
+    Blank(DefaultCharExpr<Span>),
+    Decimal(DefaultCharExpr<Span>),
+    Delim(DefaultCharExpr<Span>),
+    Encoding(DefaultCharExpr<Span>),
+    Err(Label<Span>),
+    File(FileNameExpr<Span>),
+    Form(DefaultCharExpr<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Iostat(StatVariable<Span>),
+    Newunit(IntVariable<Span>),
+    Pad(DefaultCharExpr<Span>),
+    Position(DefaultCharExpr<Span>),
+    Recl(IntExpr<Span>),
+    Round(DefaultCharExpr<Span>),
+    Sign(DefaultCharExpr<Span>),
+    Status(DefaultCharExpr<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "connect-spec" #1205 :
+    "is [ UNIT = ] file-unit-number"
+    "or ACCESS = scalar-default-char-expr"
+    "or ACTION = scalar-default-char-expr"
+    "or ASYNCHRONOUS = scalar-default-char-expr"
+    "or BLANK = scalar-default-char-expr"
+    "or DECIMAL = scalar-default-char-expr"
+    "or DELIM = scalar-default-char-expr"
+    "or ENCODING = scalar-default-char-expr"
+    "or ERR = label"
+    "or FILE = file-name-expr"
+    "or FORM = scalar-default-char-expr"
+    "or IOMSG = iomsg-variable"
+    "or IOSTAT = stat-variable"
+    "or NEWUNIT = scalar-int-variable"
+    "or PAD = scalar-default-char-expr"
+    "or POSITION = scalar-default-char-expr"
+    "or RECL = scalar-int-expr"
+    "or ROUND = scalar-default-char-expr"
+    "or SIGN = scalar-default-char-expr"
+    "or STATUS = scalar-default-char-expr",
+)]
+pub fn connect_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConnectSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| ConnectSpec::FileUnitNumber(file_unit_number)),
+        (kw("access", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Access(scalar_default_char_expr)),
+        (kw("action", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Action(scalar_default_char_expr)),
+        (kw("asynchronous", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Asynchronous(scalar_default_char_expr)),
+        (kw("blank", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Blank(scalar_default_char_expr)),
+        (kw("decimal", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Decimal(scalar_default_char_expr)),
+        (kw("delim", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Delim(scalar_default_char_expr)),
+        (kw("encoding", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Encoding(scalar_default_char_expr)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| ConnectSpec::Err(label)),
+        (kw("file", cfg), space(0), '=', space(0), file_name_expr(cfg)).map(|(_, _, _, _, file_name_expr)| ConnectSpec::File(file_name_expr)),
+        (kw("form", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Form(scalar_default_char_expr)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| ConnectSpec::Iomsg(iomsg_variable)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| ConnectSpec::Iostat(stat_variable)),
+        (kw("newunit", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| ConnectSpec::Newunit(scalar_int_variable)), // TODO false???
+        (kw("pad", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Pad(scalar_default_char_expr)),
+        (kw("position", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Position(scalar_default_char_expr)),
+        (kw("recl", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| ConnectSpec::Recl(scalar_int_expr)),
+        (kw("round", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Round(scalar_default_char_expr)),
+        (kw("sign", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Sign(scalar_default_char_expr)),
+        (kw("status", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| ConnectSpec::Status(scalar_default_char_expr)),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct FileNameExpr<Span>(pub DefaultCharExpr<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "file-name-expr" #1206 : "is scalar-default-char-expr",
+)]
+pub fn file_name_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FileNameExpr<S::Span>> + 'a {
+    // TODO test
+    default_char_expr(cfg).map(FileNameExpr)
+}
+
+#[derive(Debug, Clone)]
+pub struct IomsgVariable<Span>(pub DefaultCharVariable<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "iomsg-variable" #1207 : "is scalar-default-char-variable",
+)]
+pub fn iomsg_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IomsgVariable<S::Span>> + 'a {
+    // TODO test
+    default_char_variable(cfg, false).map(IomsgVariable)
+}
+
+#[derive(Debug, Clone)]
+pub struct CloseStmt<Span> {
+    pub close_spec_list: Vec<CloseSpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "close-stmt" #1208 : "is CLOSE ( close-spec-list )",
+)]
+pub fn close_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CloseStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        (kw("close", cfg), space(0), '(', space(0)),
+        list(close_spec(cfg), 1..),
+        (space(0), ')', space(0)),
+    ).map(|(_, close_spec_list, _)| CloseStmt {
+        close_spec_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum CloseSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    Iostat(StatVariable<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Err(Label<Span>),
+    Status(DefaultCharExpr<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "close-spec" #1209 :
+    "is [ UNIT = ] file-unit-number"
+    "or IOSTAT = stat-variable"
+    "or IOMSG = iomsg-variable"
+    "or ERR = label"
+    "or STATUS = scalar-default-char-expr",
+)]
+pub fn close_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CloseSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| CloseSpec::FileUnitNumber(file_unit_number)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| CloseSpec::Iostat(stat_variable)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| CloseSpec::Iomsg(iomsg_variable)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| CloseSpec::Err(label)),
+        (kw("status", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| CloseSpec::Status(scalar_default_char_expr)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum ReadStmt<Span> {
+    IoControlSpecList(Vec<IoControlSpec<Span>>),
+    Format(Format<Span>, Option<Vec<InputItem<Span>>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "read-stmt" #1210 :
+    "is READ ( io-control-spec-list ) [ input-item-list ]"
+    "or READ format [ , input-item-list ]",
+)]
+pub fn read_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ReadStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("read", cfg), space(0), '(', space(0)),
+            list(io_control_spec(cfg), 1..),
+            (space(0), ')', space(0)),
+            list(input_item(cfg), 0..).map(Some),
+        ).map(|(_, io_control_spec_list, _, input_item_list)| ReadStmt::IoControlSpecList(io_control_spec_list)),
+        (
+            (kw("read", cfg), space(0)),
+            format(cfg),
+            (
+                space(0), ',', space(0),
+                list(input_item(cfg), 0..),
+            ).map(|(_, _, _, input_item_list)| input_item_list).optional(),
+        ).map(|(_, format, input_item_list)| ReadStmt::Format(format, input_item_list)),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct WriteStmt<Span> {
+    pub io_control_spec_list: Vec<IoControlSpec<Span>>,
+    pub output_item_list: Option<Vec<OutputItem<Span>>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "write-stmt" #1211 : "is WRITE ( io-control-spec-list ) [ output-item-list ]",
+)]
+pub fn write_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WriteStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        (kw("write", cfg), space(0), '(', space(0)),
+        list(io_control_spec(cfg), 1..),
+        (space(0), ')', space(0)),
+        list(output_item(cfg), 1..).optional(),
+    ).map(|(_, io_control_spec_list, _, output_item_list)| WriteStmt {
+        io_control_spec_list,
+        output_item_list,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct PrintStmt<Span> {
+    pub format: Format<Span>,
+    pub output_item_list: Option<Vec<OutputItem<Span>>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "print-stmt" #1212 : "is PRINT format [ , output-item-list ]",
+)]
+pub fn print_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PrintStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        (kw("print", cfg), space(0)),
+        format(cfg),
+        (
+            space(0), ',', space(0),
+            list(output_item(cfg), 1..),
+        ).map(|(_, _, _, output_item_list)| output_item_list).optional(),
+    ).map(|(_, format, output_item_list)| PrintStmt {
+        format,
+        output_item_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum IoControlSpec<Span> {
+    Unit(IoUnit<Span>),
+    Fmt(Format<Span>),
+    Nml(Name<Span>),
+    Advance(DefaultCharExpr<Span>),
+    Asynchronous(DefaultCharConstantExpr<Span>),
+    Blank(DefaultCharExpr<Span>),
+    Decimal(DefaultCharExpr<Span>),
+    Delim(DefaultCharExpr<Span>),
+    End(Label<Span>),
+    Eor(Label<Span>),
+    Err(Label<Span>),
+    Id(IdVariable<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Iostat(StatVariable<Span>),
+    Pad(DefaultCharExpr<Span>),
+    Pos(IntExpr<Span>),
+    Rec(IntExpr<Span>),
+    Round(DefaultCharExpr<Span>),
+    Sign(DefaultCharExpr<Span>),
+    Size(IntVariable<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "io-control-spec" #1213 :
+    "is [ UNIT = ] io-unit"
+    "or [ FMT = ] format"
+    "or [ NML = ] namelist-group-name"
+    "or ADVANCE = scalar-default-char-expr"
+    "or ASYNCHRONOUS = scalar-default-char-constant-expr"
+    "or BLANK = scalar-default-char-expr"
+    "or DECIMAL = scalar-default-char-expr"
+    "or DELIM = scalar-default-char-expr"
+    "or END = label"
+    "or EOR = label"
+    "or ERR = label"
+    "or ID = id-variable"
+    "or IOMSG = iomsg-variable"
+    "or IOSTAT = stat-variable"
+    "or PAD = scalar-default-char-expr"
+    "or POS = scalar-int-expr"
+    "or REC = scalar-int-expr"
+    "or ROUND = scalar-default-char-expr"
+    "or SIGN = scalar-default-char-expr"
+    "or SIZE = scalar-int-variable",
+)]
+pub fn io_control_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoControlSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            io_unit(cfg),
+        ).map(|(_, io_unit)| IoControlSpec::Unit(io_unit)),
+        (
+            (kw("fmt", cfg), space(0), '=', space(0)).optional(),
+            format(cfg),
+        ).map(|(_, format)| IoControlSpec::Fmt(format)),
+        (
+            (kw("nml", cfg), space(0), '=', space(0)).optional(),
+            name(cfg, false),
+        ).map(|(_, namelist_group_name)| IoControlSpec::Nml(namelist_group_name)),
+        (kw("advance", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Advance(scalar_default_char_expr)),
+        (kw("asynchronous", cfg), space(0), '=', space(0), default_char_constant_expr(cfg)).map(|(_, _, _, _, scalar_default_char_constant_expr)| IoControlSpec::Asynchronous(scalar_default_char_constant_expr)),
+        (kw("blank", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Blank(scalar_default_char_expr)),
+        (kw("decimal", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Decimal(scalar_default_char_expr)),
+        (kw("delim", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Delim(scalar_default_char_expr)),
+        (kw("end", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| IoControlSpec::End(label)),
+        (kw("eor", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| IoControlSpec::Eor(label)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| IoControlSpec::Err(label)),
+        (kw("id", cfg), space(0), '=', space(0), id_variable(cfg)).map(|(_, _, _, _, id_variable)| IoControlSpec::Id(id_variable)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| IoControlSpec::Iomsg(iomsg_variable)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| IoControlSpec::Iostat(stat_variable)),
+        (kw("pad", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Pad(scalar_default_char_expr)),
+        (kw("pos", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| IoControlSpec::Pos(scalar_int_expr)),
+        (kw("rec", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| IoControlSpec::Rec(scalar_int_expr)),
+        (kw("round", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Round(scalar_default_char_expr)),
+        (kw("sign", cfg), space(0), '=', space(0), default_char_expr(cfg)).map(|(_, _, _, _, scalar_default_char_expr)| IoControlSpec::Sign(scalar_default_char_expr)),
+        (kw("size", cfg), space(0), '=', space(0), int_variable(cfg, true)).map(|(_, _, _, _, scalar_int_variable)| IoControlSpec::Size(scalar_int_variable)), // TODO true???
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct IdVariable<Span>(pub IntVariable<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "id-variable" #1214 : "is scalar-int-variable",
+)]
+pub fn id_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IdVariable<S::Span>> + 'a {
+    // TODO test
+    int_variable(cfg, false).map(IdVariable)
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum Format<Span> {
+    DefaultCharExpr(DefaultCharExpr<Span>),
+    Label(Label<Span>),
+    Star,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "format" #1215 :
+    "is default-char-expr"
+    "or label"
+    "or *",
+)]
+pub fn format<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Format<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        default_char_expr(cfg).map(Format::DefaultCharExpr),
+        label(cfg).map(Format::Label),
+        (SpecialCharacter::Asterisk).map(|_| Format::Star),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InputItem<Span> {
+    Variable(Variable<Span>),
+    IoImpliedDo(IoImpliedDo<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "input-item" #1216 :
+    "is variable"
+    "or io-implied-do",
+)]
+pub fn input_item<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InputItem<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        variable(cfg, true).map(InputItem::Variable),
+        io_implied_do(cfg).map(InputItem::IoImpliedDo),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub enum OutputItem<Span> {
+    Expr(Expr<Span>),
+    IoImpliedDo(IoImpliedDo<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "output-item" #1217 :
+    "is expr"
+    "or io-implied-do",
+)]
+pub fn output_item<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OutputItem<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        expr(cfg).map(OutputItem::Expr),
+        io_implied_do(cfg).map(OutputItem::IoImpliedDo),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct IoImpliedDo<Span> {
+    pub io_implied_do_object_list: Vec<IoImpliedDoObject<Span>>,
+    pub io_implied_do_control: IoImpliedDoControl<Span>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "io-implied-do" #1218 : "is ( io-implied-do-object-list , io-implied-do-control )",
+)]
+pub fn io_implied_do<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDo<S::Span>> + 'a {
+    // TODO test
+    (
+        (SpecialCharacter::LeftParenthesis, space(0)),
+        list(io_implied_do_object(cfg), 1..),
+        (space(0), ',', space(0)),
+        io_implied_do_control(cfg),
+        (space(0), SpecialCharacter::RightParenthesis, space(0)),
+    ).map(|(_, io_implied_do_object_list, _, io_implied_do_control, _)| IoImpliedDo {
+        io_implied_do_object_list,
+        io_implied_do_control,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub enum IoImpliedDoObject<Span> {
+    InputItem(InputItem<Span>),
+    OutputItem(OutputItem<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "io-implied-do-object" #1219 :
+    "is input-item"
+    "or output-item",
+)]
+pub fn io_implied_do_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDoObject<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        input_item(cfg).map(IoImpliedDoObject::InputItem),
+        output_item(cfg).map(IoImpliedDoObject::OutputItem),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct IoImpliedDoControl<Span> {
+    pub do_variable: Variable<Span>,
+    pub scalar_int_expr_list: Vec<IntExpr<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "io-implied-do-control" #1220 :
+    "is do-variable = scalar-int-expr ,"
+    "    scalar-int-expr [ , scalar-int-expr ]",
+)]
+pub fn io_implied_do_control<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDoControl<S::Span>> + 'a {
+    // TODO test
+    (
+        variable(cfg, true),
+        (space(0), '=', space(0)),
+        list(int_expr(cfg), 2..),
+    ).map(|(do_variable, _, scalar_int_expr_list)| IoImpliedDoControl {
+        do_variable,
+        scalar_int_expr_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum DtvTypeSpec<Span> {
+    Type(DerivedTypeSpec<Span>),
+    Class(DerivedTypeSpec<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "dtv-type-spec" #1221 :
+    "is TYPE( derived-type-spec )"
+    "or CLASS( derived-type-spec )",
+)]
+pub fn dtv_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DtvTypeSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (kw("type", cfg), space(0), '(', space(0), derived_type_spec(cfg), (space(0), ')', space(0))).map(|(_, _, _, _, derived_type_spec, _)| DtvTypeSpec::Type(derived_type_spec)),
+        (kw("class", cfg), space(0), '(', space(0), derived_type_spec(cfg), (space(0), ')', space(0))).map(|(_, _, _, _, derived_type_spec, _)| DtvTypeSpec::Class(derived_type_spec)),
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct WaitStmt<Span> {
+    pub wait_spec_list: Vec<WaitSpec<Span>>,
+}
+
+#[syntax_rule(
+    F18V007r1 rule "wait-stmt" #1222 : "is WAIT (wait-spec-list)",
+)]
+pub fn wait_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WaitStmt<S::Span>> + 'a {
+    // TODO test
+    (
+        (kw("wait", cfg), space(0), '(', space(0)),
+        list(wait_spec(cfg), 1..),
+        (space(0), ')', space(0)),
+    ).map(|(_, wait_spec_list, _)| WaitStmt {
+        wait_spec_list,
+    })
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum WaitSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    End(Label<Span>),
+    Eor(Label<Span>),
+    Err(Label<Span>),
+    Id(IntExpr<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Iostat(StatVariable<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "wait-spec" #1223 :
+    "is [ UNIT = ] file-unit-number"
+    "or END = label"
+    "or EOR = label"
+    "or ERR = label"
+    "or ID = scalar-int-expr"
+    "or IOMSG = iomsg-variable"
+    "or IOSTAT = stat-variable",
+)]
+pub fn wait_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WaitSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| WaitSpec::FileUnitNumber(file_unit_number)),
+        (kw("end", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| WaitSpec::End(label)),
+        (kw("eor", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| WaitSpec::Eor(label)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| WaitSpec::Err(label)),
+        (kw("id", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| WaitSpec::Id(scalar_int_expr)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| WaitSpec::Iomsg(iomsg_variable)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| WaitSpec::Iostat(stat_variable)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum EndfileStmt<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    PositionSpecList(Vec<PositionSpec<Span>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "endfile-stmt" #1225 :
+    "is ENDFILE file-unit-number"
+    "or ENDFILE ( position-spec-list )",
+)]
+pub fn endfile_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndfileStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (kw("endfile", cfg), space(0), file_unit_number(cfg)).map(|(_, _, file_unit_number)| EndfileStmt::FileUnitNumber(file_unit_number)),
+        (kw("endfile", cfg), space(0), '(', space(0), list(position_spec(cfg), 1..), (space(0), ')', space(0))).map(|(_, _, _, _, position_spec_list, _)| EndfileStmt::PositionSpecList(position_spec_list)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum RewindStmt<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    PositionSpecList(Vec<PositionSpec<Span>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "rewind-stmt" #1226 :
+    "is REWIND file-unit-number"
+    "or REWIND ( position-spec-list )",
+)]
+pub fn rewind_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RewindStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (kw("rewind", cfg), space(0), file_unit_number(cfg)).map(|(_, _, file_unit_number)| RewindStmt::FileUnitNumber(file_unit_number)),
+        (kw("rewind", cfg), space(0), '(', space(0), list(position_spec(cfg), 1..), (space(0), ')', space(0))).map(|(_, _, _, _, position_spec_list, _)| RewindStmt::PositionSpecList(position_spec_list)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum PositionSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Iostat(StatVariable<Span>),
+    Err(Label<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "position-spec" #1227 :
+    "is [ UNIT = ] file-unit-number"
+    "or IOMSG = iomsg-variable"
+    "or IOSTAT = stat-variable"
+    "or ERR = label",
+)]
+pub fn position_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PositionSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| PositionSpec::FileUnitNumber(file_unit_number)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| PositionSpec::Iomsg(iomsg_variable)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| PositionSpec::Iostat(stat_variable)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| PositionSpec::Err(label)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum FlushStmt<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    FlushSpecList(Vec<FlushSpec<Span>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "flush-stmt" #1228 :
+    "is FLUSH file-unit-number"
+    "or FLUSH ( flush-spec-list )",
+)]
+pub fn flush_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FlushStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (kw("flush", cfg), space(0), file_unit_number(cfg)).map(|(_, _, file_unit_number)| FlushStmt::FileUnitNumber(file_unit_number)),
+        (kw("flush", cfg), space(0), '(', space(0), list(flush_spec(cfg), 1..), (space(0), ')', space(0))).map(|(_, _, _, _, flush_spec_list, _)| FlushStmt::FlushSpecList(flush_spec_list)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum FlushSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    Iostat(StatVariable<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Err(Label<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "flush-spec" #1229 :
+    "is [UNIT =] file-unit-number"
+    "or IOSTAT = stat-variable"
+    "or IOMSG = iomsg-variable"
+    "or ERR = label",
+)]
+pub fn flush_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FlushSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| FlushSpec::FileUnitNumber(file_unit_number)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| FlushSpec::Iostat(stat_variable)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| FlushSpec::Iomsg(iomsg_variable)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| FlushSpec::Err(label)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InquireStmt<Span> {
+    InquireSpecList(Vec<InquireSpec<Span>>),
+    IoLength(IntVariable<Span>),
+    OutputItemList(Vec<OutputItem<Span>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "inquire-stmt" #1230 :
+    "is INQUIRE ( inquire-spec-list )"
+    "or INQUIRE ( IOLENGTH = scalar-int-variable )"
+    "output-item-list",
+)]
+pub fn inquire_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InquireStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("inquire", cfg), space(0), '(', space(0)),
+            list(inquire_spec(cfg), 1..),
+            (space(0), ')', space(0)),
+        ).map(|(_, inquire_spec_list, _)| InquireStmt::InquireSpecList(inquire_spec_list)),
+        (
+            (kw("inquire", cfg), space(0), '(', space(0), kw("iolength", cfg), space(0), '=', space(0)),
+            int_variable(cfg, false), // TODO false???
+            (space(0), ')', space(0)),
+        ).map(|(_, scalar_int_variable, _)| InquireStmt::IoLength(scalar_int_variable)),
+        list(output_item(cfg), 1..).map(InquireStmt::OutputItemList),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum InquireSpec<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    File(FileNameExpr<Span>),
+    Access(DefaultCharVariable<Span>),
+    Action(DefaultCharVariable<Span>),
+    Asynchronous(DefaultCharVariable<Span>),
+    Blank(DefaultCharVariable<Span>),
+    Decimal(DefaultCharVariable<Span>),
+    Delim(DefaultCharVariable<Span>),
+    Direct(DefaultCharVariable<Span>),
+    Encoding(DefaultCharVariable<Span>),
+    Err(Label<Span>),
+    Exist(LogicalVariable<Span>),
+    Form(DefaultCharVariable<Span>),
+    Formatted(DefaultCharVariable<Span>),
+    Id(IntExpr<Span>),
+    Iomsg(IomsgVariable<Span>),
+    Iostat(StatVariable<Span>),
+    Name(DefaultCharVariable<Span>),
+    Named(LogicalVariable<Span>),
+    Nextrec(IntVariable<Span>),
+    Number(IntVariable<Span>),
+    Opened(LogicalVariable<Span>),
+    Pad(DefaultCharVariable<Span>),
+    Pending(LogicalVariable<Span>),
+    Pos(IntVariable<Span>),
+    Position(DefaultCharVariable<Span>),
+    Read(DefaultCharVariable<Span>),
+    Readwrite(DefaultCharVariable<Span>),
+    Recl(IntVariable<Span>),
+    Round(DefaultCharVariable<Span>),
+    Sequential(DefaultCharVariable<Span>),
+    Sign(DefaultCharVariable<Span>),
+    Size(IntVariable<Span>),
+    Stream(DefaultCharVariable<Span>),
+    Unformatted(DefaultCharVariable<Span>),
+    Write(DefaultCharVariable<Span>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "inquire-spec" #1231 :
+    "is [ UNIT = ] file-unit-number"
+    "or FILE = file-name-expr"
+    "or ACCESS = scalar-default-char-variable"
+    "or ACTION = scalar-default-char-variable"
+    "or ASYNCHRONOUS = scalar-default-char-variable"
+    "or BLANK = scalar-default-char-variable"
+    "or DECIMAL = scalar-default-char-variable"
+    "or DELIM = scalar-default-char-variable"
+    "or DIRECT = scalar-default-char-variable"
+    "or ENCODING = scalar-default-char-variable"
+    "or ERR = label"
+    "or EXIST = scalar-logical-variable"
+    "or FORM = scalar-default-char-variable"
+    "or FORMATTED = scalar-default-char-variable"
+    "or ID = scalar-int-expr"
+    "or IOMSG = iomsg-variable"
+    "or IOSTAT = stat-variable"
+    "or NAME = scalar-default-char-variable"
+    "or NAMED = scalar-logical-variable"
+    "or NEXTREC = scalar-int-variable"
+    "or NUMBER = scalar-int-variable"
+    "or OPENED = scalar-logical-variable"
+    "or PAD = scalar-default-char-variable"
+    "or PENDING = scalar-logical-variable"
+    "or POS = scalar-int-variable"
+    "or POSITION = scalar-default-char-variable"
+    "or READ = scalar-default-char-variable"
+    "or READWRITE = scalar-default-char-variable"
+    "or RECL = scalar-int-variable"
+    "or ROUND = scalar-default-char-variable"
+    "or SEQUENTIAL = scalar-default-char-variable"
+    "or SIGN = scalar-default-char-variable"
+    "or SIZE = scalar-int-variable"
+    "or STREAM = scalar-default-char-variable"
+    "or UNFORMATTED = scalar-default-char-variable"
+    "or WRITE = scalar-default-char-variable",
+)]
+pub fn inquire_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InquireSpec<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (
+            (kw("unit", cfg), space(0), '=', space(0)).optional(),
+            file_unit_number(cfg),
+        ).map(|(_, file_unit_number)| InquireSpec::FileUnitNumber(file_unit_number)),
+        (kw("file", cfg), space(0), '=', space(0), file_name_expr(cfg)).map(|(_, _, _, _, file_name_expr)| InquireSpec::File(file_name_expr)),
+        (kw("access", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Access(scalar_default_char_variable)),
+        (kw("action", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Action(scalar_default_char_variable)),
+        (kw("asynchronous", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Asynchronous(scalar_default_char_variable)),
+        (kw("blank", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Blank(scalar_default_char_variable)),
+        (kw("decimal", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Decimal(scalar_default_char_variable)),
+        (kw("delim", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Delim(scalar_default_char_variable)),
+        (kw("direct", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Direct(scalar_default_char_variable)),
+        (kw("encoding", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Encoding(scalar_default_char_variable)),
+        (kw("err", cfg), space(0), '=', space(0), label(cfg)).map(|(_, _, _, _, label)| InquireSpec::Err(label)),
+        (kw("exist", cfg), space(0), '=', space(0), logical_variable(cfg, false)).map(|(_, _, _, _, scalar_logical_variable)| InquireSpec::Exist(scalar_logical_variable)), // TODO false???
+        (kw("form", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Form(scalar_default_char_variable)),
+        (kw("formatted", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Formatted(scalar_default_char_variable)),
+        (kw("id", cfg), space(0), '=', space(0), int_expr(cfg)).map(|(_, _, _, _, scalar_int_expr)| InquireSpec::Id(scalar_int_expr)),
+        (kw("iomsg", cfg), space(0), '=', space(0), iomsg_variable(cfg)).map(|(_, _, _, _, iomsg_variable)| InquireSpec::Iomsg(iomsg_variable)),
+        (kw("iostat", cfg), space(0), '=', space(0), stat_variable(cfg)).map(|(_, _, _, _, stat_variable)| InquireSpec::Iostat(stat_variable)),
+        (kw("name", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Name(scalar_default_char_variable)),
+        (kw("named", cfg), space(0), '=', space(0), logical_variable(cfg, false)).map(|(_, _, _, _, scalar_logical_variable)| InquireSpec::Named(scalar_logical_variable)),
+        (kw("nextrec", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| InquireSpec::Nextrec(scalar_int_variable)),
+        (kw("number", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| InquireSpec::Number(scalar_int_variable)),
+        (kw("opened", cfg), space(0), '=', space(0), logical_variable(cfg, false)).map(|(_, _, _, _, scalar_logical_variable)| InquireSpec::Opened(scalar_logical_variable)),
+        (kw("pad", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Pad(scalar_default_char_variable)),
+        (kw("pending", cfg), space(0), '=', space(0), logical_variable(cfg, false)).map(|(_, _, _, _, scalar_logical_variable)| InquireSpec::Pending(scalar_logical_variable)),
+        (kw("pos", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| InquireSpec::Pos(scalar_int_variable)),
+        (kw("position", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Position(scalar_default_char_variable)),
+        (kw("read", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Read(scalar_default_char_variable)),
+        (kw("readwrite", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Readwrite(scalar_default_char_variable)),
+        (kw("recl", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| InquireSpec::Recl(scalar_int_variable)),
+        (kw("round", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Round(scalar_default_char_variable)),
+        (kw("sequential", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Sequential(scalar_default_char_variable)),
+        (kw("sign", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Sign(scalar_default_char_variable)),
+        (kw("size", cfg), space(0), '=', space(0), int_variable(cfg, false)).map(|(_, _, _, _, scalar_int_variable)| InquireSpec::Size(scalar_int_variable)),
+        (kw("stream", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Stream(scalar_default_char_variable)),
+        (kw("unformatted", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Unformatted(scalar_default_char_variable)),
+        (kw("write", cfg), space(0), '=', space(0), default_char_variable(cfg, false)).map(|(_, _, _, _, scalar_default_char_variable)| InquireSpec::Write(scalar_default_char_variable)),
+    )
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum BackspaceStmt<Span> {
+    FileUnitNumber(FileUnitNumber<Span>),
+    PositionSpecList(Vec<PositionSpec<Span>>),
+}
+
+#[syntax_rule(
+    F18V007r1 rule "backspace-stmt" #1224 :
+    "is BACKSPACE file-unit-number"
+    "or BACKSPACE ( position-spec-list )",
+)]
+pub fn backspace_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BackspaceStmt<S::Span>> + 'a {
+    // TODO test
+    alt!(
+        (kw("backspace", cfg), space(0), file_unit_number(cfg)).map(|(_, _, file_unit_number)| BackspaceStmt::FileUnitNumber(file_unit_number)),
+        (kw("backspace", cfg), space(0), '(', space(0), list(position_spec(cfg), 1..), (space(0), ')', space(0))).map(|(_, _, _, _, position_spec_list, _)| BackspaceStmt::PositionSpecList(position_spec_list)),
+    )
+}
+
+#[derive(Debug, Clone)]
 pub struct ProcComponentRef<Span> {
     pub scalar_variable: Variable<Span>,
     pub procedure_component_name: Name<Span>,
@@ -1402,6 +2554,17 @@ pub fn proc_target<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
         name(cfg, false).map(ProcTarget::ProcedureName),
         proc_component_ref(cfg).map(ProcTarget::ProcComponentRef),
     )
+}
+
+#[derive(Debug, Clone)]
+pub struct MaskExpr<Span>(pub Expr<Span>);
+
+#[syntax_rule(
+    F18V007r1 rule "mask-expr" #1046 : "is logical-expr",
+)]
+pub fn mask_expr<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MaskExpr<S::Span>> + 'a {
+    // TODO test
+    logical_expr(cfg).map(MaskExpr)
 }
 
 #[cfg(test)]

@@ -1,5 +1,53 @@
 use super::*;
 
+#[derive(Debug, Clone, EnumAsInner)]
+enum Stmt<Span> { // TODO maybe StatementInner
+    OtherSpecification(OtherSpecificationStmt<Span>),
+    ImplicitPart(ImplicitPartStmt<Span>),
+    MpSubprogram(MpSubprogramStmt<Span>),
+    Function(FunctionStmt<Span>),
+    Procedure(ProcedureStmt<Span>),
+    EndInterface(EndInterfaceStmt<Span>),
+    Interface(InterfaceStmt<Span>),
+}
+
+impl<Span> Stmt<Span> {
+    fn parser<'a, S: TextSource<Span = Span> + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Self> + 'a {
+        alt!(
+            other_specification_stmt_2(cfg).map(Stmt::OtherSpecification),
+            implicit_part_stmt_2(cfg).map(Stmt::ImplicitPart),
+            mp_subprogram_stmt_2(cfg).map(Stmt::MpSubprogram),
+            function_stmt_2(cfg).map(Stmt::Function),
+            procedure_stmt_2(cfg).map(Stmt::Procedure),
+            end_interface_stmt_2(cfg).map(Stmt::EndInterface),
+            interface_stmt_2(cfg).map(Stmt::Interface),
+        )
+    }
+}
+
+struct Statement<Span> {
+    label: Option<Label<Span>>,
+    inner: Stmt<Span>,
+    final_comment: Option<LineComment<Span>>,
+}
+
+impl<Span> Statement<Span> {
+    fn parser<'a, S: TextSource<Span = Span> + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Self> + 'a {
+        (
+            space(0),
+            label(cfg).optional(),
+            space(0),
+            Stmt::parser(cfg),
+            space(0),
+            statement_termination(),
+        ).map(|(_, label, _, inner, _, final_comment)| Statement {
+            label,
+            inner,
+            final_comment,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Label<Span> {
     pub digits: StringMatch<Span>,

@@ -1,12 +1,14 @@
 
 
-use std::iter::once;
+use std::{iter::once, ops::{Bound, RangeBounds}};
+
+use serde::{Deserialize, Serialize};
 
 use crate::tokenization::{PResult, ParserCore};
 
 use super::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Char<Span> {
     pub value: char,
     pub span: Span,
@@ -59,6 +61,17 @@ impl<Span> Char<Span> {
         })
     }
 
+    pub fn any_except<S: TextSource<Span = Span>>(chars: impl IntoIterator<Item = char> + Clone) -> impl Parser<S, Token = Self> {
+        Self::parse(move |c| {
+            for char in chars.clone() {
+                if c == char {
+                    return false;
+                }
+            }
+            true
+        })
+    }
+
     pub fn white<S: TextSource<Span = Span>>() -> impl Parser<S, Token = Self> {
         Self::any_of(" \t\n\r".chars())
     }
@@ -87,7 +100,7 @@ impl<S: TextSource> ParserCore<S> for char {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringMatch<Span> {
     pub span: Span,
     pub value: String,
@@ -156,6 +169,46 @@ impl<Span: Clone> StringMatch<Span> {
                     value: value.to_string(),
                 }
             )
+        }
+    }
+
+    pub fn match_while<'a, S: TextSource<Span = Span>>(
+        condition: impl Fn(char, usize) -> bool + Clone + 'a,
+        len: impl RangeBounds<usize> + Clone + 'a,
+    ) -> impl Parser<S, Token = Self> + 'a {
+        move |mut source: S| {
+            let mut count = 0;
+            let mut value = String::new();
+            let mut span = source.make_span(source.start(), source.start());
+            while let Some(c) = source.get_at(&source.start()) {
+                match len.end_bound() {
+                    Bound::Included(&max) if count + 1 > max => break,
+                    Bound::Excluded(&max) if count + 1 >= max => break,
+                    _ => {}
+                }
+
+                if !condition(c, count) {
+                    break;
+                }
+                value.push(c);
+                let next = source.next(source.start(), 1);
+                let new_span = source.make_span(source.start(), next.clone());
+                span = S::merge_span(span, new_span);
+                source = source.tail(next);
+                count += 1;
+            }
+
+            if !len.contains(&count) {
+                return None;
+            }
+
+            Some((
+                StringMatch {
+                    span,
+                    value,
+                },
+                source,
+            ))
         }
     }
 

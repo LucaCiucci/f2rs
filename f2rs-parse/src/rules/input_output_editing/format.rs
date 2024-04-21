@@ -3,21 +3,18 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct FormatStmt<Span> {
     pub format_specification: FormatSpecification<Span>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "format-stmt" #1301 : "is FORMAT format-specification",
 )]
-pub fn format_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatStmt<S::Span>> + 'a {
+pub fn format_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatStmt<S::Span>> + 'a {
     (
         space(0),
         kw("format", cfg), space(0),
         format_specification(cfg),
-        statement_termination(),
-    ).map(|(_, _, _, format_specification, comment)| FormatStmt {
+    ).map(|(_, _, _, format_specification)| FormatStmt {
         format_specification,
-        comment,
     })
 }
 

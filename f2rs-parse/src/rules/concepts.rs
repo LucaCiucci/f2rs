@@ -1,117 +1,11 @@
 use super::*;
 
-#[derive(Debug, Clone)]
-pub struct SpecificationPart<Span> {
-    pub use_stmts: Vec<UseStmt<Span>>,
-    pub import_stmts: Vec<ImportStmt<Span>>,
-    pub implicit_part: Option<ImplicitPart<Span>>,
-    pub declaration_constructs: Vec<DeclarationConstruct<Span>>,
-}
-
-#[syntax_rule(
-    F18V007r1 rule "specification-part" #504 :
-    "is [ use-stmt ] ..."
-    "    [ import-stmt ] ..."
-    "    [ implicit-part ]"
-    "    [ declaration-construct ] ...",
-)]
-pub fn specification_part<'a, S: TextSource + 'a, U: 'a>(
-    cfg: &'a Cfg,
-    until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = (SpecificationPart<S::Span>, Option<U>)> + 'a {
-    move |source: S| {
-        let mut result = SpecificationPart {
-            use_stmts: Vec::new(),
-            import_stmts: Vec::new(),
-            implicit_part: None,
-            declaration_constructs: Vec::new(),
-        };
-
-        let ((use_stmts, u), source) = many_until(use_stmt(cfg), until, 0..).parse(source)?;
-        result.use_stmts = use_stmts;
-        if u.is_some() {
-            return Some(((result, u), source));
-        }
-
-        let ((import_stmts, u), source) = many_until(import_stmt(cfg), until, 0..).parse(source)?;
-        result.import_stmts = import_stmts;
-        if u.is_some() {
-            return Some(((result, u), source));
-        }
-
-        let ((implicit_part, u), source) = implicit_part(cfg, until).optional().parse(source)?;
-        result.implicit_part = implicit_part;
-        if u.is_some() {
-            return Some(((result, u), source));
-        }
-
-        let ((declaration_constructs, u), source) = many_until(declaration_construct(cfg), until, u..)?;
-        result.declaration_constructs = declaration_constructs;
-        if u.is_some() {
-            return Some(((result, u), source));
-        }
-
-        Some(((result, None), source))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ImplicitPart<Span> {
-    pub implicit_part_stmts: Vec<ImplicitPartStmt<Span>>,
-    pub implicit_stmt: ImplicitStmt<Span>,
-}
-
-#[syntax_rule(
-    F18V007r1 rule "implicit-part" #505 :
-    "is [ implicit-part-stmt ] ..."
-    "    implicit-stmt",
-)]
-pub fn implicit_part<'a, S: TextSource + 'a, U: 'a>(
-    cfg: &'a Cfg,
-    until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = (ImplicitPart<S::Span>, Option<U>)> + 'a {
-    move |mut source: S| {
-        let mut implicit_part_stmts = vec![];
-        let mut u_result = None;
-        loop {
-            let r_u = until.parse(source);
-            match r_u {
-                Some((u, s)) => {
-                    source = s;
-                    u_result = Some(u);
-                    break;
-                },
-                None => {}
-            }
-
-            let r = implicit_part_stmt(cfg).parse(source);
-            match r {
-                Some((implicit_part_stmt, s)) => {
-                    source = s;
-                    implicit_part_stmts.push(implicit_part_stmt);
-                },
-                None => break,
-            }
-        }
-
-        let implicit_stmt = match implicit_part_stmts.pop()? {
-            ImplicitPartStmt::ImplicitStmt(implicit_stmt) => implicit_stmt,
-            _ => return None,
-        };
-
-        Some(((ImplicitPart {
-            implicit_part_stmts,
-            implicit_stmt,
-        }, u_result), source))
-    }
-}
-
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ImplicitPartStmt<Span> {
-    ImplicitStmt(ImplicitStmt<Span>),
-    ParameterStmt(ParameterStmt<Span>),
-    FormatStmt(FormatStmt<Span>),
-    EntryStmt(EntryStmt<Span>),
+    Implicit(ImplicitStmt<Span>),
+    Parameter(ParameterStmt<Span>),
+    Format(FormatStmt<Span>),
+    Entry(EntryStmt<Span>),
 }
 
 #[syntax_rule(
@@ -121,165 +15,12 @@ pub enum ImplicitPartStmt<Span> {
     "or format-stmt"
     "or entry-stmt",
 )]
-pub fn implicit_part_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImplicitPartStmt<S::Span>> + 'a {
+pub fn implicit_part_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImplicitPartStmt<S::Span>> + 'a {
     alt!(
-        implicit_stmt(cfg).map(ImplicitPartStmt::ImplicitStmt),
-        parameter_stmt(cfg).map(ImplicitPartStmt::ParameterStmt),
-        format_stmt(cfg).map(ImplicitPartStmt::FormatStmt),
-        entry_stmt(cfg).map(ImplicitPartStmt::EntryStmt),
-    )
-}
-
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum DeclarationConstruct<Span> {
-    SpecificationConstruct(SpecificationConstruct<Span>),
-    DataStmt(DataStmt<Span>),
-    FormatStmt(FormatStmt<Span>),
-    EntryStmt(EntryStmt<Span>),
-    StmtFunctionStmt(StmtFunctionStmt<Span>),
-}
-
-#[syntax_rule(
-    F18V007r1 rule "declaration-construct" #507 :
-    "is specification-construct"
-    "or data-stmt"
-    "or format-stmt"
-    "or entry-stmt"
-    "or stmt-function-stmt",
-)]
-pub fn declaration_construct<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DeclarationConstruct<S::Span>> + 'a {
-    alt!(
-        specification_construct(cfg).map(DeclarationConstruct::SpecificationConstruct),
-        data_stmt(cfg).map(DeclarationConstruct::DataStmt),
-        format_stmt(cfg).map(DeclarationConstruct::FormatStmt),
-        entry_stmt(cfg).map(DeclarationConstruct::EntryStmt),
-        stmt_function_stmt(cfg).map(DeclarationConstruct::StmtFunctionStmt),
-    )
-}
-
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum SpecificationConstruct<Span> {
-    DerivedTypeDef(DerivedTypeDef<Span>),
-    EnumDef(EnumDef<Span>),
-    GenericStmt(GenericStmt<Span>),
-    InterfaceBlock(InterfaceBlock<Span>),
-    ParameterStmt(ParameterStmt<Span>),
-    ProcedureDeclarationStmt(ProcedureDeclarationStmt<Span>),
-    OtherSpecificationStmt(OtherSpecificationStmt<Span>),
-    TypeDeclarationStmt(TypeDeclarationStmt<Span>),
-}
-
-#[syntax_rule(
-    F18V007r1 rule "specification-construct" #508 :
-    "is derived-type-def"
-    "or enum-def"
-    "or generic-stmt"
-    "or interface-block"
-    "or parameter-stmt"
-    "or procedure-declaration-stmt"
-    "or other-specification-stmt"
-    "or type-declaration-stmt",
-)]
-pub fn specification_construct<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SpecificationConstruct<S::Span>> + 'a {
-    alt!(
-        derived_type_def(cfg).map(SpecificationConstruct::DerivedTypeDef),
-        enum_def(cfg).map(SpecificationConstruct::EnumDef),
-        generic_stmt(cfg).map(SpecificationConstruct::GenericStmt),
-        interface_block(cfg).map(SpecificationConstruct::InterfaceBlock),
-        parameter_stmt(cfg).map(SpecificationConstruct::ParameterStmt),
-        procedure_declaration_stmt(cfg).map(SpecificationConstruct::ProcedureDeclarationStmt),
-        other_specification_stmt(cfg).map(SpecificationConstruct::OtherSpecificationStmt),
-        type_declaration_stmt(cfg).map(SpecificationConstruct::TypeDeclarationStmt),
-    )
-}
-
-#[derive(Debug, Clone)]
-pub struct ExecutionPart<Span> {
-    pub executable_construct: ExecutableConstruct<Span>,
-    pub execution_part_constructs: Vec<ExecutionPartConstruct<Span>>,
-}
-
-#[syntax_rule(
-    F18V007r1 rule "execution-part" #509 :
-    "is executable-construct"
-    "    [ execution-part-construct ] ...",
-)]
-pub fn execution_part<'a, S: TextSource + 'a, U: 'a>(
-    cfg: &'a Cfg,
-    until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = (ExecutionPart<S::Span>, Option<U>)> + 'a {
-    (
-        executable_construct(cfg),
-        many_until(execution_part_construct(cfg), until, 0..),
-    ).map(|(executable_construct, (execution_part_constructs, u))| (ExecutionPart {
-        executable_construct,
-        execution_part_constructs,
-    }, u))
-}
-
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum ExecutionPartConstruct<Span> {
-    ExecutableConstruct(ExecutableConstruct<Span>),
-    FormatStmt(FormatStmt<Span>),
-    EntryStmt(EntryStmt<Span>),
-    DataStmt(DataStmt<Span>),
-}
-
-#[syntax_rule(
-    F18V007r1 rule "execution-part-construct" #510 :
-    "is executable-construct"
-    "or format-stmt"
-    "or entry-stmt"
-    "or data-stmt",
-)]
-pub fn execution_part_construct<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExecutionPartConstruct<S::Span>> + 'a {
-    alt!(
-        executable_construct(cfg).map(ExecutionPartConstruct::ExecutableConstruct),
-        format_stmt(cfg).map(ExecutionPartConstruct::FormatStmt),
-        entry_stmt(cfg).map(ExecutionPartConstruct::EntryStmt),
-        data_stmt(cfg).map(ExecutionPartConstruct::DataStmt),
-    )
-}
-
-#[derive(Debug, Clone)]
-pub struct InternalSubprogramPart<Span> {
-    pub contains_stmt: ContainsStmt<Span>,
-    pub internal_subprograms: Vec<InternalSubprogram<Span>>,
-}
-
-#[syntax_rule(
-    F18V007r1 rule "internal-subprogram-part" #511 :
-    "is contains-stmt"
-    "    [ internal-subprogram ] ...",
-)]
-pub fn internal_subprogram_part<'a, S: TextSource + 'a, U: 'a>(
-    cfg: &'a Cfg,
-    until: impl Parser<S, Token = U> + 'a,
-) -> impl Parser<S, Token = (InternalSubprogramPart<S::Span>, Option<U>)> + 'a {
-    (
-        contains_stmt(cfg),
-        many_until(internal_subprogram(cfg), until, 0..),
-    ).map(|(contains_stmt, (internal_subprograms, u))| (InternalSubprogramPart {
-        contains_stmt,
-        internal_subprograms,
-    }, u))
-}
-
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum InternalSubprogram<Span> {
-    FunctionSubprogram(FunctionSubprogram<Span>),
-    SubroutineSubprogram(SubroutineSubprogram<Span>),
-}
-
-#[syntax_rule(
-    F18V007r1 rule "internal-subprogram" #512 :
-    "is function-subprogram"
-    "or subroutine-subprogram",
-)]
-pub fn internal_subprogram<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InternalSubprogram<S::Span>> + 'a {
-    alt!(
-        function_subprogram(cfg).map(InternalSubprogram::FunctionSubprogram),
-        subroutine_subprogram(cfg).map(InternalSubprogram::SubroutineSubprogram),
+        implicit_stmt_2(cfg).map(ImplicitPartStmt::Implicit),
+        parameter_stmt_2(cfg).map(ImplicitPartStmt::Parameter),
+        format_stmt_2(cfg).map(ImplicitPartStmt::Format),
+        entry_stmt_2(cfg).map(ImplicitPartStmt::Entry),
     )
 }
 
@@ -330,76 +71,28 @@ pub enum OtherSpecificationStmt<Span> {
     "or common-stmt"
     "or equivalence-stmt",
 )]
-pub fn other_specification_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OtherSpecificationStmt<S::Span>> + 'a {
+pub fn other_specification_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OtherSpecificationStmt<S::Span>> + 'a {
     alt!(
-        access_stmt(cfg).map(OtherSpecificationStmt::AccessStmt),
-        allocatable_stmt(cfg).map(OtherSpecificationStmt::AllocatableStmt),
-        asynchronous_stmt(cfg).map(OtherSpecificationStmt::AsynchronousStmt),
-        bind_stmt(cfg).map(OtherSpecificationStmt::BindStmt),
-        codimension_stmt(cfg).map(OtherSpecificationStmt::CodimensionStmt),
-        contiguous_stmt(cfg).map(OtherSpecificationStmt::ContiguousStmt),
-        dimension_stmt(cfg).map(OtherSpecificationStmt::DimensionStmt),
-        external_stmt(cfg).map(OtherSpecificationStmt::ExternalStmt),
-        intent_stmt(cfg).map(OtherSpecificationStmt::IntentStmt),
-        intrinsic_stmt(cfg).map(OtherSpecificationStmt::IntrinsicStmt),
-        namelist_stmt(cfg).map(OtherSpecificationStmt::NamelistStmt),
-        optional_stmt(cfg).map(OtherSpecificationStmt::OptionalStmt),
-        pointer_stmt(cfg).map(OtherSpecificationStmt::PointerStmt),
-        protected_stmt(cfg).map(OtherSpecificationStmt::ProtectedStmt),
-        save_stmt(cfg).map(OtherSpecificationStmt::SaveStmt),
-        target_stmt(cfg).map(OtherSpecificationStmt::TargetStmt),
-        volatile_stmt(cfg).map(OtherSpecificationStmt::VolatileStmt),
-        value_stmt(cfg).map(OtherSpecificationStmt::ValueStmt),
-        common_stmt(cfg).map(OtherSpecificationStmt::CommonStmt),
-        equivalence_stmt(cfg).map(OtherSpecificationStmt::EquivalenceStmt),
-    )
-}
-
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum ExecutableConstruct<Span> {
-    ActionStmt(ActionStmt<Span>),
-    AssociateConstruct(AssociateConstruct<Span>),
-    BlockConstruct(BlockConstruct<Span>),
-    CaseConstruct(CaseConstruct<Span>),
-    ChangeTeamConstruct(ChangeTeamConstruct<Span>),
-    CriticalConstruct(CriticalConstruct<Span>),
-    DoConstruct(DoConstruct<Span>),
-    IfConstruct(IfConstruct<Span>),
-    SelectRankConstruct(SelectRankConstruct<Span>),
-    SelectTypeConstruct(SelectTypeConstruct<Span>),
-    WhereConstruct(WhereConstruct<Span>),
-    ForallConstruct(ForallConstruct<Span>),
-}
-
-#[syntax_rule(
-    F18V007r1 rule "executable-construct" #514 :
-    "is action-stmt"
-    "or associate-construct"
-    "or block-construct"
-    "or case-construct"
-    "or change-team-construct"
-    "or critical-construct"
-    "or do-construct"
-    "or if-construct"
-    "or select-rank-construct"
-    "or select-type-construct"
-    "or where-construct"
-    "or forall-construct",
-)]
-pub fn executable_construct<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExecutableConstruct<S::Span>> + 'a {
-    alt!(
-        action_stmt(cfg).map(ExecutableConstruct::ActionStmt),
-        associate_construct(cfg).map(ExecutableConstruct::AssociateConstruct),
-        block_construct(cfg).map(ExecutableConstruct::BlockConstruct),
-        case_construct(cfg).map(ExecutableConstruct::CaseConstruct),
-        change_team_construct(cfg).map(ExecutableConstruct::ChangeTeamConstruct),
-        critical_construct(cfg).map(ExecutableConstruct::CriticalConstruct),
-        do_construct(cfg).map(ExecutableConstruct::DoConstruct),
-        if_construct(cfg).map(ExecutableConstruct::IfConstruct),
-        select_rank_construct(cfg).map(ExecutableConstruct::SelectRankConstruct),
-        select_type_construct(cfg).map(ExecutableConstruct::SelectTypeConstruct),
-        where_construct(cfg).map(ExecutableConstruct::WhereConstruct),
-        forall_construct(cfg).map(ExecutableConstruct::ForallConstruct),
+        access_stmt_2(cfg).map(OtherSpecificationStmt::AccessStmt),
+        allocatable_stmt_2(cfg).map(OtherSpecificationStmt::AllocatableStmt),
+        asynchronous_stmt_2(cfg).map(OtherSpecificationStmt::AsynchronousStmt),
+        bind_stmt_2(cfg).map(OtherSpecificationStmt::BindStmt),
+        codimension_stmt_2(cfg).map(OtherSpecificationStmt::CodimensionStmt),
+        contiguous_stmt_2(cfg).map(OtherSpecificationStmt::ContiguousStmt),
+        dimension_stmt_2(cfg).map(OtherSpecificationStmt::DimensionStmt),
+        external_stmt_2(cfg).map(OtherSpecificationStmt::ExternalStmt),
+        intent_stmt_2(cfg).map(OtherSpecificationStmt::IntentStmt),
+        intrinsic_stmt_2(cfg).map(OtherSpecificationStmt::IntrinsicStmt),
+        namelist_stmt_2(cfg).map(OtherSpecificationStmt::NamelistStmt),
+        optional_stmt_2(cfg).map(OtherSpecificationStmt::OptionalStmt),
+        pointer_stmt_2(cfg).map(OtherSpecificationStmt::PointerStmt),
+        protected_stmt_2(cfg).map(OtherSpecificationStmt::ProtectedStmt),
+        save_stmt_2(cfg).map(OtherSpecificationStmt::SaveStmt),
+        target_stmt_2(cfg).map(OtherSpecificationStmt::TargetStmt),
+        volatile_stmt_2(cfg).map(OtherSpecificationStmt::VolatileStmt),
+        value_stmt_2(cfg).map(OtherSpecificationStmt::ValueStmt),
+        common_stmt_2(cfg).map(OtherSpecificationStmt::CommonStmt),
+        equivalence_stmt_2(cfg).map(OtherSpecificationStmt::EquivalenceStmt),
     )
 }
 
@@ -488,8 +181,8 @@ pub enum ActionStmt<Span> {
 )]
 pub fn action_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ActionStmt<S::Span>> + 'a {
     alt!(
-        allocate_stmt(cfg).map(ActionStmt::AllocateStmt),
-        assignment_stmt(cfg).map(ActionStmt::AssignmentStmt),
+        allocate_stmt_2(cfg).map(ActionStmt::AllocateStmt),
+        assignment_stmt_2(cfg).map(ActionStmt::AssignmentStmt),
         backspace_stmt(cfg).map(ActionStmt::BackspaceStmt),
         call_stmt(cfg).map(ActionStmt::CallStmt),
         close_stmt(cfg).map(ActionStmt::CloseStmt),
