@@ -133,8 +133,8 @@ macro_rules! match_variant {
 
 #[macro_export]
 macro_rules! alt {
-    ($($a:expr),*,) => {
-        move |source: S| {
+    ($(type $S:ty =>)? $($a:expr),*,) => {
+        move |source$(: $S)?| {
             if false { unreachable!() }
             $(
                 else if let Some((token, source)) = $a.parse(source.clone()) {

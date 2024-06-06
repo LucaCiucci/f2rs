@@ -9,13 +9,11 @@ pub struct Expr<Span> {
     pub right: Level5Expr<Span>,
 }
 
-// TODO test
 #[syntax_rule(
     F18V007r1 rule "expr" #1022 :
     "is [ expr defined-binary-op ] level-5-expr",
 )]
 pub fn expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr<MultilineSpan>> + 'a {
-    // TODO test
     move |source: S| {
         let e5 = level_5_expr(cfg);
         let bin_op = defined_unary_or_binary_op(); // TODO binary
@@ -54,7 +52,7 @@ pub fn expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Expr<Mult
 #[derive(Debug, Clone)]
 pub struct IntExpr<Span>(pub Expr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "int-expr" #1026 :
     "is expr",
@@ -66,7 +64,7 @@ pub fn int_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntEx
 #[derive(Debug, Clone)]
 pub struct IntConstantExpr<Span>(pub IntExpr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "int-constant-expr" #1031 :
     "is int-expr",
@@ -78,7 +76,7 @@ pub fn int_constant_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
 #[derive(Debug, Clone)]
 pub struct ConstantExpr<Span>(pub Expr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "constant-expr" #1029 :
     "is expr",
@@ -90,7 +88,7 @@ pub fn constant_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 #[derive(Debug, Clone)]
 pub struct DefaultCharConstantExpr<Span>(pub DefaultCharExpr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "default-char-constant-expr" #1030 :
     "is default-char-expr",
@@ -102,7 +100,7 @@ pub fn default_char_constant_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parse
 #[derive(Debug, Clone)]
 pub struct SpecificationExpr<Span>(pub IntExpr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "specification-expr" #1028 :
     "is scalar-int-expr",
@@ -111,7 +109,7 @@ pub fn specification_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
     int_expr(cfg).map(SpecificationExpr)
 }
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "logical-expr" #1024 :
     "is expr",
@@ -123,7 +121,7 @@ pub fn logical_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = E
 #[derive(Debug, Clone)]
 pub struct DefaultCharExpr<Span>(pub Expr<Span>);
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "default-char-expr" #1025 :
     "is expr",
@@ -132,7 +130,7 @@ pub fn default_char_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
     expr(cfg).map(DefaultCharExpr)
 }
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "numeric-expr" #1027 :
     "is expr",
@@ -154,7 +152,7 @@ pub enum Primary<Span> {
     ParenthesizedExpr(Box<Expr<Span>>),
 }
 
-// TODO test
+
 #[syntax_rule(
     F18V007r1 rule "primary" #1001 :
     "is literal-constant"
@@ -193,7 +191,7 @@ pub struct Level1Expr<Span> {
     F18V007r1 rule "level-1-expr" #1002 : "is [ defined-unary-op ] primary",
 )]
 pub fn level_1_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level1Expr<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         defined_unary_or_binary_op().optional(), // TODO unary
         primary(cfg),
@@ -213,7 +211,7 @@ pub struct MultOperand<Span> {
     F18V007r1 rule "mult-operand" #1004 : "is level-1-expr [ power-op mult-operand ]",
 )]
 pub fn mult_operand<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MultOperand<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| (
         level_1_expr(cfg),
         (
@@ -236,7 +234,7 @@ pub struct AddOperand<Span> {
     F18V007r1 rule "add-operand" #1005 : "is [ add-operand mult-op ] mult-operand",
 )]
 pub fn add_operand<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AddOperand<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let mult_operand = mult_operand(cfg);
         let add_op = mult_op();
@@ -282,7 +280,7 @@ pub struct Level2Expr<Span> {
     F18V007r1 rule "level-2-expr" #1006 : "is [ [ level-2-expr ] add-op ] add-operand",
 )]
 pub fn level_2_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level2Expr<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let add_operand = add_operand(cfg);
         let add_op = add_op();
@@ -334,7 +332,7 @@ pub struct Level3Expr<Span> {
     F18V007r1 rule "level-3-expr" #1010 : "is [ level-3-expr concat-op ] level-2-expr",
 )]
 pub fn level_3_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level3Expr<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let level_2_expr = level_2_expr(cfg);
         let concat_op = concat_op();
@@ -380,7 +378,7 @@ pub struct Level4Expr<Span> {
     F18V007r1 rule "level-4-expr" #1012 : "is [ level-3-expr rel-op ] level-3-expr",
 )]
 pub fn level_4_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level4Expr<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let level_3_expr = level_3_expr(cfg);
         let rel_op = rel_op();
@@ -426,7 +424,7 @@ pub struct AndOperand<Span> {
     F18V007r1 rule "and-operand" #1014 : "is [ not-op ] level-4-expr",
 )]
 pub fn and_operand<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AndOperand<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         not_op().optional(),
         level_4_expr(cfg),
@@ -446,7 +444,7 @@ pub struct OrOperand<Span> {
     F18V007r1 rule "or-operand" #1015 : "is [ or-operand and-op ] and-operand",
 )]
 pub fn or_operand<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OrOperand<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let and_operand = and_operand(cfg);
         let and_op = and_op();
@@ -492,7 +490,7 @@ pub struct EquivOperand<Span> {
     F18V007r1 rule "equiv-operand" #1016 : "is [ equiv-operand or-op ] or-operand",
 )]
 pub fn equiv_operand<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivOperand<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let or_operand = or_operand(cfg);
         let or_op = or_op();
@@ -538,7 +536,7 @@ pub struct Level5Expr<Span> {
     F18V007r1 rule "level-5-expr" #1017 : "is [ level-5-expr equiv-op ] equiv-operand",
 )]
 pub fn level_5_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Level5Expr<MultilineSpan>> + 'a {
-    // TODO test
+    
     move |source: S| {
         let equiv_operand = equiv_operand(cfg);
         let equiv_op = equiv_op();
@@ -599,7 +597,7 @@ pub fn designator<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_complex_part_designator: bool,
 ) -> impl Parser<S, Token = Designator<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         object_name(cfg).map(Designator::ObjectName),
         array_element(cfg).map(Designator::ArrayElement),
@@ -626,7 +624,7 @@ pub fn variable<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_function_reference: bool,
 ) -> impl Parser<S, Token = Variable<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         designator(cfg, false).map(Variable::Designator),
         function_reference(cfg).map(Variable::FunctionReference).if_(!not_function_reference),
@@ -653,7 +651,7 @@ pub fn logical_variable<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_function_reference: bool,
 ) -> impl Parser<S, Token = LogicalVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     variable(cfg, not_function_reference).map(LogicalVariable)
 }
 
@@ -667,7 +665,7 @@ pub fn char_variable<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_function_reference: bool,
 ) -> impl Parser<S, Token = CharVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     variable(cfg, not_function_reference).map(CharVariable)
 }
 
@@ -681,7 +679,7 @@ pub fn default_char_variable<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_function_reference: bool,
 ) -> impl Parser<S, Token = DefaultCharVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     variable(cfg, not_function_reference).map(DefaultCharVariable)
 }
 
@@ -695,7 +693,7 @@ pub fn int_variable<'a, S: Lexed + 'a>(
     cfg: &'a Cfg,
     not_function_reference: bool,
 ) -> impl Parser<S, Token = IntVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     variable(cfg, not_function_reference).map(IntVariable)
 }
 
@@ -709,7 +707,7 @@ pub struct Substring<Span> {
     F18V007r1 rule "substring" #908 : "is parent-string ( substring-range )",
 )]
 pub fn substring<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Substring<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         parent_string(cfg),
         delim('('),
@@ -741,7 +739,7 @@ pub enum ParentString<Span> {
     "or scalar-constant",
 )]
 pub fn parent_string<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ParentString<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         variable_name(cfg).map(ParentString::ScalarVariable),
         array_element(cfg).map(ParentString::ArrayElement),
@@ -761,7 +759,7 @@ pub struct SubstringRange<Span> {
     F18V007r1 rule "substring-range" #910 : "is [ scalar-int-expr ] : [ scalar-int-expr ]",
 )]
 pub fn substring_range<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SubstringRange<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         int_expr(cfg).optional(),
         colon(),
@@ -805,7 +803,7 @@ pub struct PartRef<Span> {
     F18V007r1 rule "part-ref" #912 : "is part-name [ ( section-subscript-list ) ] [ image-selector ]",
 )]
 pub fn part_ref<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PartRef<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         name(),
         (
@@ -831,7 +829,7 @@ pub struct StructureComponent<Span>(pub DataRef<Span>);
     F18V007r1 rule "structure-component" #913 : "is data-ref",
 )]
 pub fn structure_component<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StructureComponent<MultilineSpan>> + 'a {
-    // TODO test
+    
     data_ref(cfg).map(StructureComponent)
 }
 
@@ -842,7 +840,7 @@ pub struct CoindexedNamedObject<Span>(pub DataRef<Span>);
     F18V007r1 rule "coindexed-named-object" #914 : "is data-ref",
 )]
 pub fn coindexed_named_object<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CoindexedNamedObject<MultilineSpan>> + 'a {
-    // TODO test
+    
     data_ref(cfg).map(CoindexedNamedObject)
 }
 
@@ -874,7 +872,7 @@ pub struct TypeParamInquiry<Span> {
     F18V007r1 rule "type-param-inquiry" #916 : "is designator % type-param-name",
 )]
 pub fn type_param_inquiry<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamInquiry<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         designator(cfg, true),
         percent(),
@@ -892,7 +890,7 @@ pub struct ArrayElement<Span>(pub DataRef<Span>);
     F18V007r1 rule "array-element" #917 : "is data-ref",
 )]
 pub fn array_element<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayElement<MultilineSpan>> + 'a {
-    // TODO test
+    
     data_ref(cfg).map(ArrayElement)
 }
 
@@ -931,7 +929,7 @@ pub struct Subscript<Span>(pub IntExpr<Span>);
     F18V007r1 rule "subscript" #919 : "is scalar-int-expr",
 )]
 pub fn subscript<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Subscript<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(Subscript)
 }
 
@@ -949,7 +947,7 @@ pub enum SectionSubscript<Span> {
     "or vector-subscript",
 )]
 pub fn section_subscript<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SectionSubscript<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         subscript(cfg).map(SectionSubscript::Subscript),
         subscript_triplet(cfg).map(SectionSubscript::SubscriptTriplet),
@@ -990,7 +988,7 @@ pub struct Stride<Span>(pub IntExpr<Span>);
     F18V007r1 rule "stride" #922 : "is scalar-int-expr",
 )]
 pub fn stride<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Stride<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(Stride)
 }
 
@@ -1001,7 +999,7 @@ pub struct VectorSubscript<Span>(pub IntExpr<Span>);
     F18V007r1 rule "vector-subscript" #923 : "is int-expr",
 )]
 pub fn vector_subscript<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = VectorSubscript<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(VectorSubscript)
 }
 
@@ -1036,7 +1034,7 @@ pub struct Cosubscript<Span>(pub IntExpr<Span>);
     F18V007r1 rule "cosubscript" #925 : "is scalar-int-expr",
 )]
 pub fn cosubscript<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Cosubscript<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(Cosubscript)
 }
 
@@ -1054,7 +1052,7 @@ pub enum ImageSelectorSpec<Span> {
     "or TEAM_NUMBER = scalar-int-expr",
 )]
 pub fn image_selector_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImageSelectorSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(stat), equals(), stat_variable(cfg)).map(|(_, _, stat_variable)| ImageSelectorSpec::Stat(stat_variable)),
         (kw!(team), equals(), team_value(cfg)).map(|(_, _, team_value)| ImageSelectorSpec::Team(team_value)),
@@ -1069,7 +1067,7 @@ pub struct TeamValue<Span>(pub Expr<Span>);
     F18V007r1 rule "team-value" #1115 : "is scalar-expr",
 )]
 pub fn team_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TeamValue<MultilineSpan>> + 'a {
-    // TODO test
+    
     expr(cfg).map(TeamValue)
 }
 
@@ -1121,7 +1119,7 @@ pub enum AllocOpt<Span> {
     "or STAT = stat-variable",
 )]
 pub fn alloc_opt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocOpt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(ERRMSG), equals(), errmsg_variable(cfg)).map(|(_, _, errmsg_variable)| AllocOpt::Errmsg(errmsg_variable)),
         (kw!(MOLD), equals(), source_expr(cfg)).map(|(_, _,  source_expr)| AllocOpt::Mold(source_expr)),
@@ -1137,7 +1135,7 @@ pub struct ErrmsgVariable<Span>(pub DefaultCharVariable<Span>);
     F18V007r1 rule "errmsg-variable" #929 : "is scalar-default-char-variable",
 )]
 pub fn errmsg_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ErrmsgVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     default_char_variable(cfg, false).map(ErrmsgVariable)
 }
 
@@ -1148,7 +1146,7 @@ pub struct SourceExpr<Span>(pub Expr<Span>);
     F18V007r1 rule "source-expr" #930 : "is expr",
 )]
 pub fn source_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SourceExpr<MultilineSpan>> + 'a {
-    // TODO test
+    
     expr(cfg).map(SourceExpr)
 }
 
@@ -1164,7 +1162,7 @@ pub struct Allocation<Span> {
     "is allocate-object [ ( allocate-shape-spec-list ) ] [ lbracket allocate-coarray-spec rbracket ]",
 )]
 pub fn allocation<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Allocation<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         allocate_object(cfg),
         (
@@ -1212,7 +1210,7 @@ pub struct AllocateShapeSpec<Span> {
     F18V007r1 rule "allocate-shape-spec" #933 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
 pub fn allocate_shape_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateShapeSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (
             lower_bound_expr(cfg),
@@ -1232,7 +1230,7 @@ pub struct LowerBoundExpr<Span>(pub IntExpr<Span>);
     F18V007r1 rule "lower-bound-expr" #934 : "is scalar-int-expr",
 )]
 pub fn lower_bound_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LowerBoundExpr<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(LowerBoundExpr)
 }
 
@@ -1243,7 +1241,7 @@ pub struct UpperBoundExpr<Span>(pub IntExpr<Span>);
     F18V007r1 rule "upper-bound-expr" #935 : "is scalar-int-expr",
 )]
 pub fn upper_bound_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UpperBoundExpr<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(UpperBoundExpr)
 }
 
@@ -1283,7 +1281,7 @@ pub struct AllocateCoshapeSpec<Span> {
     F18V007r1 rule "allocate-coshape-spec" #937 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
 pub fn allocate_coshape_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocateCoshapeSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (
             lower_bound_expr(cfg),
@@ -1304,7 +1302,7 @@ pub struct StatVariable<Span>(pub IntVariable<Span>);
     F18V007r1 rule "stat-variable" #942 : "is scalar-int-variable",
 )]
 pub fn stat_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StatVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_variable(cfg, false).map(StatVariable)
 }
 
@@ -1320,7 +1318,7 @@ pub enum ProcPointerObject<Span> {
     "or proc-component-ref",
 )]
 pub fn proc_pointer_object<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcPointerObject<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         proc_pointer_name(cfg).map(ProcPointerObject::ProcPointerName),
         proc_component_ref(cfg).map(ProcPointerObject::ProcComponentRef),
@@ -1334,7 +1332,7 @@ pub struct ProcPointerName<Span>(pub Name<Span>);
     F18V007r1 rule "proc-pointer-name" #858 : "is name",
 )]
 pub fn proc_pointer_name<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcPointerName<MultilineSpan>> + 'a {
-    // TODO test
+    
     name().map(ProcPointerName)
 }
 
@@ -1348,7 +1346,7 @@ pub struct AssignmentStmt<Span> {
     F18V007r1 rule "assignment-stmt" #1032 : "is variable = expr",
 )]
 pub fn assignment_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AssignmentStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         variable(cfg, true),
         (equals()),
@@ -1459,7 +1457,7 @@ pub struct BoundsSpec<Span> {
     F18V007r1 rule "bounds-spec" #1035 : "is lower-bound-expr :",
 )]
 pub fn bounds_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BoundsSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         lower_bound_expr(cfg),
         colon(),
@@ -1478,7 +1476,7 @@ pub struct BoundsRemapping<Span> {
     F18V007r1 rule "bounds-remapping" #1036 : "is lower-bound-expr : upper-bound-expr",
 )]
 pub fn bounds_remapping<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BoundsRemapping<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         lower_bound_expr(cfg),
         colon(),
@@ -1655,7 +1653,7 @@ pub struct FileUnitNumber<Span>(pub IntExpr<Span>);
     F18V007r1 rule "file-unit-number" #1202 : "is scalar-int-expr",
 )]
 pub fn file_unit_number<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FileUnitNumber<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_expr(cfg).map(FileUnitNumber)
 }
 
@@ -1666,7 +1664,7 @@ pub struct InternalFileVariable<Span>(pub CharVariable<Span>);
     F18V007r1 rule "internal-file-variable" #1203 : "is char-variable",
 )]
 pub fn internal_file_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InternalFileVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     char_variable(cfg, true).map(InternalFileVariable) // TODO true???
 }
 
@@ -1679,7 +1677,7 @@ pub struct OpenStmt<Span> {
     F18V007r1 rule "open-stmt" #1204 : "is OPEN ( connect-spec-list )",
 )]
 pub fn open_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OpenStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (kw!(open), delim('(')),
         list(connect_spec(cfg), 1..),
@@ -1737,7 +1735,7 @@ pub enum ConnectSpec<Span> {
     "or STATUS = scalar-default-char-expr",
 )]
 pub fn connect_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConnectSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(unit), equals()).optional(),
@@ -1772,7 +1770,7 @@ pub struct FileNameExpr<Span>(pub DefaultCharExpr<Span>);
     F18V007r1 rule "file-name-expr" #1206 : "is scalar-default-char-expr",
 )]
 pub fn file_name_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FileNameExpr<MultilineSpan>> + 'a {
-    // TODO test
+    
     default_char_expr(cfg).map(FileNameExpr)
 }
 
@@ -1783,7 +1781,7 @@ pub struct IomsgVariable<Span>(pub DefaultCharVariable<Span>);
     F18V007r1 rule "iomsg-variable" #1207 : "is scalar-default-char-variable",
 )]
 pub fn iomsg_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IomsgVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     default_char_variable(cfg, false).map(IomsgVariable)
 }
 
@@ -1796,7 +1794,7 @@ pub struct CloseStmt<Span> {
     F18V007r1 rule "close-stmt" #1208 : "is CLOSE ( close-spec-list )",
 )]
 pub fn close_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CloseStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (kw!(close), delim('(')),
         list(close_spec(cfg), 1..),
@@ -1824,7 +1822,7 @@ pub enum CloseSpec<Span> {
     "or STATUS = scalar-default-char-expr",
 )]
 pub fn close_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CloseSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(unit), equals()).optional(),
@@ -1839,7 +1837,7 @@ pub fn close_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Clo
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ReadStmt<Span> {
-    IoControlSpecList(Vec<IoControlSpec<Span>>),
+    IoControlSpecList(Vec<IoControlSpec<Span>>, Vec<InputItem<Span>>),
     Format(Format<Span>, Option<Vec<InputItem<Span>>>),
 }
 
@@ -1849,14 +1847,14 @@ pub enum ReadStmt<Span> {
     "or READ format [ , input-item-list ]",
 )]
 pub fn read_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ReadStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(read), delim('(')),
             list(io_control_spec(cfg), 1..),
             delim(')'),
             list(input_item(cfg), 0..).map(Some),
-        ).map(|(_, io_control_spec_list, _, input_item_list)| ReadStmt::IoControlSpecList(io_control_spec_list)),
+        ).map(|(_, io_control_spec_list, _, input_item_list)| ReadStmt::IoControlSpecList(io_control_spec_list, input_item_list.unwrap_or_default())),
         (
             kw!(read),
             format(cfg),
@@ -1878,7 +1876,7 @@ pub struct WriteStmt<Span> {
     F18V007r1 rule "write-stmt" #1211 : "is WRITE ( io-control-spec-list ) [ output-item-list ]",
 )]
 pub fn write_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WriteStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (kw!(write), delim('(')),
         list(io_control_spec(cfg), 1..),
@@ -1900,7 +1898,7 @@ pub struct PrintStmt<Span> {
     F18V007r1 rule "print-stmt" #1212 : "is PRINT format [ , output-item-list ]",
 )]
 pub fn print_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PrintStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         kw!(print),
         format(cfg),
@@ -1962,7 +1960,7 @@ pub enum IoControlSpec<Span> {
     "or SIZE = scalar-int-variable",
 )]
 pub fn io_control_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoControlSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(UNIT), equals()).optional(),
@@ -2003,7 +2001,7 @@ pub struct IdVariable<Span>(pub IntVariable<Span>);
     F18V007r1 rule "id-variable" #1214 : "is scalar-int-variable",
 )]
 pub fn id_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IdVariable<MultilineSpan>> + 'a {
-    // TODO test
+    
     int_variable(cfg, false).map(IdVariable)
 }
 
@@ -2021,7 +2019,7 @@ pub enum Format<Span> {
     "or *",
 )]
 pub fn format<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Format<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         default_char_expr(cfg).map(Format::DefaultCharExpr),
         label().map(Format::Label),
@@ -2041,7 +2039,7 @@ pub enum InputItem<Span> {
     "or io-implied-do",
 )]
 pub fn input_item<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InputItem<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         variable(cfg, true).map(InputItem::Variable),
         io_implied_do(cfg).map(InputItem::IoImpliedDo),
@@ -2060,7 +2058,7 @@ pub enum OutputItem<Span> {
     "or io-implied-do",
 )]
 pub fn output_item<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OutputItem<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         expr(cfg).map(OutputItem::Expr),
         io_implied_do(cfg).map(OutputItem::IoImpliedDo),
@@ -2077,7 +2075,7 @@ pub struct IoImpliedDo<Span> {
     F18V007r1 rule "io-implied-do" #1218 : "is ( io-implied-do-object-list , io-implied-do-control )",
 )]
 pub fn io_implied_do<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDo<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         delim('('),
         list(io_implied_do_object(cfg), 1..),
@@ -2102,7 +2100,7 @@ pub enum IoImpliedDoObject<Span> {
     "or output-item",
 )]
 pub fn io_implied_do_object<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDoObject<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         input_item(cfg).map(IoImpliedDoObject::InputItem),
         output_item(cfg).map(IoImpliedDoObject::OutputItem),
@@ -2121,7 +2119,7 @@ pub struct IoImpliedDoControl<Span> {
     "    scalar-int-expr [ , scalar-int-expr ]",
 )]
 pub fn io_implied_do_control<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IoImpliedDoControl<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         variable(cfg, true),
         (equals()),
@@ -2144,7 +2142,7 @@ pub enum DtvTypeSpec<Span> {
     "or CLASS( derived-type-spec )",
 )]
 pub fn dtv_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DtvTypeSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(TYPE), delim('('), derived_type_spec(cfg), delim(')')).map(|(_, _, derived_type_spec, _)| DtvTypeSpec::Type(derived_type_spec)),
         (kw!(CLASS), delim('('), derived_type_spec(cfg), delim(')')).map(|(_, _, derived_type_spec, _)| DtvTypeSpec::Class(derived_type_spec)),
@@ -2160,7 +2158,7 @@ pub struct WaitStmt<Span> {
     F18V007r1 rule "wait-stmt" #1222 : "is WAIT (wait-spec-list)",
 )]
 pub fn wait_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WaitStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         (kw!(wait), delim('(')),
         list(wait_spec(cfg), 1..),
@@ -2192,7 +2190,7 @@ pub enum WaitSpec<Span> {
     "or IOSTAT = stat-variable",
 )]
 pub fn wait_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = WaitSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(UNIT), equals()).optional(),
@@ -2219,7 +2217,7 @@ pub enum EndfileStmt<Span> {
     "or ENDFILE ( position-spec-list )",
 )]
 pub fn endfile_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndfileStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(ENDFILE), file_unit_number(cfg)).map(|(_, file_unit_number)| EndfileStmt::FileUnitNumber(file_unit_number)),
         (kw!(ENDFILE), delim('('), list(position_spec(cfg), 1..), delim(')')).map(|(_, _, position_spec_list, _)| EndfileStmt::PositionSpecList(position_spec_list)),
@@ -2238,7 +2236,7 @@ pub enum RewindStmt<Span> {
     "or REWIND ( position-spec-list )",
 )]
 pub fn rewind_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RewindStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(REWIND), file_unit_number(cfg)).map(|(_, file_unit_number)| RewindStmt::FileUnitNumber(file_unit_number)),
         (kw!(REWIND), delim('('), list(position_spec(cfg), 1..), delim(')')).map(|(_, _, position_spec_list, _)| RewindStmt::PositionSpecList(position_spec_list)),
@@ -2261,7 +2259,7 @@ pub enum PositionSpec<Span> {
     "or ERR = label",
 )]
 pub fn position_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PositionSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(UNIT), equals()).optional(),
@@ -2285,7 +2283,7 @@ pub enum FlushStmt<Span> {
     "or FLUSH ( flush-spec-list )",
 )]
 pub fn flush_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FlushStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(FLUSH), file_unit_number(cfg)).map(|(_, file_unit_number)| FlushStmt::FileUnitNumber(file_unit_number)),
         (kw!(FLUSH), delim('('), list(flush_spec(cfg), 1..), delim(')')).map(|(_, _, flush_spec_list, _)| FlushStmt::FlushSpecList(flush_spec_list)),
@@ -2308,7 +2306,7 @@ pub enum FlushSpec<Span> {
     "or ERR = label",
 )]
 pub fn flush_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FlushSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(UNIT), equals()).optional(),
@@ -2334,7 +2332,7 @@ pub enum InquireStmt<Span> {
     "output-item-list",
 )]
 pub fn inquire_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InquireStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(INQUIRE), delim('(')),
@@ -2430,7 +2428,7 @@ pub enum InquireSpec<Span> {
     "or WRITE = scalar-default-char-variable",
 )]
 pub fn inquire_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = InquireSpec<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (
             (kw!(unit), equals()).optional(),
@@ -2486,7 +2484,7 @@ pub enum BackspaceStmt<Span> {
     "or BACKSPACE ( position-spec-list )",
 )]
 pub fn backspace_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BackspaceStmt<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         (kw!(backspace), file_unit_number(cfg)).map(|(_, file_unit_number)| BackspaceStmt::FileUnitNumber(file_unit_number)),
         (kw!(backspace), delim('('), list(position_spec(cfg), 1..), delim(')')).map(|(_, _, position_spec_list, _)| BackspaceStmt::PositionSpecList(position_spec_list)),
@@ -2503,7 +2501,7 @@ pub struct ProcComponentRef<Span> {
     F18V007r1 rule "proc-component-ref" #1039 : "is scalar-variable % procedure-component-name",
 )]
 pub fn proc_component_ref<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcComponentRef<MultilineSpan>> + 'a {
-    // TODO test
+    
     (
         variable(cfg, true),
         percent(),
@@ -2528,7 +2526,7 @@ pub enum ProcTarget<Span> {
     "or proc-component-ref",
 )]
 pub fn proc_target<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProcTarget<MultilineSpan>> + 'a {
-    // TODO test
+    
     alt!(
         expr(cfg).map(ProcTarget::Expr),
         name().map(ProcTarget::ProcedureName),
@@ -2543,7 +2541,7 @@ pub struct MaskExpr<Span>(pub Expr<Span>);
     F18V007r1 rule "mask-expr" #1046 : "is logical-expr",
 )]
 pub fn mask_expr<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MaskExpr<MultilineSpan>> + 'a {
-    // TODO test
+    
     logical_expr(cfg).map(MaskExpr)
 }
 

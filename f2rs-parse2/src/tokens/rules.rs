@@ -1,9 +1,9 @@
-use std::ops::RangeBounds;
+use std::ops::{Range, RangeBounds};
 
 use f2rs_parse_derive::syntax_rule;
 use f2rs_parser_combinator::prelude::*;
 
-use crate::{Cfg, Standard::*};
+use crate::{decl_rule, statement::{rules::Lexed, MultilineSpan}, Cfg, LexSource, Standard::*};
 use super::*;
 
 /// Fortran special character
@@ -250,39 +250,69 @@ pub fn space<'a, S: TextSource + 'a>(min: usize) -> impl Parser<S, Token = ()> +
     blanks(min..).map(|_| ())
 }
 
-#[syntax_rule(
-    F18V007r1 rule "alphanumeric-character" #601 :
-    "is letter"
-    "or digit"
-    "or underscore",
-)]
-pub fn alphanumeric_character<'a, S: TextSource>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
-    alt!(
-        letter(cfg),
-        digit(cfg),
-        underscore(cfg),
-    )
+// OLD
+//pub fn alphanumeric_character<'a, S: TextSource>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
+//    alt!(
+//        letter(cfg),
+//        digit(cfg),
+//        underscore(cfg),
+//    )
+//}
+
+decl_rule! {
+    alphanumeric_character:
+        F18V007r1 rule "alphanumeric-character" #601 :
+        "is letter"
+        "or digit"
+        "or underscore",
 }
 
-#[syntax_rule(
-    F18V007r1 rule "letter" section "6.1.2",
-)]
-pub fn letter<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Char<S::Span>> {
-    Char::parse(|ref c| ('a'..='z').contains(c) || ('A'..='Z').contains(c))
+impl<'a> ParserCore<Chars<'a>> for alphanumeric_character {
+    type Token = Char<Range<usize>>;
+    fn parse(&self, source: Chars<'a>) -> PResult<Self::Token, Chars<'a>> {
+        alt!(
+            letter,
+            digit,
+            underscore,
+        ).parse(source)
+    }
 }
 
-#[syntax_rule(
-    F18V007r1 rule "digit" section "6.1.3",
-)]
-pub fn digit<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Char<S::Span>> {
-    Char::any_of("0123456789".chars())
+decl_rule! {
+    letter:
+        F18V007r1 rule "letter" section "6.1.2",
 }
 
-#[syntax_rule(
-    F18V007r1 rule "underscore" #602 : "is _",
-)]
-pub fn underscore<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Char<S::Span>> {
-    Char::exact('_')
+impl<S: TextSource> ParserCore<S> for letter {
+    type Token = Char<S::Span>;
+    fn parse(&self, source: S) -> PResult<Self::Token, S> {
+        //Char::any_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".chars()).parse(source)
+        Char::parse(|ref c| ('a'..='z').contains(c) || ('A'..='Z').contains(c)).parse(source)
+    }
+}
+
+decl_rule! {
+    digit:
+        F18V007r1 rule "digit" section "6.1.3",
+}
+
+impl<S: TextSource> ParserCore<S> for digit {
+    type Token = Char<S::Span>;
+    fn parse(&self, source: S) -> PResult<Self::Token, S> {
+        Char::any_of("0123456789".chars()).parse(source)
+    }
+}
+
+decl_rule! {
+    underscore:
+        F18V007r1 rule "underscore" #602 : "is _",
+}
+
+impl<S: TextSource> ParserCore<S> for underscore {
+    type Token = Char<S::Span>;
+    fn parse(&self, source: S) -> PResult<Self::Token, S> {
+        Char::exact('_').parse(source)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -332,10 +362,10 @@ pub fn special_character<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Spe
 pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) -> impl Parser<S, Token = Name<S::Span>> + 'a { // TODO remove bound on source
     move |source: S| {
         if drop_last_underscore {
-            letter(cfg)
+            letter
                 .then(move |first| fold_many(
-                    alphanumeric_character::<S>(cfg)
-                        .condition(|c, s| if c.value == '_' { alphanumeric_character::<S>(cfg).parses(s.clone()) } else { true }),
+                    alphanumeric_character
+                        .condition(|c, s: &S| if c.value == '_' { alphanumeric_character.parses(s.clone()) } else { true }),
                     move || StringMatch::from_char(first.clone()),
                     |mut name, c| {
                         name.push_char::<S>(c);
@@ -347,8 +377,8 @@ pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) ->
                 .parse(source)
         } else {
             (
-                letter(cfg),
-                many(alphanumeric_character(cfg), 0..),
+                letter,
+                many(alphanumeric_character, 0..),
             ).map(move |(first, rest)| {
                 Name(StringMatch::from_chars::<S>(
                     std::iter::once(first).chain(rest.into_iter().map(|c| c)),
@@ -434,7 +464,7 @@ pub fn int_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
     (
         digit_string::<S>(cfg),
         (
-            underscore(cfg),
+            underscore,
             kind_param(cfg, false),
         )
             .map(|(_, kind_param)| kind_param)
@@ -550,12 +580,12 @@ pub fn signed_digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
     F18V007r1 rule "digit-string" #711 : "is digit [ digit ] ...",
 )]
 pub fn digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
-    digit(cfg)
+    digit
         .then(|first| fold_many(
-            digit(cfg),
+            digit,
             move || StringMatch::from_char(first.clone()),
-            |mut string, digit| {
-                string.push_char::<S>(digit);
+            |mut string, d| {
+                string.push_char::<S>(d);
                 (string, true)
             },
             0..,
@@ -648,7 +678,7 @@ pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                 exponent(cfg),
             ).optional(),
             (
-                underscore(cfg),
+                underscore,
                 kind_param(cfg, false),
             ).map(|(_, k)| k).optional(),
         )
@@ -670,7 +700,7 @@ pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
             exponent_letter(cfg),
             exponent(cfg),
             (
-                underscore(cfg),
+                underscore,
                 kind_param(cfg, false),
             ).map(|(_, k)| k).optional(),
         )
@@ -878,7 +908,7 @@ impl<Span> MapSpan<Span> for CharLiteralConstant<Span> {
 pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLiteralConstant<S::Span>> + 'a {
     alt! {
         (
-            (kind_param(cfg, true), underscore(cfg)).map(|(k, _)| k).optional(),
+            (kind_param(cfg, true), underscore).map(|(k, _)| k).optional(),
             Char::<S::Span>::exact('\''),
             fold_many(
                 string_element('\'', "''", "'"),
@@ -908,7 +938,7 @@ pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                 }
             }),
         (
-            (kind_param(cfg, true), underscore(cfg)).map(|(k, _)| k).optional(),
+            (kind_param(cfg, true), underscore).map(|(k, _)| k).optional(),
             Char::<S::Span>::exact('"'),
             fold_many(
                 string_element('"', "\"\"", "\""),
@@ -978,7 +1008,7 @@ pub fn logical_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Pa
             StringMatch::exact(".TRUE.", false).map(|m| (m, true)),
             StringMatch::exact(".FALSE.", false).map(|m| (m, false)),
         ),
-        (space(0), underscore(cfg), space(0), kind_param(cfg, true)).map(|(_, _, _, k)| k).optional(),
+        (space(0), underscore, space(0), kind_param(cfg, true)).map(|(_, _, _, k)| k).optional(),
     ).map(|(value, kind): ((StringMatch<S::Span>, bool), Option<KindParam<S::Span>>)| {
         let mut span = value.0.span.clone();
         if let Some(kind) = &kind {
@@ -1047,8 +1077,8 @@ pub fn binary_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
     let binary_digits = || fold_many(
         Char::any_of("01".chars()),
         || StringMatch::empty::<S>(),
-        |mut string, digit| {
-            string.push_char::<S>(digit);
+        |mut string, d| {
+            string.push_char::<S>(d);
             (string, true)
         },
         1..,
@@ -1079,8 +1109,8 @@ pub fn octal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
     let octal_digits = || fold_many(
         Char::any_of("01234567".chars()),
         || StringMatch::empty::<S>(),
-        |mut string, digit| {
-            string.push_char::<S>(digit);
+        |mut string, d| {
+            string.push_char::<S>(d);
             (string, true)
         },
         1..,
@@ -1111,8 +1141,8 @@ pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
     let hex_digits = || fold_many(
         hex_digit(cfg),
         || StringMatch::empty::<S>(),
-        |mut string, digit| {
-            string.push_char::<S>(digit);
+        |mut string, d| {
+            string.push_char::<S>(d);
             (string, true)
         },
         1..,
@@ -1146,7 +1176,7 @@ pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
 )]
 pub fn hex_digit<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
     alt!(
-        digit(cfg),
+        digit,
         Char::any_of("abcdefABCDEF".chars()),
     )
 }
@@ -1603,7 +1633,7 @@ pub fn defined_unary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
     (
         '.',
         fold_many(
-            letter(cfg),
+            letter,
             || StringMatch::empty::<S>(),
             |mut m, l| {
                 m.push_char::<S>(l);
@@ -1627,7 +1657,7 @@ pub fn defined_binary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
     (
         '.',
         fold_many(
-            letter(cfg),
+            letter,
             || StringMatch::empty::<S>(),
             |mut m, l| {
                 m.push_char::<S>(l);
@@ -2006,44 +2036,36 @@ mod test {
 
     #[test]
     pub fn test_alphanumeric_character() {
-        for ref cfg in test_configs() {
-            assert_eq!(alphanumeric_character(cfg).parses("a"), true);
-            assert_eq!(alphanumeric_character(cfg).parses("A"), true);
-            assert_eq!(alphanumeric_character(cfg).parses("3"), true);
-            assert_eq!(alphanumeric_character(cfg).parses("_"), true);
-            assert_eq!(alphanumeric_character(cfg).parses(" "), false);
-            assert_eq!(alphanumeric_character(cfg).parses("="), false);
-        }
+        assert_eq!(alphanumeric_character.parses("a"), true);
+        assert_eq!(alphanumeric_character.parses("A"), true);
+        assert_eq!(alphanumeric_character.parses("3"), true);
+        assert_eq!(alphanumeric_character.parses("_"), true);
+        assert_eq!(alphanumeric_character.parses(" "), false);
+        assert_eq!(alphanumeric_character.parses("="), false);
     }
 
     #[test]
     pub fn test_letter() {
-        for ref cfg in test_configs() {
-            assert_eq!(letter(cfg).parses("a"), true);
-            assert_eq!(letter(cfg).parses("A"), true);
-            assert_eq!(letter(cfg).parses("3"), false);
-            assert_eq!(letter(cfg).parses("_"), false);
-        }
+        assert_eq!(letter.parses("a"), true);
+        assert_eq!(letter.parses("A"), true);
+        assert_eq!(letter.parses("3"), false);
+        assert_eq!(letter.parses("_"), false);
     }
 
     #[test]
     pub fn test_digit() {
-        for ref cfg in test_configs() {
-            assert_eq!(digit(cfg).parses("a"), false);
-            assert_eq!(digit(cfg).parses("A"), false);
-            assert_eq!(digit(cfg).parses("3"), true);
-            assert_eq!(digit(cfg).parses("_"), false);
-        }
+        assert_eq!(digit.parses("a"), false);
+        assert_eq!(digit.parses("A"), false);
+        assert_eq!(digit.parses("3"), true);
+        assert_eq!(digit.parses("_"), false);
     }
 
     #[test]
     pub fn test_underscore() {
-        for ref cfg in test_configs() {
-            assert_eq!(underscore(cfg).parses("a"), false);
-            assert_eq!(underscore(cfg).parses("A"), false);
-            assert_eq!(underscore(cfg).parses("3"), false);
-            assert_eq!(underscore(cfg).parses("_"), true);
-        }
+        assert_eq!(underscore.parses("a"), false);
+        assert_eq!(underscore.parses("A"), false);
+        assert_eq!(underscore.parses("3"), false);
+        assert_eq!(underscore.parses("_"), true);
     }
 
     #[test]
