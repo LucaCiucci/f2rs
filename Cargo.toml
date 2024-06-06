@@ -1,15 +1,17 @@
 [workspace]
 resolver = "2"
 members = [
-    "f2rs",
-    "f2rs-adapter",
+    #"f2rs",
+    #"f2rs-adapter",
     "f2rs-adapter-derive",
     "f2rs-parser-combinator",
-    "f2rs-parse",
-    "f2rs-parse/f2rs-parse-derive",
-    "example-project",
-    "xtask",
+    #"f2rs-parse",
+    #"f2rs-parse/f2rs-parse-derive",
+    #"example-project",
+    #"xtask",
+    "f2rs-parse2",
 ]
 default-members = [
-    "f2rs",
+    #"f2rs",
+    "f2rs-parse2",
 ]

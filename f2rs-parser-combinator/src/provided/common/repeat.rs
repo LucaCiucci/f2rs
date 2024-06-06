@@ -19,9 +19,11 @@ where
 {
     type Token = P::Token;
     fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        println!("<{}>", self._name);
+        #[cfg(debug_assertions)]
+        log::trace!("<{}>", self._name);
         let r = self.p.parse(source);
-        println!("</{}>", self._name);
+        #[cfg(debug_assertions)]
+        log::trace!("</{}>", self._name);
         r
     }
 }
@@ -441,6 +443,29 @@ pub fn chained<S: Source, P1: Parser<S>, P2: Parser<S>>(
         parser.clone(),
         many((separator, parser), 0..),
     )
+}
+
+/// **End Of Stream**
+pub fn eos<S: Source>() -> impl Parser<S, Token = ()> {
+    move |source: S| {
+        if source.empty() {
+            Some(((), source))
+        } else {
+            None
+        }
+    }
+}
+
+pub fn not<S: Source, P: Parser<S>>(
+    parser: P,
+) -> impl Parser<S, Token = ()> {
+    move |source: S| {
+        if parser.parse(source.clone()).is_none() {
+            Some(((), source))
+        } else {
+            None
+        }
+    }
 }
 
 macro_rules! impl_parser_for_tuple {

@@ -32,13 +32,6 @@ pub mod implementation_status {
     pub mod F18V007r1_status {}
 }
 
-#[allow(unused)]
-fn test_configs() -> impl Iterator<Item = Cfg> {
-    [
-        Cfg::f2018(),
-    ].into_iter()
-}
-
 #[syntax_rule(
     F18V007r1 rule "xyz-list" #401 : "is xyz [ , xyz ] ...",
     F18V007r1 rule "xyz-name" #402 : "is name",

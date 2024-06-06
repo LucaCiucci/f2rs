@@ -81,9 +81,9 @@ pub fn syntax_rule(attr: proc_macro::TokenStream, item: proc_macro::TokenStream)
         content
     };
     let enclosed: Vec<Stmt> = syn::parse_quote!(
-        ({
+        //({
             #content
-        }).named(stringify!(#function_name))
+        //}).named(stringify!(#function_name))
     );
     f.block.stmts = enclosed;
     f.block.stmts.insert(0, syn::parse_quote!(crate::dbg_compatible_with!(cfg, #list);));

@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-f2rs-parser-combinator = { version = "0.1.0", path = "../../f2rs-parser-combinator" }
+f2rs-parser-combinator = { version = "0.1.0", path = "../f2rs-parser-combinator" }
 paste = "1.0.14"
 proc-macro2 = "1.0.70"
 quote = "1.0.33"

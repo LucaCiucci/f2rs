@@ -1,73 +1,53 @@
+use std::ops::Range;
+
 use crate::tokenization::{Parser, Source, TokenTree, TextSource};
 
 mod exact_match; pub use exact_match::*;
 mod space; pub use space::*;
 
-pub struct TextSrc<'a> {
-    _text: &'a str,
-    char_indices: Vec<(usize, char)>,
-}
-
-impl<'a> TextSrc<'a> {
-    pub fn new(text: &'a str) -> Self {
-        TextSrc {
-            _text: text,
-            char_indices: text.char_indices().collect(),
-        }
-    }
-
-    pub fn text(&self) -> Text {
-        Text {
-            char_indices: &self.char_indices,
-            offset: 0,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct Text<'a> {
-    char_indices: &'a[(usize, char)],
+pub struct Chars<'a> {
+    chars: &'a[char],
     offset: usize,
 }
 
-impl<'a> Source for Text<'a> {
+impl<'a> Chars<'a> {
+    pub fn new(chars: &'a[char], offset: usize) -> Self {
+        Chars { chars, offset }
+    }
+}
+
+impl<'a> Source for Chars<'a> {
     type Element = char;
     type Index = usize;
-    type Span = Option<(usize, usize)>;
+    type Span = Range<usize>;
 
     fn get_at<'s>(&'s self, index: &Self::Index) -> Option<Self::Element> {
-        self.char_indices.get(*index).map(|(_, c)| *c)
+        self.chars.get(*index).cloned()
     }
     fn start(&self) -> Self::Index {
         0
     }
     fn next(&self, index: Self::Index, count: usize) -> Self::Index {
-        (index + count).min(self.char_indices.len())
+        (index + count).min(self.chars.len())
     }
     fn make_span(&self, start: Self::Index, end: Self::Index) -> Self::Span {
-        Some((start + self.offset, end + self.offset))
+        (self.offset + start)..(self.offset + end)
     }
-    fn merge_span(a: Self::Span, b: Self::Span) -> Self::Span {
-        //(a.0.min(b.0), a.1.max(b.1))
-        match (a, b) {
-            (Some(a), Some(b)) => Some((a.0.min(b.0), a.1.max(b.1))),
-            (Some(a), None) => Some(a),
-            (None, Some(b)) => Some(b),
-            (None, None) => None,
-        }
-    }
+
     fn tail(self, end: Self::Index) -> Self {
-        Text {
-            char_indices: &self.char_indices[end..],
+        Chars {
+            chars: &self.chars[end..],
             offset: self.offset + end,
         }
     }
-    fn null_span() -> Self::Span {
-        None
+
+    fn full_span(&self) -> Self::Span {
+        self.make_span(0, self.chars.len())
     }
 }
 
-impl<'a> TextSource for Text<'a> {
+impl<'a> TextSource for Chars<'a> {
 }
 
 impl Source for &str {
@@ -97,19 +77,18 @@ impl Source for &str {
         ()
     }
 
-    fn merge_span(_a: Self::Span, _b: Self::Span) -> Self::Span {
-        ()
-    }
-
     fn tail(self, end: Self::Index) -> Self {
         // TODO !!! print!("{}", &self[..end]);
         &self[end..]
     }
 
-    fn null_span() -> Self::Span {
+    fn full_span(&self) -> Self::Span {
         ()
     }
 }
 
 impl TextSource for &str {
 }
+
+// TODO impl Source for (usize, &str) {
+//}

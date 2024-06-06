@@ -4,7 +4,7 @@ use std::{iter::once, ops::{Bound, RangeBounds}};
 
 use serde::{Deserialize, Serialize};
 
-use crate::tokenization::{PResult, ParserCore};
+use crate::tokenization::{PResult, ParserCore, SourceSpan, MapSpan, Spanned};
 
 use super::*;
 
@@ -100,16 +100,35 @@ impl<S: TextSource> ParserCore<S> for char {
     }
 }
 
+impl<Span> Spanned<Span> for Char<Span> {
+    fn span<'s>(&'s self) -> &'s Span {
+        &self.span
+    }
+}
+
+impl<Span> MapSpan<Span> for Char<Span> {
+    type Spanned<T> = Char<T>;
+    fn map_span<S>(self, f: &impl Fn(Span) -> S) -> Self::Spanned<S> {
+        Char {
+            span: f(self.span),
+            value: self.value,
+        }
+    }
+}
+
+impl<Span> TokenTree<Span> for Char<Span> {
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StringMatch<Span> {
     pub span: Span,
     pub value: String,
 }
 
-impl<Span: Clone> StringMatch<Span> {
+impl<Span: SourceSpan> StringMatch<Span> {
     pub fn empty<S: Source<Span = Span>>() -> Self {
         Self {
-            span: S::null_span(),
+            span: Span::new_null(),
             value: String::new(),
         }
     }
@@ -124,11 +143,11 @@ impl<Span: Clone> StringMatch<Span> {
     pub fn from_chars<S: Source<Span = Span>>(
         chars: impl IntoIterator<Item = Char<Span>>,
     ) -> Self {
-        let mut s = S::null_span();
+        let mut s = Span::new_null();
         let mut value = String::new();
         for c in chars {
             value.push(c.value);
-            s = S::merge_span(s, c.span);
+            s = Span::merge(s, c.span);
         }
         Self {
             span: s,
@@ -137,12 +156,12 @@ impl<Span: Clone> StringMatch<Span> {
     }
 
     pub fn push_char<S: Source<Span = Span>>(&mut self, c: Char<Span>) {
-        self.span = S::merge_span(self.span.clone(), c.span);
+        self.span = Span::merge(self.span.clone(), c.span);
         self.value.push(c.value);
     }
 
     pub fn push_front_char<S: Source<Span = Span>>(&mut self, c: Char<Span>) {
-        self.span = S::merge_span(c.span, self.span.clone());
+        self.span = Span::merge(c.span, self.span.clone());
         self.value.insert(0, c.value);
     }
 
@@ -193,7 +212,7 @@ impl<Span: Clone> StringMatch<Span> {
                 value.push(c);
                 let next = source.next(source.start(), 1);
                 let new_span = source.make_span(source.start(), next.clone());
-                span = S::merge_span(span, new_span);
+                span = Span::merge(span, new_span);
                 source = source.tail(next);
                 count += 1;
             }
@@ -224,8 +243,21 @@ impl<S: TextSource> ParserCore<S> for &'static str {
     }
 }
 
-impl<Span> TokenTree<Span> for StringMatch<Span> {
+impl<Span> Spanned<Span> for StringMatch<Span> {
     fn span<'s>(&'s self) -> &'s Span {
         &self.span
     }
+}
+
+impl<Span> MapSpan<Span> for StringMatch<Span> {
+    type Spanned<T> = StringMatch<T>;
+    fn map_span<S>(self, f: &impl Fn(Span) -> S) -> Self::Spanned<S> {
+        StringMatch {
+            span: f(self.span),
+            value: self.value,
+        }
+    }
+}
+
+impl<Span> TokenTree<Span> for StringMatch<Span> {
 }

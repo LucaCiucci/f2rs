@@ -1,10 +1,12 @@
+use crate::tokens::rules::IntLiteralConstant;
+
 use super::*;
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum TypeParamValue<Span> {
     Expr(IntExpr<Span>),
-    Asterisk(SpecialCharacterMatch<Span>),
-    Colon(SpecialCharacterMatch<Span>),
+    Asterisk(StringMatch<Span>),
+    Colon(Colon<Span>),
 }
 
 // TODO test
@@ -14,11 +16,11 @@ pub enum TypeParamValue<Span> {
     "or *"
     "or :",
 )]
-pub fn type_param_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamValue<S::Span>> + 'a {
+pub fn type_param_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamValue<MultilineSpan>> + 'a {
     alt!(
         int_expr(cfg).map(TypeParamValue::Expr),
-        SpecialCharacter::Asterisk.map(TypeParamValue::Asterisk),
-        SpecialCharacter::Colon.map(TypeParamValue::Colon),
+        asterisk().map(TypeParamValue::Asterisk),
+        colon().map(TypeParamValue::Colon),
     )
 }
 
@@ -31,21 +33,21 @@ pub struct KindSelector<Span> {
 #[syntax_rule(
     F18V007r1 rule "kind-selector" #706 : "is ( [ KIND = ] scalar-int-constant-expr )",
 )]
-pub fn kind_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = KindSelector<S::Span>> + 'a {
+pub fn kind_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = KindSelector<MultilineSpan>> + 'a {
     // TODO support the alternate form as an extension
 
     let inner = || (
-        (StringMatch::exact("kind", false), space(0), '=').optional(),
+        (kw!(KIND), equals()).optional(),
         int_constant_expr(cfg), // TODO the standard says this, but maybe kind_param should be used instead?
     ).map(|(_, expr)| KindSelector { value: expr });
 
     let with_parenthesis = move || (
-        '(', space(0), inner(), space(0), ')',
-    ).map(|(_, _, kind_selector, _, _)| kind_selector);
+        delim('('), inner(), delim(')'),
+    ).map(|(_, kind_selector, _)| kind_selector);
 
     let with_asterisk = move || (
-        '*', space(0), inner(),
-    ).map(|(_, _, kind_selector)| kind_selector);
+        asterisk(), inner(),
+    ).map(|(_, kind_selector)| kind_selector);
 
     alt!(
         with_parenthesis(),
@@ -62,12 +64,11 @@ pub struct IntegerTypeSpec<Span> {
 #[syntax_rule(
     F18V007r1 rule "integer-type-spec" #705 : "is INTEGER [ kind-selector ]",
 )]
-pub fn integer_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntegerTypeSpec<S::Span>> + 'a {
+pub fn integer_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntegerTypeSpec<MultilineSpan>> + 'a {
     (
-        StringMatch::exact("integer", false),
-        space(0),
+        kw!(INTEGER),
         kind_selector(cfg).optional(),
-    ).map(|(_, _, kind_selector)| IntegerTypeSpec { kind_selector })
+    ).map(|(_, kind_selector)| IntegerTypeSpec { kind_selector })
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -90,34 +91,29 @@ pub enum IntrinsicTypeSpec<Span> {
     "or CHARACTER [ char-selector ]"
     "or LOGICAL [ kind-selector ]",
 )]
-pub fn intrinsic_type_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicTypeSpec<S::Span>> + 'a {
+pub fn intrinsic_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicTypeSpec<MultilineSpan>> + 'a {
     alt!(
         integer_type_spec(cfg).map(IntrinsicTypeSpec::Integer),
         (
-            StringMatch::exact("real", false),
-            space(0),
+            kw!(real),
             kind_selector(cfg).optional(),
-        ).map(|(_, _, kind_selector)| IntrinsicTypeSpec::Real(kind_selector)),
+        ).map(|(_, kind_selector)| IntrinsicTypeSpec::Real(kind_selector)),
         (
-            StringMatch::exact("double", false),
-            space(0),
-            StringMatch::exact("precision", false),
+            kw!(double),
+            kw!(precision),
         ).map(|_| IntrinsicTypeSpec::DoublePrecision),
         (
-            StringMatch::exact("complex", false),
-            space(0),
+            kw!(complex),
             kind_selector(cfg).optional(),
-        ).map(|(_, _, kind_selector)| IntrinsicTypeSpec::Complex(kind_selector)),
+        ).map(|(_, kind_selector)| IntrinsicTypeSpec::Complex(kind_selector)),
         (
-            StringMatch::exact("character", false),
-            space(0),
+            kw!(character),
             char_selector(cfg).optional(),
-        ).map(|(_, _, char_selector)| IntrinsicTypeSpec::Character(char_selector)),
+        ).map(|(_, char_selector)| IntrinsicTypeSpec::Character(char_selector)),
         (
-            StringMatch::exact("logical", false),
-            space(0),
+            kw!(logical),
             kind_selector(cfg).optional(),
-        ).map(|(_, _, kind_selector)| IntrinsicTypeSpec::Logical(kind_selector)),
+        ).map(|(_, kind_selector)| IntrinsicTypeSpec::Logical(kind_selector)),
     )
 }
 
@@ -133,10 +129,10 @@ pub enum CharLength<Span> {
     "is ( type-param-value )"
     "or int-literal-constant",
 )]
-pub fn char_length<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLength<S::Span>> + 'a {
+pub fn char_length<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLength<MultilineSpan>> + 'a {
     alt!(
-        ('(', space(0), type_param_value(cfg), space(0), ')').map(|(_, _, type_param_value, _, _)| CharLength::TypeParamValue(type_param_value)),
-        int_literal_constant(cfg).map(CharLength::Int),
+        (delim('('), type_param_value(cfg), delim(')')).map(|(_, type_param_value, _)| CharLength::TypeParamValue(type_param_value)),
+        int_literal_constant().map(CharLength::Int),
     )
 }
 
@@ -152,10 +148,10 @@ pub enum LengthSelector<Span> {
     "is ( [ LEN = ] type-param-value )"
     "or * char-length [ , ]",
 )]
-pub fn length_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LengthSelector<S::Span>> + 'a {
+pub fn length_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LengthSelector<MultilineSpan>> + 'a {
     alt!(
-        ('(', space(0), type_param_value(cfg), space(0), ')').map(|(_, _, type_param_value, _, _)| LengthSelector::Parenthesized(type_param_value)),
-        ('*', space(0), char_length(cfg), (space(0), ',').optional()).map(|(_, _, char_length, _)| LengthSelector::Asterisk(char_length)),
+        (delim('('), type_param_value(cfg), delim(')')).map(|(_, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
+        (asterisk(), char_length(cfg), comma().optional()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
     )
 }
 
@@ -174,74 +170,52 @@ pub enum CharSelector<Span> {
     "or ( type-param-value , [ KIND = ] scalar-int-constant-expr )"
     "or ( KIND = scalar-int-constant-expr [ , LEN =type-param-value ] )",
 )]
-pub fn char_selector<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharSelector<S::Span>> + 'a {
+pub fn char_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharSelector<MultilineSpan>> + 'a {
     alt!(
         length_selector(cfg).map(CharSelector::Len),
         (
-            Char::exact('('),
-            space(0),
+            delim('('),
             (
-                StringMatch::exact("len", false),
-                space(0),
-                Char::exact('='),
-                space(0),
+                kw!(len),
+                equals(),
                 type_param_value(cfg),
-            ).map(|(_, _, _, _, len)| len),
-            space(0),
-            Char::exact(','),
-            space(0),
+            ).map(|(_, _, len)| len),
+            comma(),
             (
-                StringMatch::exact("kind", false),
-                space(0),
-                Char::exact('='),
-                space(0),
-                int_constant_expr(cfg)
-            ).map(|(_, _, _, _, kind)| kind),
-            space(0),
-            ')',
-        ).map(|(_, _, len, _, _, _, kind, _, _)| CharSelector::LenKind(len, kind)),
-        (
-            Char::exact('('),
-            space(0),
-            type_param_value(cfg),
-            space(0),
-            Char::exact(','),
-            space(0),
-            (
-                (
-                    StringMatch::exact("kind", false),
-                    space(0),
-                    Char::exact('='),
-                ).optional(),
-                space(0),
+                kw!(kind),
+                equals(),
                 int_constant_expr(cfg)
             ).map(|(_, _, kind)| kind),
-            space(0),
-            ')',
-        ).map(|(_, _, len, _, _, _, kind, _, _)| CharSelector::LenKind(len, kind)),
+            delim(')'),
+        ).map(|(_,len, _, kind, _)| CharSelector::LenKind(len, kind)),
         (
-            Char::exact('('),
-            space(0),
+            delim('('),
+            type_param_value(cfg),
+            comma(),
             (
-                StringMatch::exact("kind", false),
-                space(0),
-                Char::exact('='),
-                space(0),
+                (
+                    kw!(kind),
+                    equals(),
+                ).optional(),
                 int_constant_expr(cfg)
-            ).map(|(_, _, _, _, kind)| kind),
+            ).map(|(_, kind)| kind),
+            delim(')'),
+        ).map(|(_, len, _, kind, _)| CharSelector::LenKind(len, kind)),
+        (
+            delim('('),
             (
-                space(0),
-                Char::exact(','),
-                space(0),
-                StringMatch::exact("len", false),
-                space(0),
-                Char::exact('='),
-                space(0),
+                kw!(kind),
+                equals(),
+                int_constant_expr(cfg)
+            ).map(|(_, _, kind)| kind),
+            (
+                comma(),
+                kw!(len),
+                equals(),
                 type_param_value(cfg),
-            ).map(|(_, _, _, _, _, _, _, len)| len).optional(),
-            space(0),
-            ')',
-        ).map(|(_, _, kind, len, _, _)| match len {
+            ).map(|(_, _, _, len)| len).optional(),
+            delim(')'),
+        ).map(|(_, kind, len, _)| match len {
             Some(len) => CharSelector::LenKind(len, kind),
             None => CharSelector::Kind(kind),
         }),
@@ -259,19 +233,19 @@ pub enum ArrayConstructor<Span> {
     "is (/ ac-spec /)"
     "or lbracket ac-spec rbracket",
 )]
-pub fn array_constructor<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayConstructor<S::Span>> + 'a {
+pub fn array_constructor<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayConstructor<MultilineSpan>> + 'a {
     // TODO test
     alt!(
         (
-            '(', space(0), '/', space(0),
+            delim('('), op("/"),
             ac_spec(cfg),
-            space(0), '/', space(0), ')',
-        ).map(|(_, _, _, _, ac_spec, _, _, _, _)| ArrayConstructor::Parenthesized(ac_spec)),
+            op("/"), delim(')'),
+        ).map(|(_, _,  ac_spec, _, _)| ArrayConstructor::Parenthesized(ac_spec)),
         (
-            '[', space(0),
+            delim('['),
             ac_spec(cfg),
-            space(0), ']',
-        ).map(|(_, _, ac_spec, _, _)| ArrayConstructor::Bracketed(ac_spec)),
+            delim(']'),
+        ).map(|(_, ac_spec, _)| ArrayConstructor::Bracketed(ac_spec)),
     )
 }
 
@@ -286,24 +260,24 @@ pub enum AcSpec<Span> {
     "is type-spec ::"
     "or [type-spec ::] ac-value-list",
 )]
-pub fn ac_spec<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcSpec<S::Span>> + 'a {
+pub fn ac_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcSpec<MultilineSpan>> + 'a {
     // TODO test
     alt!(
         (
             (
                 type_spec(cfg),
-                space(0), "::", space(0),
-            ).map(|(type_spec, _, _, _)| type_spec).optional(),
+                double_colon(),
+            ).map(|(type_spec, _)| type_spec).optional(),
             separated(
                 ac_value(cfg),
-                (space(0), ',', space(0)),
+                comma(),
                 0..,
             ),
         ).map(|(type_spec, ac_values)| AcSpec::TypeWithValueList(type_spec, ac_values)),
         (
             type_spec(cfg),
-            space(0), "::", space(0),
-        ).map(|(type_spec, _, _, _)| AcSpec::Type(type_spec)),
+            double_colon(),
+        ).map(|(type_spec, _)| AcSpec::Type(type_spec)),
     )
 }
 
@@ -318,7 +292,7 @@ pub enum AcValue<Span> {
     "is expr"
     "or ac-implied-do",
 )]
-pub fn ac_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcValue<S::Span>> + 'a {
+pub fn ac_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcValue<MultilineSpan>> + 'a {
     // TODO test
     alt!(
         expr(cfg).map(AcValue::Expr),
@@ -335,18 +309,18 @@ pub struct AcImpliedDo<Span> {
 #[syntax_rule(
     F18V007r1 rule "ac-implied-do" #774 : "is ( ac-value-list , ac-implied-do-control )",
 )]
-pub fn ac_implied_do<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDo<S::Span>> + 'a {
+pub fn ac_implied_do<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDo<MultilineSpan>> + 'a {
     // TODO test
     (
-        ('(', space(0)),
+        delim('('),
         separated(
             ac_value(cfg),
-            (space(0), ',', space(0)),
+            comma(),
             0..,
         ),
-        (space(0), ',', space(0)),
+        comma(),
         ac_implied_do_control(cfg),
-        (space(0), ')'),
+        delim(')'),
     ).map(|(_, ac_values, _, ac_implied_do_control, _)| AcImpliedDo {
         ac_values,
         ac_implied_do_control,
@@ -366,19 +340,19 @@ pub struct AcImpliedDoControl<Span> {
     F18V007r1 rule "ac-implied-do-control" #775 :
     "is [ integer-type-spec :: ] ac-do-variable = scalar-int-expr , scalar-int-expr [ , scalar-int-expr ]",
 )]
-pub fn ac_implied_do_control<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDoControl<S::Span>> + 'a {
+pub fn ac_implied_do_control<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDoControl<MultilineSpan>> + 'a {
     // TODO test
     (
         (
             integer_type_spec(cfg),
-            space(0), "::", space(0),
-        ).map(|(spec, _, _, _)| spec).optional(),
+            double_colon(),
+        ).map(|(spec, _)| spec).optional(),
         ac_do_variable(cfg),
-        (space(0), '=', space(0)),
+        equals(),
         int_expr(cfg),
-        (space(0), ',', space(0)),
+        comma(),
         int_expr(cfg),
-        (space(0), ',', space(0), int_expr(cfg)).map(|(_, _, _, stride)| stride).optional(),
+        (comma(), int_expr(cfg)).map(|(_, stride)| stride).optional(),
     ).map(|(spec, variable, _, start, _, end, stride)| AcImpliedDoControl {
         spec,
         variable,
@@ -394,19 +368,19 @@ pub struct AcDoVariable<Span>(pub DoVariable<Span>);
 #[syntax_rule(
     F18V007r1 rule "ac-do-variable" #776 : "is do-variable",
 )]
-pub fn ac_do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcDoVariable<S::Span>> + 'a {
+pub fn ac_do_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcDoVariable<MultilineSpan>> + 'a {
     // TODO test
     do_variable(cfg).map(AcDoVariable)
 }
 
-#[derive(Debug, Clone)]
+/*#[derive(Debug, Clone)]
 pub struct DoVariable<Span>(pub Name<Span>);
 
 #[syntax_rule(
     F18V007r1 rule "do-variable" #1124 :
     "is scalar-int-variable-name",
 )]
-pub fn do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DoVariable<S::Span>> + 'a {
+pub fn do_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DoVariable<MultilineSpan>> + 'a {
     // TODO test
-    name(cfg, false).map(DoVariable)
-}
+    name().map(DoVariable)
+}*/

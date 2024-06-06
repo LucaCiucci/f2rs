@@ -22,6 +22,23 @@ pub fn white_spaced<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, To
     ).map(|(_, token, _)| token)
 }
 
+pub fn white_space_no_newline<S: TextSource>(range: impl RangeBounds<usize> + Clone) -> impl Parser<S, Token = ()> {
+    fold_many(
+        Char::any_of(" \t".chars()),
+        || (),
+        |_, _| ((), true),
+        range,
+    )
+}
+
+pub fn white_spaced_no_newline<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, Token = T::Token> {
+    (
+        white_space_no_newline(0..),
+        parser,
+        white_space_no_newline(0..),
+    ).map(|(_, token, _)| token)
+}
+
 pub fn eof<S: Source>() -> impl Parser<S, Token = ()> {
     move |source: S| {
         if source.empty() {

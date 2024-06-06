@@ -1,3 +1,4 @@
+
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -9,14 +10,14 @@ pub struct AccessStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "access-stmt" #827 : "is access-spec [ [ :: ] access-id-list ]",
 )]
-pub fn access_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessStmt<S::Span>> + 'a {
+pub fn access_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessStmt<MultilineSpan>> + 'a {
     (
-        space(0), access_spec(cfg), space(0),
+        access_spec(cfg),
         (
-            (space(0), "::", space(0)),
+            dot_dot(),
             list(access_id(cfg), 0..),
         ).map(|(_, access_id_list)| access_id_list).optional(),
-    ).map(|(_, access_spec, _, access_id_list)| AccessStmt {
+    ).map(|(access_spec, access_id_list)| AccessStmt {
         access_spec,
         access_id_list,
     })
@@ -33,9 +34,9 @@ pub enum AccessId<Span> {
     "is access-name"
     "or generic-spec",
 )]
-pub fn access_id<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessId<S::Span>> + 'a {
+pub fn access_id<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AccessId<MultilineSpan>> + 'a {
     alt!(
-        name(cfg, false).map(AccessId::AccessName),
+        name().map(AccessId::AccessName),
         generic_spec(cfg).map(AccessId::GenericSpec),
     )
 }
@@ -48,10 +49,10 @@ pub struct AllocatableStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "allocatable-stmt" #829 : "is ALLOCATABLE [ :: ] allocatable-decl-list",
 )]
-pub fn allocatable_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableStmt<S::Span>> + 'a {
+pub fn allocatable_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("allocatable", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(allocatable),
+        double_colon().optional(),
         list(allocatable_decl(cfg), 1..),
     ).map(|(_, _, allocatable_decl_list)| AllocatableStmt {
         allocatable_decl_list,
@@ -69,18 +70,18 @@ pub struct AllocatableDecl<Span> {
     F18V007r1 rule "allocatable-decl" #830 :
     "is object-name [ ( array-spec ) ] [ lbracket coarray-spec rbracket ]",
 )]
-pub fn allocatable_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableDecl<S::Span>> + 'a {
+pub fn allocatable_decl<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AllocatableDecl<MultilineSpan>> + 'a {
     (
         object_name(cfg),
         (
-            (space(0), '(', space(0)),
+            delim('('),
             array_spec(cfg),
-            (space(0), ')', space(0)),
+            delim(')'),
         ).map(|(_, array_spec, _)| array_spec).optional(),
         (
-            (space(0), '[', space(0)),
+            delim('['),
             coarray_spec(cfg),
-            (space(0), ']', space(0)),
+            delim(']'),
         ).map(|(_, coarray_spec, _)| coarray_spec).optional(),
     ).map(|(object_name, array_spec, coarray_spec)| AllocatableDecl {
         object_name,
@@ -97,10 +98,10 @@ pub struct AsynchronousStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "asynchronous-stmt" #831 : "is ASYNCHRONOUS [ :: ] object-name-list",
 )]
-pub fn asynchronous_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AsynchronousStmt<S::Span>> + 'a {
+pub fn asynchronous_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AsynchronousStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("asynchronous", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(asynchronous),
+        double_colon().optional(),
         list(object_name(cfg), 1..),
     ).map(|(_, _, object_name_list)| AsynchronousStmt {
         object_name_list,
@@ -116,13 +117,12 @@ pub struct BindStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "bind-stmt" #832 : "is language-binding-spec [ :: ] bind-entity-list",
 )]
-pub fn bind_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindStmt<S::Span>> + 'a {
+pub fn bind_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindStmt<MultilineSpan>> + 'a {
     (
-        space(0),
         language_binding_spec(cfg),
-        (space(0), "::", space(0)).optional(),
+        double_colon().optional(),
         list(bind_entity(cfg), 1..),
-    ).map(|(_, language_binding_spec, _, bind_entity_list)| BindStmt {
+    ).map(|(language_binding_spec, _, bind_entity_list)| BindStmt {
         language_binding_spec,
         bind_entity_list,
     })
@@ -139,13 +139,13 @@ pub enum BindEntity<Span> {
     "is entity-name"
     "or / common-block-name /",
 )]
-pub fn bind_entity<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindEntity<S::Span>> + 'a {
+pub fn bind_entity<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BindEntity<MultilineSpan>> + 'a {
     alt!(
-        name(cfg, false).map(BindEntity::EntityName),
+        name().map(BindEntity::EntityName),
         (
-            (space(0), '/', space(0)),
-            name(cfg, false),
-            (space(0), '/', space(0)),
+            op("/"),
+            name(),
+            op("/"),
         ).map(|(_, common_block_name, _)| BindEntity::CommonBlockName(common_block_name)),
     )
 }
@@ -158,10 +158,10 @@ pub struct CodimensionStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "codimension-stmt" #834 : "is CODIMENSION [ :: ] codimension-decl-list",
 )]
-pub fn codimension_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionStmt<S::Span>> + 'a {
+pub fn codimension_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("codimension", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(codimension),
+        double_colon().optional(),
         list(codimension_decl(cfg), 1..),
     ).map(|(_, _, codimension_decl_list)| CodimensionStmt {
         codimension_decl_list,
@@ -177,13 +177,13 @@ pub struct CodimensionDecl<Span> {
 #[syntax_rule(
     F18V007r1 rule "codimension-decl" #835 : "is coarray-name lbracket coarray-spec rbracket",
 )]
-pub fn codimension_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionDecl<S::Span>> + 'a {
+pub fn codimension_decl<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CodimensionDecl<MultilineSpan>> + 'a {
     (
-        name(cfg, false),
+        name(),
         (
-            (space(0), '[', space(0)),
+            delim('['),
             coarray_spec(cfg),
-            (space(0), ']', space(0)),
+            delim(']'),
         ).map(|(_, coarray_spec, _)| coarray_spec),
     ).map(|(coarray_name, coarray_spec)| CodimensionDecl {
         coarray_name,
@@ -199,11 +199,11 @@ pub struct ContiguousStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "contiguous-stmt" #836 : "is CONTIGUOUS [ :: ] object-name-list",
 )]
-pub fn contiguous_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ContiguousStmt<S::Span>> + 'a {
+pub fn contiguous_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ContiguousStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("contiguous", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
-        list(name(cfg, false), 1..),
+        kw!(contiguous),
+        double_colon().optional(),
+        list(name(), 1..),
     ).map(|(_, _, object_name_list)| ContiguousStmt {
         object_name_list,
     })
@@ -212,21 +212,17 @@ pub fn contiguous_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S,
 #[derive(Debug, Clone)]
 pub struct DataStmt<Span> {
     pub data_stmt_set_list: Vec<DataStmtSet<Span>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
     F18V007r1 rule "data-stmt" #837 : "is DATA data-stmt-set [ [ , ] data-stmt-set ] ...",
 )]
-pub fn data_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmt<S::Span>> + 'a {
+pub fn data_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmt<MultilineSpan>> + 'a {
     (
-        space(0),
-        kw("data", cfg), space(0),
+        kw!(data),
         list(data_stmt_set(cfg), 1..),
-        statement_termination(),
-    ).map(|(_, _, _, data_stmt_set_list, comment)| DataStmt {
+    ).map(|(_, data_stmt_set_list)| DataStmt {
         data_stmt_set_list,
-        comment,
     })
 }
 
@@ -239,12 +235,12 @@ pub struct DataStmtSet<Span> {
 #[syntax_rule(
     F18V007r1 rule "data-stmt-set" #838 : "is data-stmt-object-list / data-stmt-value-list /",
 )]
-pub fn data_stmt_set<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtSet<S::Span>> + 'a {
+pub fn data_stmt_set<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtSet<MultilineSpan>> + 'a {
     (
         list(data_stmt_object(cfg), 0..),
-        (space(0), '/', space(0)),
+        op("/"),
         list(data_stmt_value(cfg), 0..),
-        (space(0), '/', space(0)),
+        op("/"),
     ).map(|(data_stmt_object_list, _, data_stmt_value_list, _)| DataStmtSet {
         data_stmt_object_list,
         data_stmt_value_list,
@@ -262,7 +258,7 @@ pub enum DataStmtObject<Span> {
     "is variable"
     "or data-implied-do",
 )]
-pub fn data_stmt_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtObject<S::Span>> + 'a {
+pub fn data_stmt_object<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtObject<MultilineSpan>> + 'a {
     alt!(
         variable(cfg, false).map(DataStmtObject::Variable),
         data_implied_do(cfg).map(DataStmtObject::DataImpliedDo),
@@ -283,25 +279,25 @@ pub struct DataImpliedDo<Span> {
     F18V007r1 rule "data-implied-do" #840 :
     "is ( data-i-do-object-list , [ integer-type-spec :: ] data-i-do-variable = scalar-int-constant-expr , scalar-int-constant-expr [ , scalar-int-constant-expr ] )",
 )]
-pub fn data_implied_do<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataImpliedDo<S::Span>> + 'a {
+pub fn data_implied_do<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataImpliedDo<MultilineSpan>> + 'a {
     (
-        ('(', space(0)),
+        delim('('),
         list(data_i_do_object(cfg), 0..),
-        (space(0), ',', space(0)),
+        comma(),
         (
             integer_type_spec(cfg),
-            (space(0), "::", space(0)),
+            double_colon(),
         ).map(|(integer_type_spec, _)| integer_type_spec).optional(),
         data_i_do_variable(cfg),
-        (space(0), '=', space(0)),
+        equals(),
         int_constant_expr(cfg),
-        (space(0), ',', space(0)),
+        comma(),
         int_constant_expr(cfg),
         (
-            (space(0), ',', space(0)),
+            comma(),
             int_constant_expr(cfg),
         ).map(|(_, int_constant_expr)| int_constant_expr).optional(),
-        (space(0), ')'),
+        delim(')'),
     ).map(|(_, data_i_do_object_list, _, integer_type_spec, data_i_do_variable, _, int_constant_expr1, _, int_constant_expr2, int_constant_expr3, _)| DataImpliedDo {
         data_i_do_object_list,
         integer_type_spec,
@@ -325,7 +321,7 @@ pub enum DataIDoObject<Span> {
     "or scalar-structure-component"
     "or data-implied-do",
 )]
-pub fn data_i_do_object<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataIDoObject<S::Span>> + 'a {
+pub fn data_i_do_object<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataIDoObject<MultilineSpan>> + 'a {
     alt!(
         array_element(cfg).map(DataIDoObject::ArrayElement),
         structure_component(cfg).map(DataIDoObject::ScalarStructureComponent),
@@ -339,7 +335,7 @@ pub struct DataIDoVariable<Span>(pub DoVariable<Span>);
 #[syntax_rule(
     F18V007r1 rule "data-i-do-variable" #842 : "is do-variable",
 )]
-pub fn data_i_do_variable<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataIDoVariable<S::Span>> + 'a {
+pub fn data_i_do_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataIDoVariable<MultilineSpan>> + 'a {
     do_variable(cfg).map(DataIDoVariable)
 }
 
@@ -352,11 +348,11 @@ pub struct DataStmtValue<Span> {
 #[syntax_rule(
     F18V007r1 rule "data-stmt-value" #843 : "is [ data-stmt-repeat * ] data-stmt-constant",
 )]
-pub fn data_stmt_value<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtValue<S::Span>> + 'a {
+pub fn data_stmt_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtValue<MultilineSpan>> + 'a {
     (
         (
             data_stmt_repeat(cfg),
-            (space(0), '*', space(0)),
+            asterisk(),
         ).map(|(data_stmt_repeat, _)| data_stmt_repeat).optional(),
         data_stmt_constant(cfg),
     ).map(|(data_stmt_repeat, data_stmt_constant)| DataStmtValue {
@@ -376,7 +372,7 @@ pub enum DataStmtRepeat<Span> {
     "is scalar-int-constant"
     "or scalar-int-constant-subobject",
 )]
-pub fn data_stmt_repeat<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtRepeat<S::Span>> + 'a {
+pub fn data_stmt_repeat<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtRepeat<MultilineSpan>> + 'a {
     alt!(
         int_constant(cfg).map(DataStmtRepeat::ScalarIntConstant),
         int_constant_subobject(cfg).map(DataStmtRepeat::ScalarIntConstantSubobject),
@@ -387,8 +383,8 @@ pub fn data_stmt_repeat<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, 
 pub enum DataStmtConstant<Span> {
     ScalarConstant(Constant<Span>),
     ScalarConstantSubobject(ConstantSubobject<Span>),
-    SignedIntLiteralConstant(SignedIntLiteralConstant<Span>),
-    SignedRealLiteralConstant(SignedRealLiteralConstant<Span>),
+    // TODO maybe scalar already handles this? SignedIntLiteralConstant(SignedIntLiteralConstant<Span>),
+    // TODO maybe scalar already handles this? SignedRealLiteralConstant(SignedRealLiteralConstant<Span>),
     NullInit(NullInit<Span>),
     InitialDataTarget(InitialDataTarget<Span>),
     StructureConstructor(StructureConstructor<Span>),
@@ -404,12 +400,12 @@ pub enum DataStmtConstant<Span> {
     "or initial-data-target"
     "or structure-constructor",
 )]
-pub fn data_stmt_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtConstant<S::Span>> + 'a {
+pub fn data_stmt_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataStmtConstant<MultilineSpan>> + 'a {
     alt!(
         constant(cfg).map(DataStmtConstant::ScalarConstant),
         constant_subobject(cfg).map(DataStmtConstant::ScalarConstantSubobject),
-        signed_int_literal_constant(cfg).map(DataStmtConstant::SignedIntLiteralConstant),
-        signed_real_literal_constant(cfg).map(DataStmtConstant::SignedRealLiteralConstant),
+        // TODO maybe scalar already handles this? signed_int_literal_constant(cfg).map(DataStmtConstant::SignedIntLiteralConstant),
+        // TODO maybe scalar already handles this? signed_real_literal_constant(cfg).map(DataStmtConstant::SignedRealLiteralConstant),
         null_init(cfg).map(DataStmtConstant::NullInit),
         initial_data_target(cfg).map(DataStmtConstant::InitialDataTarget),
         structure_constructor(cfg).map(DataStmtConstant::StructureConstructor),
@@ -422,7 +418,7 @@ pub struct IntConstantSubobject<Span>(pub ConstantSubobject<Span>);
 #[syntax_rule(
     F18V007r1 rule "int-constant-subobject" #846 : "is constant-subobject",
 )]
-pub fn int_constant_subobject<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntConstantSubobject<S::Span>> + 'a {
+pub fn int_constant_subobject<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntConstantSubobject<MultilineSpan>> + 'a {
     constant_subobject(cfg).map(IntConstantSubobject)
 }
 
@@ -432,7 +428,7 @@ pub struct ConstantSubobject<Span>(pub Designator<Span>);
 #[syntax_rule(
     F18V007r1 rule "constant-subobject" #847 : "is designator",
 )]
-pub fn constant_subobject<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConstantSubobject<S::Span>> + 'a {
+pub fn constant_subobject<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConstantSubobject<MultilineSpan>> + 'a {
     designator(cfg, false).map(ConstantSubobject)
 }
 
@@ -445,16 +441,16 @@ pub struct DimensionStmt<Span> {
     F18V007r1 rule "dimension-stmt" #848 :
     "is DIMENSION [ :: ] array-name ( array-spec ) [ , array-name ( array-spec ) ] ...",
 )]
-pub fn dimension_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DimensionStmt<S::Span>> + 'a {
+pub fn dimension_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DimensionStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("dimension", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(dimension),
+        double_colon().optional(),
         list(
             (
-                name(cfg, false),
-                (space(0), '(', space(0)),
+                name(),
+                delim('('),
                 array_spec(cfg),
-                (space(0), ')', space(0)),
+                delim(')'),
             ).map(|(name, _, array_spec, _)| (name, array_spec)),
             1..,
         ),
@@ -472,12 +468,12 @@ pub struct IntentStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "intent-stmt" #849 : "is INTENT ( intent-spec ) [ :: ] dummy-arg-name-list",
 )]
-pub fn intent_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntentStmt<S::Span>> + 'a {
+pub fn intent_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntentStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("intent", cfg), space(0), '(', space(0)),
+        (kw!(intent), delim('(')),
         intent_spec(cfg),
-        (space(0), ')', space(0)),
-        (space(0), "::", space(0)).optional(),
+        delim(')'),
+        double_colon().optional(),
         list(dummy_arg_name(cfg), 0..),
     ).map(|(_, intent_spec, _, _, dummy_arg_name_list)| IntentStmt {
         intent_spec,
@@ -493,10 +489,10 @@ pub struct OptionalStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "optional-stmt" #850 : "is OPTIONAL [ :: ] dummy-arg-name-list",
 )]
-pub fn optional_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OptionalStmt<S::Span>> + 'a {
+pub fn optional_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OptionalStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("optional", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(optional),
+        double_colon().optional(),
         list(dummy_arg_name(cfg), 0..),
     ).map(|(_, _, dummy_arg_name_list)| OptionalStmt {
         dummy_arg_name_list,
@@ -511,10 +507,10 @@ pub struct PointerStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "pointer-stmt" #853 : "is POINTER [ :: ] pointer-decl-list",
 )]
-pub fn pointer_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerStmt<S::Span>> + 'a {
+pub fn pointer_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("pointer", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
+        kw!(pointer),
+        double_colon().optional(),
         list(pointer_decl(cfg), 1..),
     ).map(|(_, _, pointer_decl_list)| PointerStmt {
         pointer_decl_list,
@@ -526,7 +522,6 @@ pub fn pointer_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
 pub struct PointerDecl<Span> {
     pub name: Name<Span>,
     pub deferred_shape_spec_list: Option<Vec<DeferredShapeSpec>>,
-    pub comment: Option<LineComment<Span>>,
 }
 
 #[syntax_rule(
@@ -534,19 +529,17 @@ pub struct PointerDecl<Span> {
     "is object-name [ ( deferred-shape-spec-list ) ]"
     "or proc-entity-name", // TODO maybe this would never match in this form
 )]
-pub fn pointer_decl<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerDecl<S::Span>> + 'a {
+pub fn pointer_decl<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PointerDecl<MultilineSpan>> + 'a {
     (
-        name(cfg, false),
+        name(),
         (
-            (space(0), '(', space(0)),
+            delim('('),
             list(deferred_shape_spec(cfg), 0..),
-            (space(0), ')', space(0)),
+            delim(')'),
         ).map(|(_, deferred_shape_spec_list, _)| deferred_shape_spec_list).optional(),
-        statement_termination(),
-    ).map(|(name, deferred_shape_spec_list, comment)| PointerDecl {
+    ).map(|(name, deferred_shape_spec_list)| PointerDecl {
         name,
         deferred_shape_spec_list,
-        comment,
     })
 }
 
@@ -558,11 +551,11 @@ pub struct ProtectedStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "protected-stmt" #855 : "is PROTECTED [ :: ] entity-name-list",
 )]
-pub fn protected_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProtectedStmt<S::Span>> + 'a {
+pub fn protected_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ProtectedStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("protected", cfg), space(0)),
-        (space(0), "::", space(0)).optional(),
-        list(name(cfg, false), 1..),
+        kw!(protected),
+        double_colon().optional(),
+        list(name(), 1..),
     ).map(|(_, _, entity_name_list)| ProtectedStmt {
         entity_name_list,
     })
@@ -576,11 +569,11 @@ pub struct SaveStmt<Span> {
 #[syntax_rule(
     F18V007r1 rule "save-stmt" #856 : "SAVE [ [ :: ] saved-entity-list ]",
 )]
-pub fn save_stmt_2<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SaveStmt<S::Span>> + 'a {
+pub fn save_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SaveStmt<MultilineSpan>> + 'a {
     (
-        (space(0), kw("save", cfg), space(0)),
+        kw!(save),
         (
-            (space(0), "::", space(0)),
+            double_colon(),
             list(saved_entity(cfg), 0..),
         ).map(|(_, saved_entity_list)| saved_entity_list).optional(),
     ).map(|(_, saved_entity_list)| SaveStmt {
@@ -601,14 +594,14 @@ pub enum SavedEntity<Span> {
     "or proc-pointer-name"
     "or / common-block-name /",
 )]
-pub fn saved_entity<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SavedEntity<S::Span>> + 'a {
+pub fn saved_entity<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SavedEntity<MultilineSpan>> + 'a {
     alt!(
         object_name(cfg).map(SavedEntity::ObjectName),
         proc_pointer_name(cfg).map(SavedEntity::ProcPointerName),
         (
-            (space(0), '/', space(0)),
-            name(cfg, false),
-            (space(0), '/', space(0)),
+            op("/"),
+            name(),
+            op("/"),
         ).map(|(_, common_block_name, _)| SavedEntity::CommonBlockName(common_block_name)),
     )
 }

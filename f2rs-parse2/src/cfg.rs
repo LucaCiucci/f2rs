@@ -84,3 +84,10 @@ macro_rules! dbg_compatible_with {
 pub(crate) use dbg_compatible_with;
 //#[allow(unused)]
 //pub(crate) use panics_for_invalid;
+
+#[allow(unused)]
+pub(crate) fn test_configs() -> impl Iterator<Item = Cfg> {
+    [
+        Cfg::f2018(),
+    ].into_iter()
+}
