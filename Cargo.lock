@@ -191,25 +191,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "f2rs-adapter-derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
-]
-
-[[package]]
-name = "f2rs-parse-derive"
-version = "0.1.0"
-dependencies = [
- "f2rs-parser-combinator",
- "paste",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "f2rs-parse2"
 version = "0.1.0"
 dependencies = [
@@ -219,7 +200,6 @@ dependencies = [
  "enum-as-inner",
  "enum-iterator",
  "env_logger",
- "f2rs-parse-derive",
  "f2rs-parser-combinator",
  "log",
  "paste",

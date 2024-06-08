@@ -21,7 +21,7 @@ pub enum UseStmt<Span> {
     "is USE [ [ , module-nature ] :: ] module-name [ , rename-list ]"
     "or USE [ [ , module-nature ] :: ] module-name , ONLY : [ only-list ]",
 )]
-pub fn use_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UseStmt<S::Span>> + 'a {
+pub fn use_stmt<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UseStmt<S::Span>, S> {
     alt!(
         (
             space(0),
@@ -79,7 +79,7 @@ pub enum ModuleNature {
     "is INTRINSIC"
     "or NON_INTRINSIC",
 )]
-pub fn module_nature<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ModuleNature> + 'a {
+pub fn module_nature<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ModuleNature, S> {
     alt!(
         StringMatch::exact("intrinsic", false).map(|_| ModuleNature::Intrinsic),
         StringMatch::exact("non_intrinsic", false).map(|_| ModuleNature::NonIntrinsic),
@@ -103,7 +103,7 @@ pub enum Rename<Span> {
     "is local-name => use-name"
     "or OPERATOR (local-defined-operator) => OPERATOR (use-defined-operator)",
 )]
-pub fn rename<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Rename<S::Span>> + 'a {
+pub fn rename<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Rename<S::Span>, S> {
     alt!(
         (
             name(cfg, false),
@@ -135,7 +135,7 @@ pub enum Only<Span> {
     "or only-use-name"
     "or rename",
 )]
-pub fn only<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Only<S::Span>> + 'a {
+pub fn only<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Only<S::Span>, S> {
     alt!(
         generic_spec(cfg).map(Only::GenericSpec),
         only_use_name(cfg).map(Only::OnlyUseName),
@@ -149,7 +149,7 @@ pub struct OnlyUseName<Span>(pub Name<Span>);
 #[syntax_rule(
     F18V007r1 rule "only-use-name" #1413 : "is use-name",
 )]
-pub fn only_use_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OnlyUseName<S::Span>> + 'a {
+pub fn only_use_name<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OnlyUseName<S::Span>, S> {
     name(cfg, false).map(OnlyUseName)
 }
 
@@ -164,7 +164,7 @@ pub enum LocalDefinedOperator<Span> {
     "is defined-unary-op"
     "or defined-binary-op",
 )]
-pub fn local_defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LocalDefinedOperator<S::Span>> + 'a {
+pub fn local_defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LocalDefinedOperator<S::Span>, S> {
     // WARNING they are the same, will always match the first one
     alt!(
         defined_unary_op(cfg).map(LocalDefinedOperator::Unary),
@@ -183,7 +183,7 @@ pub enum UseDefinedOperator<Span> {
     "is defined-unary-op"
     "or defined-binary-op",
 )]
-pub fn use_defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UseDefinedOperator<S::Span>> + 'a {
+pub fn use_defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UseDefinedOperator<S::Span>, S> {
     // WARNING they are the same, will always match the first one
     alt!(
         defined_unary_op(cfg).map(UseDefinedOperator::Unary),

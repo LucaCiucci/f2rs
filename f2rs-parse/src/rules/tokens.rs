@@ -13,21 +13,21 @@ pub struct Keyword<Span>(pub Name<Span>);
 #[syntax_rule(
     F18V007r1 rule "keyword" #516 : "is name",
 )]
-pub fn keyword<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Keyword<S::Span>> + 'a {
+pub fn keyword<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Keyword<S::Span>, S> {
     name(cfg, false).map(Keyword)
 }
 
 #[syntax_rule(
     F18V007r1,
 )]
-pub fn kw<'a, S: TextSource + 'a>(keyword: &'static str, cfg: &'a Cfg) -> impl Parser<S, Token = Keyword<S::Span>> + 'a {
+pub fn kw<'a, S: TextSource + 'a>(keyword: &'static str, cfg: &'a Cfg) -> impl Parser<S, Token = Keyword<S::Span>, S> {
     StringMatch::exact(keyword, false).map(|m| Keyword(Name(m)))
 }
 
 
 
 // TODO ???
-pub fn continuation<'a, S: TextSource + 'a>() -> impl Parser<S, Token = ()> + 'a {
+pub fn continuation<'a, S: TextSource + 'a>() -> impl Parser<S, Token = (), S> {
     (
         '&', blanks(0..), nl.map(|_| ()).or(line_comment().map(|_| ())), // TODO keep comments
         blanks(0..), Char::exact('&').optional(),
@@ -46,7 +46,7 @@ pub fn eol_or_comment<S: TextSource>() -> impl Parser<S, Token = Option<LineComm
 }
 
 // TODO ???
-pub fn statement_termination<'a, S: TextSource + 'a>() -> impl Parser<S, Token = Option<LineComment<S::Span>>> + 'a {
+pub fn statement_termination<'a, S: TextSource + 'a>() -> impl Parser<S, Token = Option<LineComment<S::Span>>, S> {
     alt!(
         eol_or_comment(),
         (
@@ -62,7 +62,7 @@ pub fn statement_termination<'a, S: TextSource + 'a>() -> impl Parser<S, Token =
 #[syntax_rule(
     F18V007r1 rule "lbracket" #771 : "is [",
 )]
-pub fn lbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
+pub fn lbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = (), S> {
     '['.map(|_| ())
 }
 
@@ -70,7 +70,7 @@ pub fn lbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
 #[syntax_rule(
     F18V007r1 rule "rbracket" #772 : "is ]",
 )]
-pub fn rbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
+pub fn rbracket<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = (), S> {
     ']'.map(|_| ())
 }
 
@@ -79,7 +79,7 @@ pub struct EmptyLines {
     pub count: usize,
 }
 
-pub fn empty_lines<'a, S: TextSource + 'a>() -> impl Parser<S, Token = EmptyLines> + 'a {
+pub fn empty_lines<'a, S: TextSource + 'a>() -> impl Parser<S, Token = EmptyLines, S> {
     fold_many(
         (many(' ', 0..), nl),
         || 0,

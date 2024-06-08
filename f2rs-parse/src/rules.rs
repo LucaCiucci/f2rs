@@ -37,6 +37,6 @@ pub mod implementation_status {
     F18V007r1 rule "xyz-name" #402 : "is name",
     F18V007r1 rule "scalar-xyz" #403 : "is xyz",
 )]
-pub fn ignored_example_rule<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ()> + 'a {
+pub fn ignored_example_rule<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = (), S> {
     |_| unimplemented!("not a real rule")
 }

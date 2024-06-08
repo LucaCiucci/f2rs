@@ -126,7 +126,7 @@ pub struct StringMatch<Span> {
 }
 
 impl<Span: SourceSpan> StringMatch<Span> {
-    pub fn empty<S: Source<Span = Span>>() -> Self {
+    pub fn empty() -> Self {
         Self {
             span: Span::new_null(),
             value: String::new(),
@@ -155,12 +155,12 @@ impl<Span: SourceSpan> StringMatch<Span> {
         }
     }
 
-    pub fn push_char<S: Source<Span = Span>>(&mut self, c: Char<Span>) {
+    pub fn push_char(&mut self, c: Char<Span>) {
         self.span = Span::merge(self.span.clone(), c.span);
         self.value.push(c.value);
     }
 
-    pub fn push_front_char<S: Source<Span = Span>>(&mut self, c: Char<Span>) {
+    pub fn push_front_char(&mut self, c: Char<Span>) {
         self.span = Span::merge(c.span, self.span.clone());
         self.value.insert(0, c.value);
     }
@@ -194,7 +194,7 @@ impl<Span: SourceSpan> StringMatch<Span> {
     pub fn match_while<'a, S: TextSource<Span = Span>>(
         condition: impl Fn(char, usize) -> bool + Clone + 'a,
         len: impl RangeBounds<usize> + Clone + 'a,
-    ) -> impl Parser<S, Token = Self> + 'a {
+    ) -> impl Parser<S, Token = Self> {
         move |mut source: S| {
             let mut count = 0;
             let mut value = String::new();

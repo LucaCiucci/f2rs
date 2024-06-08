@@ -48,15 +48,16 @@ impl<Span> MapSpan<Span> for ImportStmt<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "import-stmt" #867 :
     "is IMPORT [[ :: ] import-name-list ]"
     "or IMPORT, ONLY : import-name-list"
     "or IMPORT, NONE"
     "or IMPORT, ALL",
 )]
-pub fn import_stmt<'a, S: Source<Element = LexicalToken<MultilineSpan>> + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ImportStmt<MultilineSpan>> + 'a {
+pub fn import_stmt<S: Lexed>(source: S) -> PResult<ImportStmt<MultilineSpan>, S> {
     alt!(
+        for S =>
         (
             kw!(import),
             (comma(), kw!(only), colon()).map(|(_, only, _)| only),
@@ -79,7 +80,7 @@ pub fn import_stmt<'a, S: Source<Element = LexicalToken<MultilineSpan>> + 'a>(cf
                 list(name(), 1..),
             ).map(|(_, import_name_list)| import_name_list).optional(),
         ).map(|(kw, import_name_list)| ImportStmt { kw, data: ImportStmtVariant::List(import_name_list) }),
-    )
+    ).parse(source)
 }
 
 #[cfg(test)]
@@ -107,21 +108,21 @@ mod tests {
     #[test]
     fn test_import_stmt() {
         let tks = tokenize("IMPORT");
-        assert!(import_stmt(&Cfg::f2018()).parse(&tks[..]).unwrap().0.data.as_list().unwrap().is_none());
+        assert!(import_stmt.parse(&tks[..]).unwrap().0.data.as_list().unwrap().is_none());
 
         let tks = tokenize("IMPORT :: a, b, c");
-        assert_eq!(import_stmt(&Cfg::f2018()).parse(&tks[..]).unwrap().0.data.as_list().unwrap().as_ref().unwrap().len(), 3);
+        assert_eq!(import_stmt.parse(&tks[..]).unwrap().0.data.as_list().unwrap().as_ref().unwrap().len(), 3);
 
         let tks = tokenize("IMPORT, ONLY : a, b, c");
         assert_eq!(
-            import_stmt(&Cfg::f2018()).parse(&tks[..]).unwrap().0.data.as_only().unwrap().1.len(),
+            import_stmt.parse(&tks[..]).unwrap().0.data.as_only().unwrap().1.len(),
             3
         );
 
         let tks = tokenize("IMPORT, NONE");
-        assert!(import_stmt(&Cfg::f2018()).parse(&tks[..]).unwrap().0.data.as_none().is_some());
+        assert!(import_stmt.parse(&tks[..]).unwrap().0.data.as_none().is_some());
 
         let tks = tokenize("IMPORT, ALL");
-        assert!(import_stmt(&Cfg::f2018()).parse(&tks[..]).unwrap().0.data.as_all().is_some());
+        assert!(import_stmt.parse(&tks[..]).unwrap().0.data.as_all().is_some());
     }
 }

@@ -6,16 +6,16 @@ pub struct FormatStmt<Span> {
     pub format_specification: FormatSpecification<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "format-stmt" #1301 : "is FORMAT format-specification",
 )]
-pub fn format_stmt_2<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatStmt<MultilineSpan>> + 'a {
+pub fn format_stmt_2<S: Lexed>(source: S) -> PResult<FormatStmt<MultilineSpan>, S> {
     (
         kw!(format),
-        format_specification(cfg),
+        format_specification,
     ).map(|(_, format_specification)| FormatStmt {
         format_specification,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -29,16 +29,17 @@ pub enum FormatSpecification<Span> {
     },
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "format-specification" #1302 :
     "is ( [ format-items ] )"
     "or ( [ format-items, ] unlimited-format-item )",
 )]
-pub fn format_specification<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatSpecification<MultilineSpan>> + 'a {
+pub fn format_specification<S: Lexed>(source: S) -> PResult<FormatSpecification<MultilineSpan>, S> {
     alt!(
+        for S =>
         (
             delim('('),
-            format_items(cfg).optional(),
+            format_items.optional(),
             delim(')'),
         ).map(|(_, format_items, _)| FormatSpecification::FormatItems {
             format_items: format_items.unwrap_or_else(|| FormatItems(Vec::new())),
@@ -46,26 +47,26 @@ pub fn format_specification<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
         (
             delim('('),
             (
-                format_items(cfg),
+                format_items,
                 comma(),
             ).map(|(format_items, _)| format_items),
-            unlimited_format_item(cfg),
+            unlimited_format_item,
             delim(')'),
         ).map(|(_, format_items, unlimited_format_item, _)| FormatSpecification::UnlimitedFormatItem {
             format_items: Some(format_items),
             unlimited_format_item,
         }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct FormatItems<Span>(pub Vec<FormatItem<Span>>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "format-items" #1303 : "is format-item [ [ , ] format-item ] ...",
 )]
-pub fn format_items<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatItems<MultilineSpan>> + 'a {
-    list(format_item(cfg), 1..).map(FormatItems)
+pub fn format_items<S: Lexed>(source: S) -> PResult<FormatItems<MultilineSpan>, S> {
+    list(format_item, 1..).map(FormatItems).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -82,34 +83,35 @@ pub enum FormatItem<Span> {
     },
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "format-item" #1304 :
     "is [ r ] data-edit-desc"
     "or control-edit-desc"
     "or char-string-edit-desc"
     "or [ r ] ( format-items )",
 )]
-pub fn format_item<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = FormatItem<MultilineSpan>> + 'a {
+pub fn format_item<S: Lexed>(source: S) -> PResult<FormatItem<MultilineSpan>, S> {
     alt!(
+        for S =>
         (
-            r(cfg).optional(),
-            data_edit_desc(cfg),
+            r.optional(),
+            data_edit_desc,
         ).map(|(r, data_edit_desc)| FormatItem::DataEditDesc {
             r,
             data_edit_desc,
         }),
-        control_edit_desc(cfg).map(FormatItem::ControlEditDesc),
-        char_string_edit_desc(cfg).map(FormatItem::CharStringEditDesc),
+        control_edit_desc.map(FormatItem::ControlEditDesc),
+        char_string_edit_desc.map(FormatItem::CharStringEditDesc),
         (
-            r(cfg).optional(),
+            r.optional(),
             delim('('),
-            format_items(cfg),
+            format_items,
             delim(')'),
         ).map(|(r, _, format_items, _)| FormatItem::FormatItems {
             r,
             format_items,
         }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -117,28 +119,28 @@ pub struct UnlimitedFormatItem<Span> {
     pub format_items: FormatItems<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "unlimited-format-item" #1305 : "is * ( format-items )",
 )]
-pub fn unlimited_format_item<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = UnlimitedFormatItem<MultilineSpan>> + 'a {
+pub fn unlimited_format_item<S: Lexed>(source: S) -> PResult<UnlimitedFormatItem<MultilineSpan>, S> {
     (
         asterisk(),
         delim('('),
-        format_items(cfg),
+        format_items,
         delim(')'),
     ).map(|(_, _, format_items, _)| UnlimitedFormatItem {
         format_items,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct R<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "r" #1306 : "is int-literal-constant",
 )]
-pub fn r<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = R<MultilineSpan>> + 'a {
-    int_literal_constant().map(R)
+pub fn r<S: Lexed>(source: S) -> PResult<R<MultilineSpan>, S> {
+    int_literal_constant().map(R).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -204,7 +206,7 @@ pub enum DataEditDesc<Span> {
     },
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "data-edit-desc" #1307 :
     "is I w [ . m ]"
     "or B w [ . m ]"
@@ -221,83 +223,84 @@ pub enum DataEditDesc<Span> {
     "or D w . d"
     "or DT [ char-literal-constant ] [ ( v-list ) ]",
 )]
-pub fn data_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DataEditDesc<MultilineSpan>> + 'a {
+pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan>, S> {
     alt!(
+        for S =>
         (
             kw!(I),
-            w(cfg),
-            (dot(), m(cfg)).map(|(_, m)| m).optional(),
+            w,
+            (dot(), m).map(|(_, m)| m).optional(),
         ).map(|(_, w, m)| DataEditDesc::I { w, m }),
         (
             kw!(b),
-            w(cfg),
-            (dot(), m(cfg)).map(|(_, m)| m).optional(),
+            w,
+            (dot(), m).map(|(_, m)| m).optional(),
         ).map(|(_, w, m)| DataEditDesc::B { w, m }),
         (
             kw!(o),
-            w(cfg),
-            (dot(), m(cfg)).map(|(_, m)| m).optional(),
+            w,
+            (dot(), m).map(|(_, m)| m).optional(),
         ).map(|(_, w, m)| DataEditDesc::O { w, m }),
         (
             kw!(z),
-            w(cfg),
-            (dot(), m(cfg)).map(|(_, m)| m).optional(),
+            w,
+            (dot(), m).map(|(_, m)| m).optional(),
         ).map(|(_, w, m)| DataEditDesc::Z { w, m }),
         (
             kw!(f),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
         ).map(|(_, w, _, d)| DataEditDesc::F { w, d }),
         (
             kw!(e),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
             (
                 kw!(e),
-                e(cfg),
+                e,
             ).map(|(_, e)| e).optional(),
         ).map(|(_, w, _, d, e)| DataEditDesc::E { w, d, e }),
         (
             kw!(en),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
             (
                 kw!(e),
-                e(cfg),
+                e,
             ).map(|(_, e)| e).optional(),
         ).map(|(_, w, _, d, e)| DataEditDesc::EN { w, d, e }),
         (
             kw!(es),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
             (
                 kw!(e),
-                e(cfg),
+                e,
             ).map(|(_, e)| e).optional(),
         ).map(|(_, w, _, d, e)| DataEditDesc::ES { w, d, e }),
         (
             kw!(ex),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
             (
                 kw!(e),
-                e(cfg),
+                e,
             ).map(|(_, e)| e).optional(),
         ).map(|(_, w, _, d, e)| DataEditDesc::EX { w, d, e }),
         (
             kw!(g),
-            w(cfg),
+            w,
             (
                 dot(),
-                d(cfg),
+                d,
                 (
                     kw!(e),
-                    e(cfg),
+                    e,
                 ).map(|(_, e)| e).optional(),
             ).map(|(_, d, e)| (d, e)).optional(),
         ).map(|(_, w, d_e)| {
@@ -310,81 +313,81 @@ pub fn data_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token =
         }),
         (
             kw!(l),
-            w(cfg),
+            w,
         ).map(|(_, w)| DataEditDesc::L { w }),
         (
             kw!(a),
-            w(cfg).optional(),
+            w.optional(),
         ).map(|(_, w)| DataEditDesc::A { w }),
         (
             kw!(d),
-            w(cfg),
+            w,
             dot(),
-            d(cfg),
+            d,
         ).map(|(_, w, _, d)| DataEditDesc::D { w, d }),
         (
             kw!(dt),
             char_literal_constant().optional(),
             (
                 delim('('),
-                list(v(cfg), 0..),
+                list(v, 0..),
                 delim(')'),
             ).map(|(_, v_list, _)| v_list).optional(),
         ).map(|(_, char_literal_constant, v_list)| DataEditDesc::DT {
             char_literal_constant,
             v_list,
         }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct W<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "w" #1308 : "is int-literal-constant",
 )]
-pub fn w<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = W<MultilineSpan>> + 'a {
-    int_literal_constant().map(W)
+pub fn w<S: Lexed>(source: S) -> PResult<W<MultilineSpan>, S> {
+    int_literal_constant().map(W).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct M<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "m" #1309 : "is int-literal-constant",
 )]
-pub fn m<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = M<MultilineSpan>> + 'a {
-    int_literal_constant().map(M)
+pub fn m<S: Lexed>(source: S) -> PResult<M<MultilineSpan>, S> {
+    int_literal_constant().map(M).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct D<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "d" #1310 : "is int-literal-constant",
 )]
-pub fn d<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = D<MultilineSpan>> + 'a {
-    int_literal_constant().map(D)
+pub fn d<S: Lexed>(source: S) -> PResult<D<MultilineSpan>, S> {
+    int_literal_constant().map(D).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct E<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "e" #1311 : "is int-literal-constant",
 )]
-pub fn e<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = E<MultilineSpan>> + 'a {
-    int_literal_constant().map(E)
+pub fn e<S: Lexed>(source: S) -> PResult<E<MultilineSpan>, S> {
+    int_literal_constant().map(E).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct V<Span>(pub SignedIntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "v" #1312 : "is signed-int-literal-constant",
 )]
-pub fn v<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = V<MultilineSpan>> + 'a {
-    signed_int_literal_constant(cfg).map(V)
+pub fn v<S: Lexed>(source: S) -> PResult<V<MultilineSpan>, S> {
+    signed_int_literal_constant.map(V).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -401,7 +404,7 @@ pub enum ControlEditDesc<Span> {
     DecimalEditDesc(DecimalEditDesc),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "control-edit-desc" #1313 :
     "is position-edit-desc"
     "or [ r ] /"
@@ -412,33 +415,34 @@ pub enum ControlEditDesc<Span> {
     "or round-edit-desc"
     "or decimal-edit-desc",
 )]
-pub fn control_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ControlEditDesc<MultilineSpan>> + 'a {
+pub fn control_edit_desc<S: Lexed>(source: S) -> PResult<ControlEditDesc<MultilineSpan>, S> {
     alt!(
-        position_edit_desc(cfg).map(ControlEditDesc::PositionEditDesc),
+        for S =>
+        position_edit_desc.map(ControlEditDesc::PositionEditDesc),
         (
-            r(cfg).optional(),
+            r.optional(),
             op("/"),
         ).map(|(r, _)| ControlEditDesc::Slash(r)),
         colon().map(|_| ControlEditDesc::Colon),
-        sign_edit_desc(cfg).map(ControlEditDesc::SignEditDesc),
+        sign_edit_desc.map(ControlEditDesc::SignEditDesc),
         (
-            k(cfg),
+            k,
             kw!(p),
         ).map(|(k, _)| ControlEditDesc::P { k }),
-        blank_interp_edit_desc(cfg).map(ControlEditDesc::BlankInterpEditDesc),
-        round_edit_desc(cfg).map(ControlEditDesc::RoundEditDesc),
-        decimal_edit_desc(cfg).map(ControlEditDesc::DecimalEditDesc),
-    )
+        blank_interp_edit_desc.map(ControlEditDesc::BlankInterpEditDesc),
+        round_edit_desc.map(ControlEditDesc::RoundEditDesc),
+        decimal_edit_desc.map(ControlEditDesc::DecimalEditDesc),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct K<Span>(pub SignedIntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "k" #1314 : "is signed-int-literal-constant",
 )]
-pub fn k<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = K<MultilineSpan>> + 'a {
-    signed_int_literal_constant(cfg).map(K)
+pub fn k<S: Lexed>(source: S) -> PResult<K<MultilineSpan>, S> {
+    signed_int_literal_constant.map(K).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -457,42 +461,43 @@ pub enum PositionEditDesc<Span> {
     },
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "position-edit-desc" #1315 :
     "is T n"
     "or TL n"
     "or TR n"
     "or n X",
 )]
-pub fn position_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PositionEditDesc<MultilineSpan>> + 'a {
+pub fn position_edit_desc<S: Lexed>(source: S) -> PResult<PositionEditDesc<MultilineSpan>, S> {
     alt!(
+        for S =>
         (
             kw!(t),
-            n(cfg),
+            n,
         ).map(|(_, n)| PositionEditDesc::T { n }),
         (
             kw!(tl),
-            n(cfg),
+            n,
         ).map(|(_, n)| PositionEditDesc::TL { n }),
         (
             kw!(tr),
-            n(cfg),
+            n,
         ).map(|(_, n)| PositionEditDesc::TR { n }),
         (
-            n(cfg),
+            n,
             kw!(x),
         ).map(|(n, _)| PositionEditDesc::X { n }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct N<Span>(pub IntLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "n" #1316 : "is int-literal-constant",
 )]
-pub fn n<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = N<MultilineSpan>> + 'a {
-    int_literal_constant().map(N)
+pub fn n<S: Lexed>(source: S) -> PResult<N<MultilineSpan>, S> {
+    int_literal_constant().map(N).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -502,18 +507,19 @@ pub enum SignEditDesc {
     S,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "sign-edit-desc" #1317 :
     "is SS"
     "or SP"
     "or S",
 )]
-pub fn sign_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignEditDesc> + 'a {
+pub fn sign_edit_desc<S: Lexed>(source: S) -> PResult<SignEditDesc, S> {
     alt!(
+        for S =>
         kw!(ss).map(|_| SignEditDesc::SS),
         kw!(sp).map(|_| SignEditDesc::SP),
         kw!(s).map(|_| SignEditDesc::S),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -522,16 +528,17 @@ pub enum BlankInterpEditDesc {
     BZ,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "blank-interp-edit-desc" #1318 :
     "is BN"
     "or BZ",
 )]
-pub fn blank_interp_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BlankInterpEditDesc> + 'a {
+pub fn blank_interp_edit_desc<S: Lexed>(source: S) -> PResult<BlankInterpEditDesc, S> {
     alt!(
+        for S =>
         kw!(bn).map(|_| BlankInterpEditDesc::BN),
         kw!(bz).map(|_| BlankInterpEditDesc::BZ),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -544,7 +551,7 @@ pub enum RoundEditDesc {
     RP,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "round-edit-desc" #1319 :
     "is RU"
     "or RD"
@@ -553,15 +560,16 @@ pub enum RoundEditDesc {
     "or RC"
     "or RP",
 )]
-pub fn round_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RoundEditDesc> + 'a {
+pub fn round_edit_desc<S: Lexed>(source: S) -> PResult<RoundEditDesc, S> {
     alt!(
+        for S =>
         kw!(ru).map(|_| RoundEditDesc::RU),
         kw!(rd).map(|_| RoundEditDesc::RD),
         kw!(rz).map(|_| RoundEditDesc::RZ),
         kw!(rn).map(|_| RoundEditDesc::RN),
         kw!(rc).map(|_| RoundEditDesc::RC),
         kw!(rp).map(|_| RoundEditDesc::RP),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -570,34 +578,35 @@ pub enum DecimalEditDesc {
     DP,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "decimal-edit-desc" #1320 :
     "is DC"
     "or DP",
 )]
-pub fn decimal_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DecimalEditDesc> + 'a {
+pub fn decimal_edit_desc<S: Lexed>(source: S) -> PResult<DecimalEditDesc, S> {
     alt!(
+        for S =>
         kw!(dc).map(|_| DecimalEditDesc::DC),
         kw!(dp).map(|_| DecimalEditDesc::DP),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct CharStringEditDesc<Span>(pub CharLiteralConstant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "char-string-edit-desc" #1321 : "is char-literal-constant",
 )]
-pub fn char_string_edit_desc<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharStringEditDesc<MultilineSpan>> + 'a {
-    char_literal_constant().map(CharStringEditDesc)
+pub fn char_string_edit_desc<S: Lexed>(source: S) -> PResult<CharStringEditDesc<MultilineSpan>, S> {
+    char_literal_constant().map(CharStringEditDesc).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct HexDigitString<Span>(pub Vec<Char<Span>>);
 
-//#[syntax_rule(
+//#[doc = s_rule!(
 //    F18V007r1 rule "hex-digit-string" #1322 : "is hex-digit [ hex-digit ] ...",
 //)]
-//pub fn hex_digit_string<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = HexDigitString<MultilineSpan>> + 'a {
-//    many(hex_digit(cfg), 1..).map(HexDigitString)
+//pub fn hex_digit_string<S: Lexed>(source: S) -> PResult<HexDigitString<MultilineSpan>, S> {
+//    many(hex_digit, 1..).map(HexDigitString)
 //}

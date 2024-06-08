@@ -3,7 +3,7 @@ use std::ops::Range;
 use enum_as_inner::EnumAsInner;
 use rules::{import_stmt, ImportStmt};
 
-use crate::{tokens::rules::LexicalToken, Cfg};
+use crate::tokens::rules::LexicalToken;
 
 use f2rs_parser_combinator::prelude::*;
 
@@ -67,14 +67,15 @@ pub enum StatementValue<Span> {
     Import(ImportStmt<Span>),
 }
 
-pub fn statement<'a, S: Source<Element = LexicalToken<MultilineSpan>>>(cfg: &'a Cfg) -> impl Parser<S, Token = StatementValue<MultilineSpan>> + 'a {
+pub fn statement<'a, S: Source<Element = LexicalToken<MultilineSpan>>>(source: S) -> PResult<StatementValue<MultilineSpan>, S> {
     alt!(
-        import_stmt(cfg).map(StatementValue::Import),
-    )
+        for S =>
+        import_stmt.map(StatementValue::Import),
+    ).parse(source)
 }
 
 impl StatementValue<MultilineSpan> {
-    pub fn parse<S: Source<Element = LexicalToken<MultilineSpan>>>(source: S, cfg: &Cfg) -> Option<Self> {
-        statement(cfg).parse(source).map(|r| r.0)
+    pub fn parse<S: Source<Element = LexicalToken<MultilineSpan>>>(source: S) -> Option<Self> {
+        statement.parse(source).map(|r| r.0)
     }
 }

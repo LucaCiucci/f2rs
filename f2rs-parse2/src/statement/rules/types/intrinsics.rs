@@ -10,18 +10,19 @@ pub enum TypeParamValue<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "type-param-value" #701 :
     "is scalar-int-expr"
     "or *"
     "or :",
 )]
-pub fn type_param_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TypeParamValue<MultilineSpan>> + 'a {
+pub fn type_param_value<S: Lexed>(source: S) -> PResult<TypeParamValue<MultilineSpan>, S> {
     alt!(
-        int_expr(cfg).map(TypeParamValue::Expr),
+        for S =>
+        int_expr.map(TypeParamValue::Expr),
         asterisk().map(TypeParamValue::Asterisk),
         colon().map(TypeParamValue::Colon),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -30,15 +31,15 @@ pub struct KindSelector<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "kind-selector" #706 : "is ( [ KIND = ] scalar-int-constant-expr )",
 )]
-pub fn kind_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = KindSelector<MultilineSpan>> + 'a {
+pub fn kind_selector<S: Lexed>(source: S) -> PResult<KindSelector<MultilineSpan>, S> {
     // TODO support the alternate form as an extension
 
     let inner = || (
         (kw!(KIND), equals()).optional(),
-        int_constant_expr(cfg), // TODO the standard says this, but maybe kind_param should be used instead?
+        int_constant_expr, // TODO the standard says this, but maybe kind_param should be used instead?
     ).map(|(_, expr)| KindSelector { value: expr });
 
     let with_parenthesis = move || (
@@ -50,9 +51,10 @@ pub fn kind_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
     ).map(|(_, kind_selector)| kind_selector);
 
     alt!(
+        for S =>
         with_parenthesis(),
         with_asterisk(),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -61,14 +63,15 @@ pub struct IntegerTypeSpec<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "integer-type-spec" #705 : "is INTEGER [ kind-selector ]",
 )]
-pub fn integer_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntegerTypeSpec<MultilineSpan>> + 'a {
+pub fn integer_type_spec<S: Lexed>(source: S) -> PResult<IntegerTypeSpec<MultilineSpan>, S> {
     (
         kw!(INTEGER),
-        kind_selector(cfg).optional(),
+        kind_selector.optional(),
     ).map(|(_, kind_selector)| IntegerTypeSpec { kind_selector })
+    .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -82,7 +85,7 @@ pub enum IntrinsicTypeSpec<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "intrinsic-type-spec" #704 :
     "is integer-type-spec"
     "or REAL [ kind-selector ]"
@@ -91,12 +94,13 @@ pub enum IntrinsicTypeSpec<Span> {
     "or CHARACTER [ char-selector ]"
     "or LOGICAL [ kind-selector ]",
 )]
-pub fn intrinsic_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicTypeSpec<MultilineSpan>> + 'a {
+pub fn intrinsic_type_spec<S: Lexed>(source: S) -> PResult<IntrinsicTypeSpec<MultilineSpan>, S> {
     alt!(
-        integer_type_spec(cfg).map(IntrinsicTypeSpec::Integer),
+        for S =>
+        integer_type_spec.map(IntrinsicTypeSpec::Integer),
         (
             kw!(real),
-            kind_selector(cfg).optional(),
+            kind_selector.optional(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Real(kind_selector)),
         (
             kw!(double),
@@ -104,17 +108,17 @@ pub fn intrinsic_type_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
         ).map(|_| IntrinsicTypeSpec::DoublePrecision),
         (
             kw!(complex),
-            kind_selector(cfg).optional(),
+            kind_selector.optional(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Complex(kind_selector)),
         (
             kw!(character),
-            char_selector(cfg).optional(),
+            char_selector.optional(),
         ).map(|(_, char_selector)| IntrinsicTypeSpec::Character(char_selector)),
         (
             kw!(logical),
-            kind_selector(cfg).optional(),
+            kind_selector.optional(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Logical(kind_selector)),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -124,16 +128,17 @@ pub enum CharLength<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "char-length" #723 :
     "is ( type-param-value )"
     "or int-literal-constant",
 )]
-pub fn char_length<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLength<MultilineSpan>> + 'a {
+pub fn char_length<S: Lexed>(source: S) -> PResult<CharLength<MultilineSpan>, S> {
     alt!(
-        (delim('('), type_param_value(cfg), delim(')')).map(|(_, type_param_value, _)| CharLength::TypeParamValue(type_param_value)),
+        for S =>
+        (delim('('), type_param_value, delim(')')).map(|(_, type_param_value, _)| CharLength::TypeParamValue(type_param_value)),
         int_literal_constant().map(CharLength::Int),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -143,16 +148,17 @@ pub enum LengthSelector<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "length-selector" #722 :
     "is ( [ LEN = ] type-param-value )"
     "or * char-length [ , ]",
 )]
-pub fn length_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LengthSelector<MultilineSpan>> + 'a {
+pub fn length_selector<S: Lexed>(source: S) -> PResult<LengthSelector<MultilineSpan>, S> {
     alt!(
-        (delim('('), type_param_value(cfg), delim(')')).map(|(_, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
-        (asterisk(), char_length(cfg), comma().optional()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
-    )
+        for S =>
+        (delim('('), type_param_value, delim(')')).map(|(_, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
+        (asterisk(), char_length, comma().optional()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -163,41 +169,42 @@ pub enum CharSelector<Span> {
 }
 
 // TODO test
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "char-selector" #721 :
     "is length-selector"
     "or ( LEN = type-param-value , KIND = scalar-int-constant-expr )"
     "or ( type-param-value , [ KIND = ] scalar-int-constant-expr )"
     "or ( KIND = scalar-int-constant-expr [ , LEN =type-param-value ] )",
 )]
-pub fn char_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharSelector<MultilineSpan>> + 'a {
+pub fn char_selector<S: Lexed>(source: S) -> PResult<CharSelector<MultilineSpan>, S> {
     alt!(
-        length_selector(cfg).map(CharSelector::Len),
+        for S =>
+        length_selector.map(CharSelector::Len),
         (
             delim('('),
             (
                 kw!(len),
                 equals(),
-                type_param_value(cfg),
+                type_param_value,
             ).map(|(_, _, len)| len),
             comma(),
             (
                 kw!(kind),
                 equals(),
-                int_constant_expr(cfg)
+                int_constant_expr
             ).map(|(_, _, kind)| kind),
             delim(')'),
         ).map(|(_,len, _, kind, _)| CharSelector::LenKind(len, kind)),
         (
             delim('('),
-            type_param_value(cfg),
+            type_param_value,
             comma(),
             (
                 (
                     kw!(kind),
                     equals(),
                 ).optional(),
-                int_constant_expr(cfg)
+                int_constant_expr
             ).map(|(_, kind)| kind),
             delim(')'),
         ).map(|(_, len, _, kind, _)| CharSelector::LenKind(len, kind)),
@@ -206,20 +213,20 @@ pub fn char_selector<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
             (
                 kw!(kind),
                 equals(),
-                int_constant_expr(cfg)
+                int_constant_expr
             ).map(|(_, _, kind)| kind),
             (
                 comma(),
                 kw!(len),
                 equals(),
-                type_param_value(cfg),
+                type_param_value,
             ).map(|(_, _, _, len)| len).optional(),
             delim(')'),
         ).map(|(_, kind, len, _)| match len {
             Some(len) => CharSelector::LenKind(len, kind),
             None => CharSelector::Kind(kind),
         }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -228,25 +235,26 @@ pub enum ArrayConstructor<Span> {
     Bracketed(AcSpec<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "array-constructor" #769 :
     "is (/ ac-spec /)"
     "or lbracket ac-spec rbracket",
 )]
-pub fn array_constructor<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ArrayConstructor<MultilineSpan>> + 'a {
+pub fn array_constructor<S: Lexed>(source: S) -> PResult<ArrayConstructor<MultilineSpan>, S> {
     // TODO test
     alt!(
+        for S =>
         (
             delim('('), op("/"),
-            ac_spec(cfg),
+            ac_spec,
             op("/"), delim(')'),
         ).map(|(_, _,  ac_spec, _, _)| ArrayConstructor::Parenthesized(ac_spec)),
         (
             delim('['),
-            ac_spec(cfg),
+            ac_spec,
             delim(']'),
         ).map(|(_, ac_spec, _)| ArrayConstructor::Bracketed(ac_spec)),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -255,30 +263,31 @@ pub enum AcSpec<Span> {
     TypeWithValueList(Option<TypeSpec<Span>>, Vec<AcValue<Span>>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "ac-spec" #770 :
     "is type-spec ::"
     "or [type-spec ::] ac-value-list",
 )]
-pub fn ac_spec<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcSpec<MultilineSpan>> + 'a {
+pub fn ac_spec<S: Lexed>(source: S) -> PResult<AcSpec<MultilineSpan>, S> {
     // TODO test
     alt!(
+        for S =>
         (
             (
-                type_spec(cfg),
+                type_spec,
                 double_colon(),
             ).map(|(type_spec, _)| type_spec).optional(),
             separated(
-                ac_value(cfg),
+                ac_value,
                 comma(),
                 0..,
             ),
         ).map(|(type_spec, ac_values)| AcSpec::TypeWithValueList(type_spec, ac_values)),
         (
-            type_spec(cfg),
+            type_spec,
             double_colon(),
         ).map(|(type_spec, _)| AcSpec::Type(type_spec)),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -287,17 +296,18 @@ pub enum AcValue<Span> {
     AcImpliedDo(AcImpliedDo<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "ac-value" #773 :
     "is expr"
     "or ac-implied-do",
 )]
-pub fn ac_value<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcValue<MultilineSpan>> + 'a {
+pub fn ac_value<S: Lexed>(source: S) -> PResult<AcValue<MultilineSpan>, S> {
     // TODO test
     alt!(
-        expr(cfg).map(AcValue::Expr),
-        ac_implied_do(cfg).map(AcValue::AcImpliedDo),
-    )
+        for S =>
+        expr.map(AcValue::Expr),
+        ac_implied_do.map(AcValue::AcImpliedDo),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -306,25 +316,25 @@ pub struct AcImpliedDo<Span> {
     pub ac_implied_do_control: AcImpliedDoControl<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "ac-implied-do" #774 : "is ( ac-value-list , ac-implied-do-control )",
 )]
-pub fn ac_implied_do<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDo<MultilineSpan>> + 'a {
+pub fn ac_implied_do<S: Lexed>(source: S) -> PResult<AcImpliedDo<MultilineSpan>, S> {
     // TODO test
     (
         delim('('),
         separated(
-            ac_value(cfg),
+            ac_value,
             comma(),
             0..,
         ),
         comma(),
-        ac_implied_do_control(cfg),
+        ac_implied_do_control,
         delim(')'),
     ).map(|(_, ac_values, _, ac_implied_do_control, _)| AcImpliedDo {
         ac_values,
         ac_implied_do_control,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -336,51 +346,51 @@ pub struct AcImpliedDoControl<Span> {
     pub stride: Option<IntExpr<Span>>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "ac-implied-do-control" #775 :
     "is [ integer-type-spec :: ] ac-do-variable = scalar-int-expr , scalar-int-expr [ , scalar-int-expr ]",
 )]
-pub fn ac_implied_do_control<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcImpliedDoControl<MultilineSpan>> + 'a {
+pub fn ac_implied_do_control<S: Lexed>(source: S) -> PResult<AcImpliedDoControl<MultilineSpan>, S> {
     // TODO test
     (
         (
-            integer_type_spec(cfg),
+            integer_type_spec,
             double_colon(),
         ).map(|(spec, _)| spec).optional(),
-        ac_do_variable(cfg),
+        ac_do_variable,
         equals(),
-        int_expr(cfg),
+        int_expr,
         comma(),
-        int_expr(cfg),
-        (comma(), int_expr(cfg)).map(|(_, stride)| stride).optional(),
+        int_expr,
+        (comma(), int_expr).map(|(_, stride)| stride).optional(),
     ).map(|(spec, variable, _, start, _, end, stride)| AcImpliedDoControl {
         spec,
         variable,
         start,
         end,
         stride,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct AcDoVariable<Span>(pub DoVariable<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "ac-do-variable" #776 : "is do-variable",
 )]
-pub fn ac_do_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AcDoVariable<MultilineSpan>> + 'a {
+pub fn ac_do_variable<S: Lexed>(source: S) -> PResult<AcDoVariable<MultilineSpan>, S> {
     // TODO test
-    do_variable(cfg).map(AcDoVariable)
+    do_variable.map(AcDoVariable).parse(source)
 }
 
 /*#[derive(Debug, Clone)]
 pub struct DoVariable<Span>(pub Name<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "do-variable" #1124 :
     "is scalar-int-variable-name",
 )]
-pub fn do_variable<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DoVariable<MultilineSpan>> + 'a {
+pub fn do_variable<S: Lexed>(source: S) -> PResult<DoVariable<MultilineSpan>, S> {
     // TODO test
     name().map(DoVariable)
 }*/

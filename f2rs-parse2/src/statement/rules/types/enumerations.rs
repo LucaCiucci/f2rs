@@ -9,19 +9,19 @@ use super::*;
 //    pub end_enum_stmt: Option<EndEnumStmt<Span>>,
 //}
 //
-//#[syntax_rule(
+//#[doc = s_rule!(
 //    F18V007r1 rule "enum-def" #759 :
 //    "is enum-def-stmt"
 //    "    enumerator-def-stmt"
 //    "    [ enumerator-def-stmt ] ..."
 //    "    end-enum-stmt",
 //)]
-//pub fn enum_def<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumDef<MultilineSpan>> + 'a {
+//pub fn enum_def<S: Lexed>(source: S) -> PResult<EnumDef<MultilineSpan>, S> {
 //    (
-//        enum_def_stmt(cfg),
+//        enum_def_stmt,
 //        many_until(
-//            maybe_statement(enumerator_def_stmt(cfg)),
-//            end_enum_stmt(cfg),
+//            maybe_statement(enumerator_def_stmt),
+//            end_enum_stmt,
 //            0..,
 //        ),
 //    ).map(|(enum_def_stmt, (enumerator_def_stmt_list, end_enum_stmt))| {
@@ -38,10 +38,10 @@ pub struct EnumDefStmt<Span> {
     _phantom: PhantomData<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "enum-def-stmt" #760 : "is ENUM, BIND(C)",
 )]
-pub fn enum_def_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumDefStmt<MultilineSpan>> + 'a {
+pub fn enum_def_stmt<S: Lexed>(source: S) -> PResult<EnumDefStmt<MultilineSpan>, S> {
     (
         kw!(enum),
         (// NOTE: this is not optional in the standard, but we allow it to be
@@ -50,7 +50,7 @@ pub fn enum_def_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = 
         ).optional(),
     ).map(|(_, _)| EnumDefStmt {
         _phantom: PhantomData,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -58,17 +58,17 @@ pub struct EnumeratorDefStmt<Span> {
     pub list: Vec<Enumerator<Span>>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "enumerator-def-stmt" #761 : "ENUMERATOR [ :: ] enumerator-list",
 )]
-pub fn enumerator_def_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EnumeratorDefStmt<MultilineSpan>> + 'a {
+pub fn enumerator_def_stmt<S: Lexed>(source: S) -> PResult<EnumeratorDefStmt<MultilineSpan>, S> {
     (
         kw!(enumerator),
         double_colon().optional(),
-        list(enumerator(cfg), 0..),
+        list(enumerator, 0..),
     ).map(|(_, _, list)| EnumeratorDefStmt {
         list,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -77,20 +77,20 @@ pub struct Enumerator<Span> {
     pub value: Option<IntConstantExpr<Span>>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "enumerator" #762 : "is named-constant [ = scalar-int-constant-expr ]",
 )]
-pub fn enumerator<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Enumerator<MultilineSpan>> + 'a {
+pub fn enumerator<S: Lexed>(source: S) -> PResult<Enumerator<MultilineSpan>, S> {
     (
-        named_constant(cfg),
+        named_constant,
         (
             equals(),
-            int_constant_expr(cfg),
+            int_constant_expr,
         ).map(|(_, value)| value).optional(),
     ).map(|(name, value)| Enumerator {
         name,
         value,
-    })
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -98,13 +98,13 @@ pub struct EndEnumStmt<Span> {
     _phantom: PhantomData<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "end-enum-stmt" #763 : "is END ENUM",
 )]
-pub fn end_enum_stmt<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EndEnumStmt<MultilineSpan>> + 'a {
+pub fn end_enum_stmt<S: Lexed>(source: S) -> PResult<EndEnumStmt<MultilineSpan>, S> {
     (kw!(end), kw!(enum)).map(|_| EndEnumStmt {
         _phantom: PhantomData,
-    })
+    }).parse(source)
 }
 
 #[cfg(test)]

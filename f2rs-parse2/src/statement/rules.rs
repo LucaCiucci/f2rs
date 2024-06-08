@@ -18,10 +18,8 @@ mod execution_control; pub use execution_control::*;
 mod concepts; pub use concepts::*;
 mod input_output_editing; pub use input_output_editing::*;
 mod statements; pub use statements::*;
-use crate::{tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, LexicalToken, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}, Cfg};
+use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, LexicalToken, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}, Cfg};
 use std::ops::RangeBounds;
-
-use f2rs_parse_derive::syntax_rule;
 
 use crate::{tokens::rules::{Colon, Comma, DoubleColon, Name}, Standard::*};
 
@@ -35,7 +33,7 @@ impl<S> Lexed for S where S: Source<Element = LexTk> {}
 pub fn list<'a, S: Source<Element = LexicalToken<MultilineSpan>> + 'a, P: Parser<S, Token = T> + 'a, T: 'a>(
     element: P,
     range: impl RangeBounds<usize> + Clone + 'a,
-) -> impl Parser<S, Token = Vec<P::Token>> + 'a {
+) -> impl Parser<S, Token = Vec<P::Token>> {
     separated(
         element,
         comma(),
@@ -105,16 +103,17 @@ impl<Span> MapSpan<Span> for Sign<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "sign" #712 :
     "is +"
     "or -",
 )]
-pub fn sign<S: Lexed>(cfg: &Cfg) -> impl Parser<S, Token = Sign<MultilineSpan>> {
+pub fn sign<S: Lexed>(source: S) -> PResult<Sign<MultilineSpan>, S> {
     alt! {
+        for S =>
         op("+").map(|op| Sign::Plus(op.span().clone())),
         op("-").map(|op| Sign::Minus(op.span().clone())),
-    }
+    }.parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -124,18 +123,19 @@ pub struct SignedIntLiteralConstant<Span> {
     pub int_literal_constant: IntLiteralConstant<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "signed-int-literal-constant" #707 : "is [ sign ] int-literal-constant",
 )]
-pub fn signed_int_literal_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedIntLiteralConstant<MultilineSpan>> + 'a {
+pub fn signed_int_literal_constant<S: Lexed>(source: S) -> PResult<SignedIntLiteralConstant<MultilineSpan>, S> {
     (
-        sign(cfg).optional(),
+        sign.optional(),
         int_literal_constant(),
     )
         .map(|(sign, int_literal_constant)| SignedIntLiteralConstant {
             sign,
             int_literal_constant,
         })
+        .parse(source)
 }
 
 pub fn char_literal_constant<S: Source<Element = LexicalToken<MultilineSpan>>>() -> impl Parser<S, Token = CharLiteralConstant<MultilineSpan>> {
@@ -394,7 +394,7 @@ fn tokenize(source: &str) -> Vec<LexicalToken<MultilineSpan>> {
 
     // TODO CFG????
     let (r, _s) = many(
-        (space(0), lexical_token(&Cfg::f2018()), space(0)).map(|(_, t, _)| t),
+        (space(0), lexical_token, space(0)).map(|(_, t, _)| t),
         0..,
     )
         .map(|t| t.map_span(&|s| MultilineSpan::from_line_span(0, s)))

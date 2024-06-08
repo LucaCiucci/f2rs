@@ -224,6 +224,14 @@ pub trait Source: Clone {
         let (span, tail) = self.take(end);
         Some((token(span), tail))
     }
+    fn parse<Token>(&mut self, parser: &impl Parser<Self, Token = Token>) -> Option<Token> {
+        if let Some((token, tail)) = parser.parse(self.clone()) {
+            *self = tail;
+            Some(token)
+        } else {
+            None
+        }
+    }
 }
 
 pub trait TextSource: Source<Element = char> {

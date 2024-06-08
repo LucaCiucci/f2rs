@@ -75,9 +75,7 @@ fn interactive_tokenization(args: InteractiveTokenization) {
 
     let tokens = TokenizedFreeLine::parse_chars(&line).unwrap().tokens.map_span(&|span| MultilineSpan::from_line_span(0, span));
 
-    let cfg = Cfg::f2018();
-
-    let options = implicit_part_stmt_2(&cfg, &tokens[..])
+    let options = implicit_part_stmt_2(&tokens[..])
         .into_iter()
         .map(|s| s.0.statement_name())
         .collect::<Vec<_>>();

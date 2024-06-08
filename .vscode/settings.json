@@ -13,6 +13,7 @@
         "Mult",
         "namelist",
         "presult",
+        "significand",
         "Spannable",
         "Subobject"
     ]

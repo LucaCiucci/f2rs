@@ -1,9 +1,8 @@
-use std::ops::{Range, RangeBounds};
+use std::ops::RangeBounds;
 
-use f2rs_parse_derive::syntax_rule;
 use f2rs_parser_combinator::prelude::*;
 
-use crate::{decl_rule, statement::{rules::Lexed, MultilineSpan}, Cfg, LexSource, Standard::*};
+use crate::s_rule;
 use super::*;
 
 /// Fortran special character
@@ -220,7 +219,7 @@ impl<S: TextSource> ParserCore<S> for SpecialCharacter {
     }
 }
 
-pub fn blanks<'a, S: TextSource + 'a>(range: impl RangeBounds<usize> + Clone + 'a) -> impl Parser<S, Token = ()> + 'a {
+pub fn blanks<S: TextSource>(range: impl RangeBounds<usize> + Clone + 'static) -> impl Parser<S, Token = ()> {
     fold_many(
         Parser::<S>::or(SpecialCharacter::Blank, SpecialCharacter::Tab), // NOTE: added Tab for convenience
         || (),
@@ -229,7 +228,7 @@ pub fn blanks<'a, S: TextSource + 'a>(range: impl RangeBounds<usize> + Clone + '
     )
 }
 
-pub fn space<'a, S: TextSource + 'a>(min: usize) -> impl Parser<S, Token = ()> + 'a {
+pub fn space<'a, S: TextSource + 'a>(min: usize) -> impl Parser<S, Token = ()> {
     // OLD 1
     //separated(
     //    blanks(0..),
@@ -251,68 +250,49 @@ pub fn space<'a, S: TextSource + 'a>(min: usize) -> impl Parser<S, Token = ()> +
 }
 
 // OLD
-//pub fn alphanumeric_character<'a, S: TextSource>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
+//pub fn alphanumeric_character<'a, S: TextSource>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> {
 //    alt!(
-//        letter(cfg),
-//        digit(cfg),
-//        underscore(cfg),
+//        letter,
+//        digit,
+//        underscore,
 //    )
 //}
 
-decl_rule! {
-    alphanumeric_character:
-        F18V007r1 rule "alphanumeric-character" #601 :
-        "is letter"
-        "or digit"
-        "or underscore",
+#[doc = s_rule!(
+    F18V007r1 rule "alphanumeric-character" #601 :
+    "is letter"
+    "or digit"
+    "or underscore",
+)]
+pub fn alphanumeric_character<S: TextSource>(source: S) -> PResult<Char<S::Span>, S> {
+    alt!(
+        for S =>
+        letter,
+        digit,
+        underscore,
+    ).parse(source)
 }
 
-impl<'a> ParserCore<Chars<'a>> for alphanumeric_character {
-    type Token = Char<Range<usize>>;
-    fn parse(&self, source: Chars<'a>) -> PResult<Self::Token, Chars<'a>> {
-        alt!(
-            letter,
-            digit,
-            underscore,
-        ).parse(source)
-    }
+#[doc = s_rule!(
+    F18V007r1 rule "letter" section "6.1.2",
+)]
+pub fn letter<S: TextSource>(source: S) -> PResult<Char<S::Span>, S> {
+    //Char::any_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".chars()).parse(source)
+    Char::parse(|ref c| ('a'..='z').contains(c) || ('A'..='Z').contains(c)).parse(source)
 }
 
-decl_rule! {
-    letter:
-        F18V007r1 rule "letter" section "6.1.2",
+#[doc = s_rule!(
+    F18V007r1 rule "digit" section "6.1.3",
+)]
+pub fn digit<S: TextSource>(source: S) -> PResult<Char<S::Span>, S> {
+    Char::any_of("0123456789".chars()).parse(source)
 }
 
-impl<S: TextSource> ParserCore<S> for letter {
-    type Token = Char<S::Span>;
-    fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        //Char::any_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".chars()).parse(source)
-        Char::parse(|ref c| ('a'..='z').contains(c) || ('A'..='Z').contains(c)).parse(source)
-    }
-}
-
-decl_rule! {
-    digit:
-        F18V007r1 rule "digit" section "6.1.3",
-}
-
-impl<S: TextSource> ParserCore<S> for digit {
-    type Token = Char<S::Span>;
-    fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        Char::any_of("0123456789".chars()).parse(source)
-    }
-}
-
-decl_rule! {
-    underscore:
-        F18V007r1 rule "underscore" #602 : "is _",
-}
-
-impl<S: TextSource> ParserCore<S> for underscore {
-    type Token = Char<S::Span>;
-    fn parse(&self, source: S) -> PResult<Self::Token, S> {
-        Char::exact('_').parse(source)
-    }
+#[doc = s_rule!(
+    F18V007r1 rule "underscore" #602 : "is _",
+)]
+pub fn underscore<S: TextSource>(source: S) -> PResult<Char<S::Span>, S> {
+    Char::exact('_').parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -339,27 +319,25 @@ impl<Span> MapSpan<Span> for SpecialCharacterMatch<Span> {
 }
 
 /// Fortran special character
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "special-character" section "6.1.5",
 )]
-pub fn special_character<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = SpecialCharacterMatch<S::Span>> {
+pub fn special_character<S: TextSource>(source: S) -> PResult<SpecialCharacterMatch<S::Span>, S> {
     // TODO use any
-    move |source: S| {
-        for sc in SpecialCharacter::ALL{
-            let r = sc.parse(source.clone());
-            if r.is_some() {
-                return r;
-            }
+    for sc in SpecialCharacter::ALL{
+        let r = sc.parse(source.clone());
+        if r.is_some() {
+            return r;
         }
-
-        return None;
     }
+
+    return None;
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "name" #603 : "is letter [ alphanumeric-character ] ...",
 )]
-pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) -> impl Parser<S, Token = Name<S::Span>> + 'a { // TODO remove bound on source
+pub fn name<'a, S: TextSource + 'a>(drop_last_underscore: bool) -> impl Parser<S, Token = Name<S::Span>> { // TODO remove bound on source
     move |source: S| {
         if drop_last_underscore {
             letter
@@ -368,7 +346,7 @@ pub fn name<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) ->
                         .condition(|c, s: &S| if c.value == '_' { alphanumeric_character.parses(s.clone()) } else { true }),
                     move || StringMatch::from_char(first.clone()),
                     |mut name, c| {
-                        name.push_char::<S>(c);
+                        name.push_char(c);
                         (name, true)
                     },
                     0..,
@@ -414,12 +392,12 @@ impl<Span> MapSpan<Span> for Sign<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "sign" #712 :
     "is +"
     "or -",
 )]
-pub fn sign<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Sign<S::Span>> {
+pub fn sign<S: TextSource>(source: S) -> PResult<Sign<S::Span>, S> {
     Char::exact('+')
         .or(Char::exact('-')).map(|o| o.inner())
         .map(|c| match &c.value {
@@ -427,6 +405,7 @@ pub fn sign<S: TextSource>(cfg: &Cfg) -> impl Parser<S, Token = Sign<S::Span>> {
             '-' => Sign::Minus(c.span),
             _ => unreachable!(),
         })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -454,18 +433,18 @@ impl<Span> MapSpan<Span> for IntLiteralConstant<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "int-literal-constant" #708 : "is digit-string [ _ kind-param ]",
 )]
-pub fn int_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntLiteralConstant<S::Span>> + 'a {
+pub fn int_literal_constant<S: TextSource>(source: S) -> PResult<IntLiteralConstant<S::Span>, S> {
     // TODO maybe relax R708 to allow for trailing underscores if a kind param is missing:
     //`digit-string [ _ kind-param ]` --> `digit-string [ _ ]  [ kind-param ]`
 
     (
-        digit_string::<S>(cfg),
+        digit_string::<S>,
         (
-            underscore,
-            kind_param(cfg, false),
+            underscore::<S>,
+            kind_param(false),
         )
             .map(|(_, kind_param)| kind_param)
             .optional(),
@@ -489,6 +468,7 @@ pub fn int_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser
             kind_param,
         }
     })
+    .parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.1 R709
@@ -518,19 +498,18 @@ impl<Span> MapSpan<Span> for KindParam<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "kind-param" #709 :
     "is digit-string"
     "or scalar-int-constant-name",
 )]
-pub fn kind_param<'a, S: TextSource + 'a>(cfg: &'a Cfg, drop_last_underscore: bool) -> impl Parser<S, Token = KindParam<S::Span>> + 'a {
+pub fn kind_param<'a, S: TextSource + 'a>(drop_last_underscore: bool) -> impl Parser<S, Token = KindParam<S::Span>> {
     // TODO implement J3/18-007r1 §7.4.3.1 C713
-    // This might be a temporary implementation
-    let scalar_int_constant_name = name;
 
     alt!(
-        digit_string(cfg).map(KindParam::DigitString),
-        scalar_int_constant_name(cfg, drop_last_underscore).map(KindParam::ScalarIntConstantName),
+        for S =>
+        digit_string.map(KindParam::DigitString),
+        name(drop_last_underscore).map(KindParam::ScalarIntConstantName),
     )
 }
 
@@ -553,13 +532,13 @@ impl<Span> MapSpan<Span> for SignedDigitString<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "signed-digit-string" #710 : "is [ sign ] digit-string",
 )]
-pub fn signed_digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedDigitString<S::Span>> + 'a {
+pub fn signed_digit_string<S: TextSource>(source: S) -> PResult<SignedDigitString<S::Span>, S> {
     (
-        sign::<S>(cfg).optional(),
-        digit_string(cfg),
+        sign::<S>.optional(),
+        digit_string,
     )
         .map(|(sign, digits)| {
             let span = if let Some(sign) = &sign {
@@ -574,22 +553,24 @@ pub fn signed_digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<
                 digits,
             }
         })
+        .parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "digit-string" #711 : "is digit [ digit ] ...",
 )]
-pub fn digit_string<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
+pub fn digit_string<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>, S> {
     digit
         .then(|first| fold_many(
             digit,
             move || StringMatch::from_char(first.clone()),
             |mut string, d| {
-                string.push_char::<S>(d);
+                string.push_char(d);
                 (string, true)
             },
             0..,
         ))
+        .parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.2 R713
@@ -599,18 +580,19 @@ pub struct SignedRealLiteralConstant<Span> {
     pub real_literal_constant: RealLiteralConstant<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "signed-real-literal-constant" #713 : "is [ sign ] real-literal-constant",
 )]
-pub fn signed_real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedRealLiteralConstant<S::Span>> + 'a {
+pub fn signed_real_literal_constant<S: TextSource>(source: S) -> PResult<SignedRealLiteralConstant<S::Span>, S> {
     (
-        sign(cfg).optional(),
-        real_literal_constant(cfg),
+        sign.optional(),
+        real_literal_constant,
     )
         .map(|(sign, real_literal_constant)| SignedRealLiteralConstant {
             sign,
             real_literal_constant,
         })
+        .parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.2 R714
@@ -662,24 +644,25 @@ impl<Span> RealLiteralConstant<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "real-literal-constant" #714 :
     "is significand [ exponent-letter exponent ] [ _ kind-param ]"
     "or digit-string exponent-letter exponent [ _ kind-param ]",
 )]
-pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RealLiteralConstant<S::Span>> + 'a {
+pub fn real_literal_constant<S: TextSource>(source: S) -> PResult<RealLiteralConstant<S::Span>, S> {
     // TODO implement §7.4.3.2 C716
 
     alt!(
+        for S =>
         (
-            significand(cfg),
+            significand,
             (
-                exponent_letter(cfg),
-                exponent(cfg),
+                exponent_letter,
+                exponent,
             ).optional(),
             (
                 underscore,
-                kind_param(cfg, false),
+                kind_param(false),
             ).map(|(_, k)| k).optional(),
         )
             .map(|(significand, exponent_letter_and_exponent, kind_param): (Significand<S::Span>, Option<(ExponentLetter<S::Span>, SignedDigitString<S::Span>)>, Option<KindParam<S::Span>>)| {
@@ -696,12 +679,12 @@ pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                 }
             }),
         (
-            digit_string(cfg),
-            exponent_letter(cfg),
-            exponent(cfg),
+            digit_string,
+            exponent_letter,
+            exponent,
             (
                 underscore,
-                kind_param(cfg, false),
+                kind_param(false),
             ).map(|(_, k)| k).optional(),
         )
             .map(|(digits_string, exponent_letter, exponent, kind_param): (StringMatch<S::Span>, ExponentLetter<S::Span>, SignedDigitString<S::Span>, Option<KindParam<S::Span>>)| {
@@ -720,7 +703,7 @@ pub fn real_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                     span,
                 }
             }),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -749,23 +732,24 @@ impl<Span> MapSpan<Span> for ExponentLetter<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "exponent-letter" #716 :
     "is E"
     "or D",
 )]
-pub fn exponent_letter<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ExponentLetter<S::Span>> + 'a {
+pub fn exponent_letter<S: TextSource>(source: S) -> PResult<ExponentLetter<S::Span>, S> {
     alt!(
+        for S =>
         Char::exact_case_insensitive('d').map(|c| ExponentLetter::D(c.span)),
         Char::exact_case_insensitive('e').map(|c| ExponentLetter::E(c.span)),
-    )
+    ).parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "exponent" #717 : "is signed-digit-string",
 )]
-pub fn exponent<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = SignedDigitString<S::Span>> + 'a {
-    signed_digit_string(cfg)
+pub fn exponent<S: TextSource>(source: S) -> PResult<SignedDigitString<S::Span>, S> {
+    signed_digit_string.parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.2 R715
@@ -800,17 +784,18 @@ impl<Span> MapSpan<Span> for Significand<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "significand" #715 :
     "is digit-string . [ digit-string ]"
     "or . digit-string",
 )]
-pub fn significand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Significand<S::Span>> + 'a {
+pub fn significand<S: TextSource>(source: S) -> PResult<Significand<S::Span>, S> {
     alt! {
+        for S =>
         (
-            digit_string(cfg),
+            digit_string,
             '.',
-            digit_string(cfg).optional(),
+            digit_string.optional(),
         ).map(|(first, _, second): (StringMatch<S::Span>, Char<S::Span>, Option<StringMatch<S::Span>>)| {
             let mut span = first.span.clone();
             if let Some(second) = &second {
@@ -820,9 +805,9 @@ pub fn significand<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
         }),
         (
             '.',
-            digit_string(cfg),
+            digit_string,
         ).map(|(_, second)| Significand::DotBefore(second)),
-    }
+    }.parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -858,8 +843,9 @@ impl<Span> MapSpan<Span> for StringElement<Span> {
     }
 }
 
-pub fn string_element<'a, S: TextSource + 'a>(termination: char, escape: &'static str, into: &'static str) -> impl Parser<S, Token = StringElement<S::Span>> + 'a {
+pub fn string_element<'a, S: TextSource + 'a>(termination: char, escape: &'static str, into: &'static str) -> impl Parser<S, Token = StringElement<S::Span>> {
     alt!(
+        for S =>
         StringMatch::exact(escape, true).map(|s| StringElement::EscapeSequence(s, into)),
         Char::parse(|c| c != termination).map(|c| StringElement::Char(c)),
     )
@@ -900,15 +886,16 @@ impl<Span> MapSpan<Span> for CharLiteralConstant<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "char-literal-constant" #724 :
     "is [ kind-param _ ] ' [ rep-char ] ... '"
     "or [ kind-param _ ] \" [ rep-char ] ... \"",
 )]
-pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = CharLiteralConstant<S::Span>> + 'a {
+pub fn char_literal_constant<S: TextSource>(source: S) -> PResult<CharLiteralConstant<S::Span>, S> {
     alt! {
+        for S =>
         (
-            (kind_param(cfg, true), underscore).map(|(k, _)| k).optional(),
+            (kind_param(true), underscore).map(|(k, _)| k).optional(),
             Char::<S::Span>::exact('\''),
             fold_many(
                 string_element('\'', "''", "'"),
@@ -938,7 +925,7 @@ pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                 }
             }),
         (
-            (kind_param(cfg, true), underscore).map(|(k, _)| k).optional(),
+            (kind_param(true), underscore).map(|(k, _)| k).optional(),
             Char::<S::Span>::exact('"'),
             fold_many(
                 string_element('"', "\"\"", "\""),
@@ -967,7 +954,7 @@ pub fn char_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
                     span, // TODO ...
                 }
             }),
-    }
+    }.parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -997,18 +984,19 @@ impl<Span> MapSpan<Span> for LogicalLiteralConstant<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "logical-literal-constant" #725 :
     "is .TRUE. [ _ kind-param ]"
     "or .FALSE. [ _ kind-param ]",
 )]
-pub fn logical_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LogicalLiteralConstant<S::Span>> + 'a {
+pub fn logical_literal_constant<S: TextSource>(source: S) -> PResult<LogicalLiteralConstant<S::Span>, S> {
     (
         alt!(
+            for S =>
             StringMatch::exact(".TRUE.", false).map(|m| (m, true)),
             StringMatch::exact(".FALSE.", false).map(|m| (m, false)),
         ),
-        (space(0), underscore, space(0), kind_param(cfg, true)).map(|(_, _, _, k)| k).optional(),
+        (space(0), underscore, space(0), kind_param(true)).map(|(_, _, _, k)| k).optional(),
     ).map(|(value, kind): ((StringMatch<S::Span>, bool), Option<KindParam<S::Span>>)| {
         let mut span = value.0.span.clone();
         if let Some(kind) = &kind {
@@ -1020,7 +1008,7 @@ pub fn logical_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Pa
             kind,
             span,
         }
-    })
+    }).parse(source)
 }
 
 /// Binary, octal, and hexadecimal literal constant
@@ -1054,37 +1042,39 @@ impl<Span> MapSpan<Span> for BozLiteralConstant<Span> {
 }
 
 /// Binary, octal, and hexadecimal literal constant
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "boz-literal-constant" #764 :
     "is binary-constant"
     "or octal-constant"
     "or hex-constant",
 )]
-pub fn boz_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = BozLiteralConstant<S::Span>> + 'a {
+pub fn boz_literal_constant<S: TextSource>(source: S) -> PResult<BozLiteralConstant<S::Span>, S> {
     alt!(
-        binary_constant(cfg).map(BozLiteralConstant::Binary),
-        octal_constant(cfg).map(BozLiteralConstant::Octal),
-        hex_constant(cfg).map(BozLiteralConstant::Hex),
-    )
+        for S =>
+        binary_constant.map(BozLiteralConstant::Binary),
+        octal_constant.map(BozLiteralConstant::Octal),
+        hex_constant.map(BozLiteralConstant::Hex),
+    ).parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "binary-constant" #765 :
     "is B ' digit [ digit ] ... '"
     "or B \" digit [ digit ] ... \"",
 )]
-pub fn binary_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
+pub fn binary_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>, S> {
     let binary_digits = || fold_many(
         Char::any_of("01".chars()),
-        || StringMatch::empty::<S>(),
+        || StringMatch::empty(),
         |mut string, d| {
-            string.push_char::<S>(d);
+            string.push_char(d);
             (string, true)
         },
         1..,
     );
 
     alt! {
+        for S =>
         (
             Char::any_of("bB".chars()),
             Char::exact('\''),
@@ -1098,25 +1088,27 @@ pub fn binary_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, T
             Char::exact('"').optional(),
         ),
     }.map(|(_, _, digits, _)| digits)
+    .parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "octal-constant" #766 :
     "is O ' digit [ digit ] ... '"
     "or O \" digit [ digit ] ... \"",
 )]
-pub fn octal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
+pub fn octal_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>, S> {
     let octal_digits = || fold_many(
         Char::any_of("01234567".chars()),
-        || StringMatch::empty::<S>(),
+        || StringMatch::empty(),
         |mut string, d| {
-            string.push_char::<S>(d);
+            string.push_char(d);
             (string, true)
         },
         1..,
     );
 
     alt! {
+        for S =>
         (
             Char::any_of("oO".chars()),
             Char::exact('\''),
@@ -1130,25 +1122,27 @@ pub fn octal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, To
             Char::exact('"').optional(),
         ),
     }.map(|(_, _, digits, _)| digits)
+    .parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "hex-constant" #767 :
     "is Z ' hex-digit [ hex-digit ] ... '"
     "or Z \" hex-digit [ hex-digit ] ... \"",
 )]
-pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = StringMatch<S::Span>> + 'a {
+pub fn hex_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>, S> {
     let hex_digits = || fold_many(
-        hex_digit(cfg),
-        || StringMatch::empty::<S>(),
+        hex_digit,
+        || StringMatch::empty(),
         |mut string, d| {
-            string.push_char::<S>(d);
+            string.push_char(d);
             (string, true)
         },
         1..,
     );
 
     alt! {
+        for S =>
         (
             Char::any_of("zZ".chars()),
             Char::exact('\''),
@@ -1162,9 +1156,10 @@ pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
             Char::exact('"').optional(),
         ),
     }.map(|(_, _, digits, _)| digits)
+    .parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "hex-digit" #768 :
     "is digit"
     "or A"
@@ -1174,11 +1169,12 @@ pub fn hex_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Toke
     "or E"
     "or F",
 )]
-pub fn hex_digit<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Char<S::Span>> + 'a {
+pub fn hex_digit<S: TextSource>(source: S) -> PResult<Char<S::Span>, S> {
     alt!(
+        for S =>
         digit,
         Char::any_of("abcdefABCDEF".chars()),
-    )
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1198,11 +1194,11 @@ impl<Span> MapSpan<Span> for PowerOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "power-op" #1007 : "is **",
 )]
-pub fn power_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = PowerOp<S::Span>> + 'a {
-    StringMatch::exact("**", true).map(PowerOp)
+pub fn power_op<S: TextSource>(source: S) -> PResult<PowerOp<S::Span>, S> {
+    StringMatch::exact("**", true).map(PowerOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1222,16 +1218,17 @@ impl<Span> MapSpan<Span> for MultOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "mult-op" #1008 :
     "is *"
     "or /",
 )]
-pub fn mult_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = MultOp<S::Span>> + 'a {
+pub fn mult_op<S: TextSource>(source: S) -> PResult<MultOp<S::Span>, S> {
     alt!(
+        for S =>
         StringMatch::exact("*", true),
         StringMatch::exact("/", true),
-    ).map(MultOp)
+    ).map(MultOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1251,16 +1248,18 @@ impl<Span> MapSpan<Span> for AddOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "add-op" #1009 :
     "is +"
     "or -",
 )]
-pub fn add_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AddOp<S::Span>> + 'a {
+pub fn add_op<S: TextSource>(source: S) -> PResult<AddOp<S::Span>, S> {
     alt!(
+        for S =>
         StringMatch::exact("+", true),
         StringMatch::exact("-", true),
     ).map(AddOp)
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1280,11 +1279,11 @@ impl<Span> MapSpan<Span> for ConcatOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "concat-op" #1011 : "is //",
 )]
-pub fn concat_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = ConcatOp<S::Span>> + 'a {
-    StringMatch::exact("//", true).map(ConcatOp)
+pub fn concat_op<S: TextSource>(source: S) -> PResult<ConcatOp<S::Span>, S> {
+    StringMatch::exact("//", true).map(ConcatOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1304,7 +1303,7 @@ impl<Span> MapSpan<Span> for RelOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "rel-op" #1013 :
     "is .EQ."
     "or .NE."
@@ -1319,9 +1318,10 @@ impl<Span> MapSpan<Span> for RelOp<Span> {
     "or >"
     "or >=",
 )]
-pub fn rel_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = RelOp<S::Span>> + 'a {
+pub fn rel_op<S: TextSource>(source: S) -> PResult<RelOp<S::Span>, S> {
     // NOTE: The order of the alternatives is important, is different from the standard
     alt!(
+        for S =>
         StringMatch::exact(".eq.", false),
         StringMatch::exact(".ne.", false),
         StringMatch::exact(".lt.", false),
@@ -1335,6 +1335,7 @@ pub fn rel_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Re
         StringMatch::exact("<", false),
         StringMatch::exact(">", false),
     ).map(RelOp)
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1354,11 +1355,11 @@ impl<Span> MapSpan<Span> for NotOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "not-op" #1018 : "is .NOT.",
 )]
-pub fn not_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NotOp<S::Span>> + 'a {
-    StringMatch::exact(".not.", false).map(NotOp)
+pub fn not_op<S: TextSource>(source: S) -> PResult<NotOp<S::Span>, S> {
+    StringMatch::exact(".not.", false).map(NotOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1378,11 +1379,11 @@ impl<Span> MapSpan<Span> for AndOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "and-op" #1019 : "is .AND.",
 )]
-pub fn and_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = AndOp<S::Span>> + 'a {
-    StringMatch::exact(".and.", false).map(AndOp)
+pub fn and_op<S: TextSource>(source: S) -> PResult<AndOp<S::Span>, S> {
+    StringMatch::exact(".and.", false).map(AndOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1402,11 +1403,11 @@ impl<Span> MapSpan<Span> for OrOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "or-op" #1020 : "is .OR.",
 )]
-pub fn or_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = OrOp<S::Span>> + 'a {
-    StringMatch::exact(".or.", false).map(OrOp)
+pub fn or_op<S: TextSource>(source: S) -> PResult<OrOp<S::Span>, S> {
+    StringMatch::exact(".or.", false).map(OrOp).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1426,16 +1427,18 @@ impl<Span> MapSpan<Span> for EquivOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "equiv-op" #1021 :
     "is .EQV."
     "or .NEQV.",
 )]
-pub fn equiv_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = EquivOp<S::Span>> + 'a {
+pub fn equiv_op<S: TextSource>(source: S) -> PResult<EquivOp<S::Span>, S> {
     alt!(
+        for S =>
         StringMatch::exact(".eqv.", false),
         StringMatch::exact(".neqv.", false),
     ).map(EquivOp)
+    .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1501,7 +1504,7 @@ impl<Span> MapSpan<Span> for IntrinsicOperator<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "intrinsic-operator" #608 :
     "is power-op"
     "or mult-op"
@@ -1513,27 +1516,28 @@ impl<Span> MapSpan<Span> for IntrinsicOperator<Span> {
     "or or-op"
     "or equiv-op",
 )]
-pub fn intrinsic_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicOperator<S::Span>> + 'a {
+pub fn intrinsic_operator<S: TextSource>(source: S) -> PResult<IntrinsicOperator<S::Span>, S> {
     // NOTE: The order of the alternatives is important, is different from the standard
     alt!(
-        power_op(cfg).map(IntrinsicOperator::PowerOp),
-        rel_op(cfg).map(IntrinsicOperator::RelOp),
-        concat_op(cfg).map(IntrinsicOperator::ConcatOp),
-        mult_op(cfg).map(IntrinsicOperator::MultOp),
-        add_op(cfg).map(IntrinsicOperator::AddOp),
-        not_op(cfg).map(IntrinsicOperator::NotOp),
-        and_op(cfg).map(IntrinsicOperator::AndOp),
-        or_op(cfg).map(IntrinsicOperator::OrOp),
-        equiv_op(cfg).map(IntrinsicOperator::EquivOp),
-    )
+        for S =>
+        power_op.map(IntrinsicOperator::PowerOp),
+        rel_op.map(IntrinsicOperator::RelOp),
+        concat_op.map(IntrinsicOperator::ConcatOp),
+        mult_op.map(IntrinsicOperator::MultOp),
+        add_op.map(IntrinsicOperator::AddOp),
+        not_op.map(IntrinsicOperator::NotOp),
+        and_op.map(IntrinsicOperator::AndOp),
+        or_op.map(IntrinsicOperator::OrOp),
+        equiv_op.map(IntrinsicOperator::EquivOp),
+    ).parse(source)
 }
 
 // TODO test?
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "extended-intrinsic-op" #610 : "is intrinsic-operator",
 )]
-pub fn extended_intrinsic_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntrinsicOperator<S::Span>> + 'a {
-    intrinsic_operator(cfg)
+pub fn extended_intrinsic_op<S: TextSource>(source: S) -> PResult<IntrinsicOperator<S::Span>, S> {
+    intrinsic_operator.parse(source)
 }
 
 //#[derive(Debug, Clone)]
@@ -1559,16 +1563,16 @@ pub fn extended_intrinsic_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parse
 //    }
 //}
 //
-//#[syntax_rule(
+//#[doc = s_rule!(
 //    F18V007r1 rule "label" #611 : "is digit [ digit [ digit [ digit [ digit ] ] ] ]",
 //)]
-//pub fn label<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Label<S::Span>> + 'a {
-//    digit(cfg)
+//pub fn label<S: TextSource>(source: S) -> PResult<Label<S::Span>, S> {
+//    digit
 //        .then(|first| fold_many(
-//            digit(cfg),
+//            digit,
 //            move || StringMatch::from_char(first.clone()),
 //            |mut string, digit| {
-//                string.push_char::<S>(digit);
+//                string.push_char(digit);
 //                (string, true)
 //            },
 //            0..=4,
@@ -1596,12 +1600,12 @@ impl<Span> MapSpan<Span> for Label<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "label" #611 : "is digit [ digit [ digit [ digit [ digit ] ] ] ]",
 )]
-pub fn label<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Label<S::Span>> + 'a {
+pub fn label<S: TextSource>(source: S) -> PResult<Label<S::Span>, S> {
     // TODO implement rule (max 5 digits and no kind) and clause somewhere else
-    digit_string::<S>(cfg).map(|s| Label({
+    digit_string::<S>.map(|s| Label({
         let span = s.span.clone();
         IntLiteralConstant {
             span,
@@ -1609,6 +1613,7 @@ pub fn label<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Lab
             kind_param: None,
         }
     }))
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1626,52 +1631,54 @@ impl<Span> MapSpan<Span> for DefinedUnaryOrBinaryOp<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "defined-unary-op" #1003 : "is . letter [ letter ] ... .",
 )]
-pub fn defined_unary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedUnaryOrBinaryOp<S::Span>> + 'a {
+pub fn defined_unary_op<S: TextSource>(source: S) -> PResult<DefinedUnaryOrBinaryOp<S::Span>, S> {
     (
         '.',
         fold_many(
             letter,
-            || StringMatch::empty::<S>(),
+            || StringMatch::empty(),
             |mut m, l| {
-                m.push_char::<S>(l);
+                m.push_char(l);
                 (m, true)
             },
             1..,
         ),
         '.',
     ).map(|(o, mut m, c)| {
-        m.push_front_char::<S>(o);
-        m.push_char::<S>(c);
+        m.push_front_char(o);
+        m.push_char(c);
         m
     })
     .map(|m| DefinedUnaryOrBinaryOp { m })
+    .parse(source)
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "defined-binary-op" #1023 : "is . letter [ letter ] ... .",
 )]
-pub fn defined_binary_op<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedUnaryOrBinaryOp<S::Span>> + 'a {
+pub fn defined_binary_op<S: TextSource>(source: S) -> PResult<DefinedUnaryOrBinaryOp<S::Span>, S> {
     (
         '.',
         fold_many(
             letter,
-            || StringMatch::empty::<S>(),
+            || StringMatch::empty(),
             |mut m, l| {
-                m.push_char::<S>(l);
+                m.push_char(l);
                 (m, true)
             },
             1..,
         ),
         '.',
     ).map(|(o, mut m, c)| {
-        m.push_front_char::<S>(o);
-        m.push_char::<S>(c);
+        m.push_front_char(o);
+        m.push_char(c);
         m
     })
     .map(|m| DefinedUnaryOrBinaryOp { m })
+    .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1709,34 +1716,37 @@ impl<Span> MapSpan<Span> for DefinedOperator<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "defined-operator" #609 :
     "is defined-unary-op"
     "or defined-binary-op"
     "or extended-intrinsic-op",
 )]
-pub fn defined_operator<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = DefinedOperator<S::Span>> + 'a {
+pub fn defined_operator<S: TextSource>(source: S) -> PResult<DefinedOperator<S::Span>, S> {
     alt!(
-        extended_intrinsic_op(cfg).map(DefinedOperator::IntrinsicEx),
-        defined_unary_op(cfg).map(DefinedOperator::DefinedUnaryOrBinary),
-        defined_binary_op(cfg).map(DefinedOperator::DefinedUnaryOrBinary),
-    )
+        for S =>
+        extended_intrinsic_op.map(DefinedOperator::IntrinsicEx),
+        defined_unary_op.map(DefinedOperator::DefinedUnaryOrBinary),
+        defined_binary_op.map(DefinedOperator::DefinedUnaryOrBinary),
+    ).parse(source)
 }
 
-pub fn non_complex_literal_constant<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NonComplexLiteralConstant<S::Span>> + 'a {
+pub fn non_complex_literal_constant<S: TextSource>(source: S) -> PResult<NonComplexLiteralConstant<S::Span>, S> {
     alt! {
+        for S =>
         // note: we try to parse the most specific first, this is the reason for real to be first, otherwise int would always be parsed
-        real_literal_constant(cfg).map(NonComplexLiteralConstant::Real),
-        int_literal_constant(cfg).map(NonComplexLiteralConstant::Int),
-        logical_literal_constant(cfg).map(NonComplexLiteralConstant::Logical),
-        char_literal_constant(cfg).map(NonComplexLiteralConstant::Char),
-        boz_literal_constant(cfg).map(NonComplexLiteralConstant::Boz),
-    }
+        real_literal_constant.map(NonComplexLiteralConstant::Real),
+        int_literal_constant.map(NonComplexLiteralConstant::Int),
+        logical_literal_constant.map(NonComplexLiteralConstant::Logical),
+        char_literal_constant.map(NonComplexLiteralConstant::Char),
+        boz_literal_constant.map(NonComplexLiteralConstant::Boz),
+    }.parse(source)
 }
 
 // TODO use cfg
-pub fn delimiter<'a, S: TextSource + 'a>(_cfg: &'a Cfg) -> impl Parser<S, Token = SpecialCharacterMatch<S::Span>> + 'a {
+pub fn delimiter<S: TextSource>(source: S) -> PResult<SpecialCharacterMatch<S::Span>, S> {
     alt!(
+        for S =>
         SpecialCharacter::LeftParenthesis,
         SpecialCharacter::RightParenthesis,
         SpecialCharacter::LeftSquareBracket,
@@ -1744,6 +1754,7 @@ pub fn delimiter<'a, S: TextSource + 'a>(_cfg: &'a Cfg) -> impl Parser<S, Token 
         SpecialCharacter::LeftCurlyBracket,
         SpecialCharacter::RightCurlyBracket,
     )
+    .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1796,6 +1807,27 @@ pub enum LexicalToken<Span> {
 
     // TODO use StringMatch instead
     Error(Char<Span>),
+}
+
+impl<Span> Spanned<Span> for LexicalToken<Span> {
+    fn span(&self) -> &Span {
+        match self {
+            LexicalToken::Name(n) => n.span(),
+            LexicalToken::LiteralConstant(l) => l.span(),
+            LexicalToken::Operator(o) => o.span(),
+            LexicalToken::Delimiter(d) => d.span(),
+            LexicalToken::Comma(c) => c.span(),
+            LexicalToken::Equals(e) => e.span(),
+            LexicalToken::Arrow(a) => a.span(),
+            LexicalToken::Colon(c) => c.span(),
+            LexicalToken::DoubleColon(c) => c.span(),
+            LexicalToken::Semicolon(s) => s.span(),
+            LexicalToken::DotDot(d) => d.span(),
+            LexicalToken::Percent(p) => p.span(),
+            LexicalToken::Dot(d) => d.span(),
+            LexicalToken::Error(e) => e.span(),
+        }
+    }
 }
 
 impl<Span> MapSpan<Span> for LexicalToken<Span> {
@@ -1929,15 +1961,16 @@ impl<Span> MapSpan<Span> for NonComplexLiteralConstant<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "lexical-token" section "6.2.1",
 )]
-pub fn lexical_token<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LexicalToken<S::Span>> + 'a {
+pub fn lexical_token<S: TextSource>(source: S) -> PResult<LexicalToken<S::Span>, S> {
     alt!{
-        non_complex_literal_constant(cfg).map(LexicalToken::LiteralConstant),
-        name(cfg, false).map(LexicalToken::Name),
-        delimiter(cfg).map(LexicalToken::Delimiter),
-        defined_operator(cfg).map(LexicalToken::Operator),
+        for S =>
+        non_complex_literal_constant.map(LexicalToken::LiteralConstant),
+        name(false).map(LexicalToken::Name),
+        delimiter.map(LexicalToken::Delimiter),
+        defined_operator.map(LexicalToken::Operator),
         (SpecialCharacter::Equals, SpecialCharacter::GreaterThan).map(|(c1, c2): (SpecialCharacterMatch<S::Span>, SpecialCharacterMatch<S::Span>)| LexicalToken::Arrow(Arrow::new_spanned(S::Span::merge(c1.span, c2.span)))),
         (SpecialCharacter::Colon, SpecialCharacter::Colon).map(|(c1, c2)| LexicalToken::DoubleColon(DoubleColon::new_spanned(S::Span::merge(c1.span, c2.span)))),
         (SpecialCharacter::DecimalPointOrPeriod, SpecialCharacter::DecimalPointOrPeriod).map(|(c1, c2)| LexicalToken::DotDot(DotDot::new_spanned(S::Span::merge(c1.span, c2.span)))),
@@ -1948,7 +1981,7 @@ pub fn lexical_token<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Tok
         SpecialCharacter::Percent.map(|c| LexicalToken::Percent(Percent::new_spanned(c.span))),
         SpecialCharacter::DecimalPointOrPeriod.map(|c| LexicalToken::Dot(Dot::new_spanned(c.span))),
         Char::any().map(LexicalToken::Error),
-    }
+    }.parse(source)
 }
 
 // TODO ???
@@ -1975,7 +2008,7 @@ impl<Span> MapSpan<Span> for LineComment<Span> {
 }
 
 // TODO ???
-pub fn comment_start<S: TextSource>() -> impl Parser<S, Token = S::Span> {
+pub fn comment_start<S: TextSource>(source: S) -> PResult<S::Span, S> {
     // we accept both ! and c as comment starters
     //ExactMatch::exact("!", false).or(ExactMatch::exact("c ", true))
     fold_many(
@@ -1984,12 +2017,13 @@ pub fn comment_start<S: TextSource>() -> impl Parser<S, Token = S::Span> {
         |s, m| (S::Span::merge(s, m.span), true),
         1..,
     )
+    .parse(source)
 }
 
 // TODO ???
-pub fn line_comment<S: TextSource>() -> impl Parser<S, Token = LineComment<S::Span>> {
-    comment_start().then(|bang_span: S::Span| {
-        many_until(Char::<S::Span>::any(), eol().do_not_consume(), 0..).map(move |(chars, _newline)| {
+pub fn line_comment<S: TextSource>(source: S) -> PResult<LineComment<S::Span>, S> {
+    comment_start.then(|bang_span: S::Span| {
+        many_until(Char::<S::Span>::any(), eol.do_not_consume(), 0..).map(move |(chars, _newline)| {
             let bang_span = bang_span.clone();
             let span = if let Some(last) = chars.last() {
                 S::Span::merge(bang_span, last.span.clone())
@@ -2003,11 +2037,13 @@ pub fn line_comment<S: TextSource>() -> impl Parser<S, Token = LineComment<S::Sp
             }
         })
     })
+    .parse(source)
 }
 
 // TODO ???
 pub fn nl<S: TextSource>(source: S) -> PResult<(), S> {
     alt! {
+        for S =>
         "\n\r".map(|_| ()),
         "\n".map(|_| ()),
         "\r".map(|_| ()),
@@ -2018,19 +2054,20 @@ pub fn nl<S: TextSource>(source: S) -> PResult<(), S> {
 
 // TODO ???
 /// End of line
-pub fn eol<S: TextSource>() -> impl Parser<S, Token = ()> {
+pub fn eol<S: TextSource>(source: S) -> PResult<(), S> {
     alt! {
+        for S =>
         StringMatch::exact("\r\n", true),
         StringMatch::exact("\n", true),
     }
     .map(|_| ())
     .or(eof())
     .map(|o| o.inner())
+    .parse(source)
 }
 
 #[cfg(test)]
 mod test {
-    use crate::test_configs;
 
     use super::*;
 
@@ -2071,294 +2108,247 @@ mod test {
     #[test]
     pub fn test_special_character() {
         use SpecialCharacter::*;
-        for ref cfg in test_configs() {
-            assert_eq!(special_character(cfg).parse(" ").unwrap().0.character, Blank);
-            assert_eq!(special_character(cfg).parse("=").unwrap().0.character, Equals);
-            assert_eq!(special_character(cfg).parse("+").unwrap().0.character, Plus);
-            assert_eq!(special_character(cfg).parse("-").unwrap().0.character, Minus);
-            assert_eq!(special_character(cfg).parse("*").unwrap().0.character, Asterisk);
-            assert_eq!(special_character(cfg).parse("/").unwrap().0.character, Slash);
-            assert_eq!(special_character(cfg).parse("\\").unwrap().0.character, Backslash);
-            assert_eq!(special_character(cfg).parse("(").unwrap().0.character, LeftParenthesis);
-            assert_eq!(special_character(cfg).parse(")").unwrap().0.character, RightParenthesis);
-            assert_eq!(special_character(cfg).parse("[").unwrap().0.character, LeftSquareBracket);
-            assert_eq!(special_character(cfg).parse("]").unwrap().0.character, RightSquareBracket);
-            assert_eq!(special_character(cfg).parse("{").unwrap().0.character, LeftCurlyBracket);
-            assert_eq!(special_character(cfg).parse("}").unwrap().0.character, RightCurlyBracket);
-            assert_eq!(special_character(cfg).parse(",").unwrap().0.character, Comma);
-            assert_eq!(special_character(cfg).parse(".").unwrap().0.character, DecimalPointOrPeriod);
-            assert_eq!(special_character(cfg).parse(":").unwrap().0.character, Colon);
-            assert_eq!(special_character(cfg).parse(";").unwrap().0.character, SemiColon);
-            assert_eq!(special_character(cfg).parse("!").unwrap().0.character, ExclamationPoint);
-            assert_eq!(special_character(cfg).parse("\"").unwrap().0.character, QuotationMarkOrQuote);
-            assert_eq!(special_character(cfg).parse("%").unwrap().0.character, Percent);
-            assert_eq!(special_character(cfg).parse("&").unwrap().0.character, Ampersand);
-            assert_eq!(special_character(cfg).parse("~").unwrap().0.character, Tilde);
-            assert_eq!(special_character(cfg).parse("<").unwrap().0.character, LessThan);
-            assert_eq!(special_character(cfg).parse(">").unwrap().0.character, GreaterThan);
-            assert_eq!(special_character(cfg).parse("?").unwrap().0.character, QuestionMark);
-            assert_eq!(special_character(cfg).parse("'").unwrap().0.character, Apostrophe);
-            assert_eq!(special_character(cfg).parse("`").unwrap().0.character, GraveAccent);
-            assert_eq!(special_character(cfg).parse("^").unwrap().0.character, CircumflexAccent);
-            assert_eq!(special_character(cfg).parse("|").unwrap().0.character, VerticalLine);
-            assert_eq!(special_character(cfg).parse("¤").unwrap().0.character, CurrencySymbol);
-            assert_eq!(special_character(cfg).parse("#").unwrap().0.character, NumberSign);
-            assert_eq!(special_character(cfg).parse("@").unwrap().0.character, CommercialAt);
-            assert_eq!(special_character(cfg).parses("a"), false);
-            assert_eq!(special_character(cfg).parses("A"), false);
-            assert_eq!(special_character(cfg).parses("3"), false);
-            assert_eq!(special_character(cfg).parses("_"), false);
-        }
+        assert_eq!(special_character.parse(" ").unwrap().0.character, Blank);
+        assert_eq!(special_character.parse("=").unwrap().0.character, Equals);
+        assert_eq!(special_character.parse("+").unwrap().0.character, Plus);
+        assert_eq!(special_character.parse("-").unwrap().0.character, Minus);
+        assert_eq!(special_character.parse("*").unwrap().0.character, Asterisk);
+        assert_eq!(special_character.parse("/").unwrap().0.character, Slash);
+        assert_eq!(special_character.parse("\\").unwrap().0.character, Backslash);
+        assert_eq!(special_character.parse("(").unwrap().0.character, LeftParenthesis);
+        assert_eq!(special_character.parse(")").unwrap().0.character, RightParenthesis);
+        assert_eq!(special_character.parse("[").unwrap().0.character, LeftSquareBracket);
+        assert_eq!(special_character.parse("]").unwrap().0.character, RightSquareBracket);
+        assert_eq!(special_character.parse("{").unwrap().0.character, LeftCurlyBracket);
+        assert_eq!(special_character.parse("}").unwrap().0.character, RightCurlyBracket);
+        assert_eq!(special_character.parse(",").unwrap().0.character, Comma);
+        assert_eq!(special_character.parse(".").unwrap().0.character, DecimalPointOrPeriod);
+        assert_eq!(special_character.parse(":").unwrap().0.character, Colon);
+        assert_eq!(special_character.parse(";").unwrap().0.character, SemiColon);
+        assert_eq!(special_character.parse("!").unwrap().0.character, ExclamationPoint);
+        assert_eq!(special_character.parse("\"").unwrap().0.character, QuotationMarkOrQuote);
+        assert_eq!(special_character.parse("%").unwrap().0.character, Percent);
+        assert_eq!(special_character.parse("&").unwrap().0.character, Ampersand);
+        assert_eq!(special_character.parse("~").unwrap().0.character, Tilde);
+        assert_eq!(special_character.parse("<").unwrap().0.character, LessThan);
+        assert_eq!(special_character.parse(">").unwrap().0.character, GreaterThan);
+        assert_eq!(special_character.parse("?").unwrap().0.character, QuestionMark);
+        assert_eq!(special_character.parse("'").unwrap().0.character, Apostrophe);
+        assert_eq!(special_character.parse("`").unwrap().0.character, GraveAccent);
+        assert_eq!(special_character.parse("^").unwrap().0.character, CircumflexAccent);
+        assert_eq!(special_character.parse("|").unwrap().0.character, VerticalLine);
+        assert_eq!(special_character.parse("¤").unwrap().0.character, CurrencySymbol);
+        assert_eq!(special_character.parse("#").unwrap().0.character, NumberSign);
+        assert_eq!(special_character.parse("@").unwrap().0.character, CommercialAt);
+        assert_eq!(special_character.parses("a"), false);
+        assert_eq!(special_character.parses("A"), false);
+        assert_eq!(special_character.parses("3"), false);
+        assert_eq!(special_character.parses("_"), false);
     }
 
     #[test]
     pub fn test_name() {
-        for ref cfg in test_configs() {
-            assert_eq!(name(cfg, false).parse("some_name").unwrap().0.0.value, "some_name");
-            assert_eq!(name(cfg, false).parse("some_name ").unwrap().0.0.value, "some_name");
-            assert_eq!(name(cfg, false).parses(" some_name"), false);
+        assert_eq!(name(false).parse("some_name").unwrap().0.0.value, "some_name");
+        assert_eq!(name(false).parse("some_name ").unwrap().0.0.value, "some_name");
+        assert_eq!(name(false).parses(" some_name"), false);
 
-            assert_eq!(name(cfg, false).parse("A1 ").unwrap().0.0.value, "A1");
-            assert_eq!(name(cfg, false).parse("NAME_LENGTH ").unwrap().0.0.value, "NAME_LENGTH");
-            assert_eq!(name(cfg, false).parse("S_P_R_E_A_D__O_U_T ").unwrap().0.0.value, "S_P_R_E_A_D__O_U_T");
-            assert_eq!(name(cfg, false).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER_");
-            assert_eq!(name(cfg, true).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER");
-            assert_eq!(name(cfg, true).parse("TRAILER_ ").unwrap().1, "_ ");
+        assert_eq!(name(false).parse("A1 ").unwrap().0.0.value, "A1");
+        assert_eq!(name(false).parse("NAME_LENGTH ").unwrap().0.0.value, "NAME_LENGTH");
+        assert_eq!(name(false).parse("S_P_R_E_A_D__O_U_T ").unwrap().0.0.value, "S_P_R_E_A_D__O_U_T");
+        assert_eq!(name(false).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER_");
+        assert_eq!(name(true).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER");
+        assert_eq!(name(true).parse("TRAILER_ ").unwrap().1, "_ ");
 
-            assert_eq!(name(cfg, false).parse("a").unwrap().0.0.value, "a");
-            assert_eq!(name(cfg, false).parse("a ").unwrap().0.0.value, "a");
-            assert_eq!(name(cfg, false).parse("A%").unwrap().0.0.value, "A");
-            assert_eq!(name(cfg, false).parse("A ").unwrap().0.0.value, "A");
-            assert_eq!(name(cfg, false).parses("3+"), false);
-            assert_eq!(name(cfg, false).parses("_"), false);
-            assert_eq!(name(cfg, false).parse("a3|").unwrap().0.0.value, "a3");
-            assert_eq!(name(cfg, false).parse("a3 ").unwrap().0.0.value, "a3");
-            assert_eq!(name(cfg, false).parse("a_").unwrap().0.0.value, "a_");
-            assert_eq!(name(cfg, false).parse("a_! ").unwrap().0.0.value, "a_");
-            assert_eq!(name(cfg, false).parse("a3_").unwrap().0.0.value, "a3_");
-            assert_eq!(name(cfg, false).parse("a3_ ").unwrap().0.0.value, "a3_");
-        }
+        assert_eq!(name(false).parse("a").unwrap().0.0.value, "a");
+        assert_eq!(name(false).parse("a ").unwrap().0.0.value, "a");
+        assert_eq!(name(false).parse("A%").unwrap().0.0.value, "A");
+        assert_eq!(name(false).parse("A ").unwrap().0.0.value, "A");
+        assert_eq!(name(false).parses("3+"), false);
+        assert_eq!(name(false).parses("_"), false);
+        assert_eq!(name(false).parse("a3|").unwrap().0.0.value, "a3");
+        assert_eq!(name(false).parse("a3 ").unwrap().0.0.value, "a3");
+        assert_eq!(name(false).parse("a_").unwrap().0.0.value, "a_");
+        assert_eq!(name(false).parse("a_! ").unwrap().0.0.value, "a_");
+        assert_eq!(name(false).parse("a3_").unwrap().0.0.value, "a3_");
+        assert_eq!(name(false).parse("a3_ ").unwrap().0.0.value, "a3_");
     }
 
     #[test]
     fn test_power_op() {
-        for cfg in test_configs() {
-            let parser = power_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parses("*"), false);
-            assert_eq!(parser.parses("**"), true);
-        }
+        assert_eq!(power_op.parses(""), false);
+        assert_eq!(power_op.parses("*"), false);
+        assert_eq!(power_op.parses("**"), true);
     }
 
     #[test]
     fn test_mult_op() {
-        for cfg in test_configs() {
-            let parser = mult_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parses("*"), true);
-            assert_eq!(parser.parses("/"), true);
-            assert_eq!(parser.parses("**"), true); // TODO maybe false??
-            assert_eq!(parser.parses("//"), true); // TODO maybe false??
-        }
+        assert_eq!(mult_op.parses(""), false);
+        assert_eq!(mult_op.parses("*"), true);
+        assert_eq!(mult_op.parses("/"), true);
+        assert_eq!(mult_op.parses("**"), true); // TODO maybe false??
+        assert_eq!(mult_op.parses("//"), true); // TODO maybe false??
     }
 
     #[test]
     fn test_add_op() {
-        for cfg in test_configs() {
-            let parser = add_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parses("+"), true);
-            assert_eq!(parser.parses("-"), true);
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(add_op.parses(""), false);
+        assert_eq!(add_op.parses("+"), true);
+        assert_eq!(add_op.parses("-"), true);
+        assert_eq!(add_op.parses("**"), false);
     }
 
     #[test]
     fn test_concat_op() {
-        for cfg in test_configs() {
-            let parser = concat_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parses("//"), true);
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(concat_op.parses(""), false);
+        assert_eq!(concat_op.parses("//"), true);
+        assert_eq!(concat_op.parses("**"), false);
     }
 
     #[test]
     fn test_rel_op() {
-        for cfg in test_configs() {
-            let parser = rel_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".eq. ").unwrap().0.0.value(), ".eq.");
-            assert_eq!(parser.parse(".ne. ").unwrap().0.0.value(), ".ne.");
-            assert_eq!(parser.parse(".lt. ").unwrap().0.0.value(), ".lt.");
-            assert_eq!(parser.parse(".le. ").unwrap().0.0.value(), ".le.");
-            assert_eq!(parser.parse(".gt. ").unwrap().0.0.value(), ".gt.");
-            assert_eq!(parser.parse(".ge. ").unwrap().0.0.value(), ".ge.");
-            assert_eq!(parser.parse("== ").unwrap().0.0.value(), "==");
-            assert_eq!(parser.parse("/= ").unwrap().0.0.value(), "/=");
-            assert_eq!(parser.parse("<= ").unwrap().0.0.value(), "<=");
-            assert_eq!(parser.parse(">= ").unwrap().0.0.value(), ">=");
-            assert_eq!(parser.parse("< ").unwrap().0.0.value(), "<");
-            assert_eq!(parser.parse("> ").unwrap().0.0.value(), ">");
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(rel_op.parses(""), false);
+        assert_eq!(rel_op.parse(".eq. ").unwrap().0.0.value(), ".eq.");
+        assert_eq!(rel_op.parse(".ne. ").unwrap().0.0.value(), ".ne.");
+        assert_eq!(rel_op.parse(".lt. ").unwrap().0.0.value(), ".lt.");
+        assert_eq!(rel_op.parse(".le. ").unwrap().0.0.value(), ".le.");
+        assert_eq!(rel_op.parse(".gt. ").unwrap().0.0.value(), ".gt.");
+        assert_eq!(rel_op.parse(".ge. ").unwrap().0.0.value(), ".ge.");
+        assert_eq!(rel_op.parse("== ").unwrap().0.0.value(), "==");
+        assert_eq!(rel_op.parse("/= ").unwrap().0.0.value(), "/=");
+        assert_eq!(rel_op.parse("<= ").unwrap().0.0.value(), "<=");
+        assert_eq!(rel_op.parse(">= ").unwrap().0.0.value(), ">=");
+        assert_eq!(rel_op.parse("< ").unwrap().0.0.value(), "<");
+        assert_eq!(rel_op.parse("> ").unwrap().0.0.value(), ">");
+        assert_eq!(rel_op.parses("**"), false);
     }
 
     #[test]
     fn test_not_op() {
-        for cfg in test_configs() {
-            let parser = not_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".not. ").unwrap().0.0.value(), ".not.");
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(not_op.parses(""), false);
+        assert_eq!(not_op.parse(".not. ").unwrap().0.0.value(), ".not.");
+        assert_eq!(not_op.parses("**"), false);
     } 
 
     #[test]
     fn test_and_op() {
-        for cfg in test_configs() {
-            let parser = and_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".and. ").unwrap().0.0.value(), ".and.");
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(and_op.parses(""), false);
+        assert_eq!(and_op.parse(".and. ").unwrap().0.0.value(), ".and.");
+        assert_eq!(and_op.parses("**"), false);
     }
 
     #[test]
     fn test_or_op() {
-        for cfg in test_configs() {
-            let parser = or_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".or. ").unwrap().0.0.value(), ".or.");
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(or_op.parses(""), false);
+        assert_eq!(or_op.parse(".or. ").unwrap().0.0.value(), ".or.");
+        assert_eq!(or_op.parses("**"), false);
     }
 
     #[test]
     fn test_equiv_op() {
-        for cfg in test_configs() {
-            let parser = equiv_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".eqv. ").unwrap().0.0.value(), ".eqv.");
-            assert_eq!(parser.parse(".neqv. ").unwrap().0.0.value(), ".neqv.");
-            assert_eq!(parser.parses("**"), false);
-        }
+        assert_eq!(equiv_op.parses(""), false);
+        assert_eq!(equiv_op.parse(".eqv. ").unwrap().0.0.value(), ".eqv.");
+        assert_eq!(equiv_op.parse(".neqv. ").unwrap().0.0.value(), ".neqv.");
+        assert_eq!(equiv_op.parses("**"), false);
     }
 
     #[test]
     fn test_intrinsic_operator() {
-        for cfg in test_configs() {
-            let parser = intrinsic_operator(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".eqv. ").unwrap().0.is_equiv_op(), true);
-            assert_eq!(parser.parse(".neqv. ").unwrap().0.is_equiv_op(), true);
-            assert_eq!(parser.parse(".eq. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".ne. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".lt. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".le. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".gt. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".ge. ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse("== ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse("/= ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse("<= ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(">= ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse("< ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse("> ").unwrap().0.is_rel_op(), true);
-            assert_eq!(parser.parse(".not. ").unwrap().0.is_not_op(), true);
-            assert_eq!(parser.parse(".and. ").unwrap().0.is_and_op(), true);
-            assert_eq!(parser.parse(".or. ").unwrap().0.is_or_op(), true);
-            assert_eq!(parser.parse("**").unwrap().0.is_power_op(), true);
-            assert_eq!(parser.parse("*").unwrap().0.is_mult_op(), true);
-            assert_eq!(parser.parse("/").unwrap().0.is_mult_op(), true);
-            assert_eq!(parser.parse("+").unwrap().0.is_add_op(), true);
-            assert_eq!(parser.parse("-").unwrap().0.is_add_op(), true);
-            assert_eq!(parser.parse("//").unwrap().0.is_concat_op(), true);
-        }
+        assert_eq!(intrinsic_operator.parses(""), false);
+        assert_eq!(intrinsic_operator.parse(".eqv. ").unwrap().0.is_equiv_op(), true);
+        assert_eq!(intrinsic_operator.parse(".neqv. ").unwrap().0.is_equiv_op(), true);
+        assert_eq!(intrinsic_operator.parse(".eq. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".ne. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".lt. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".le. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".gt. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".ge. ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse("== ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse("/= ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse("<= ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(">= ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse("< ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse("> ").unwrap().0.is_rel_op(), true);
+        assert_eq!(intrinsic_operator.parse(".not. ").unwrap().0.is_not_op(), true);
+        assert_eq!(intrinsic_operator.parse(".and. ").unwrap().0.is_and_op(), true);
+        assert_eq!(intrinsic_operator.parse(".or. ").unwrap().0.is_or_op(), true);
+        assert_eq!(intrinsic_operator.parse("**").unwrap().0.is_power_op(), true);
+        assert_eq!(intrinsic_operator.parse("*").unwrap().0.is_mult_op(), true);
+        assert_eq!(intrinsic_operator.parse("/").unwrap().0.is_mult_op(), true);
+        assert_eq!(intrinsic_operator.parse("+").unwrap().0.is_add_op(), true);
+        assert_eq!(intrinsic_operator.parse("-").unwrap().0.is_add_op(), true);
+        assert_eq!(intrinsic_operator.parse("//").unwrap().0.is_concat_op(), true);
     }
 
     #[test]
     fn test_defined_unary_op() {
-        for cfg in test_configs() {
-            let parser = defined_unary_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".foo.").unwrap().0.m.value(), ".foo.");
-            assert_eq!(parser.parses(".foo"), false);
-            assert_eq!(parser.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
-        }
+        assert_eq!(defined_unary_op.parses(""), false);
+        assert_eq!(defined_unary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
+        assert_eq!(defined_unary_op.parses(".foo"), false);
+        assert_eq!(defined_unary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
     }
 
     #[test]
     fn test_defined_binary_op() {
-        for cfg in test_configs() {
-            let parser = defined_binary_op(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".foo.").unwrap().0.m.value(), ".foo.");
-            assert_eq!(parser.parses(".foo"), false);
-            assert_eq!(parser.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
-        }
+        assert_eq!(defined_binary_op.parses(""), false);
+        assert_eq!(defined_binary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
+        assert_eq!(defined_binary_op.parses(".foo"), false);
+        assert_eq!(defined_binary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
     }
 
     #[test]
     fn test_defined_operator() {
-        for cfg in test_configs() {
-            let parser = defined_operator(&cfg);
-            assert_eq!(parser.parses(""), false);
-            assert_eq!(parser.parse(".foo.").unwrap().0.is_defined_unary_or_binary(), true);
-            assert_eq!(parser.parse(".eqv. ").unwrap().0.is_intrinsic_ex(), true);
-            assert_eq!(parser.parse("+ ").unwrap().0.is_intrinsic_ex(), true);
-        }
+        assert_eq!(defined_operator.parses(""), false);
+        assert_eq!(defined_operator.parse(".foo.").unwrap().0.is_defined_unary_or_binary(), true);
+        assert_eq!(defined_operator.parse(".eqv. ").unwrap().0.is_intrinsic_ex(), true);
+        assert_eq!(defined_operator.parse("+ ").unwrap().0.is_intrinsic_ex(), true);
     }
 
     #[test]
     pub fn test_non_complex_literal_constant() {
-        for ref cfg in test_configs() {
-            assert_eq!(non_complex_literal_constant(cfg).parses("a"), false);
-            assert!(non_complex_literal_constant(cfg).parse("42").unwrap().0.is_int());
-            assert!(non_complex_literal_constant(cfg).parse("42.0").unwrap().0.is_real());
-            assert!(non_complex_literal_constant(cfg).parse("42e1").unwrap().0.is_real());
-            assert!(non_complex_literal_constant(cfg).parse(".TRUE.").unwrap().0.is_logical());
-            assert!(non_complex_literal_constant(cfg).parse("'a'").unwrap().0.is_char());
-            assert!(non_complex_literal_constant(cfg).parse("B'1010'").unwrap().0.is_boz());
-            assert!(non_complex_literal_constant(cfg).parse("O'123'").unwrap().0.is_boz());
-            assert!(non_complex_literal_constant(cfg).parse("Z'ABC'").unwrap().0.is_boz());
-        }
+        assert_eq!(non_complex_literal_constant.parses("a"), false);
+        assert!(non_complex_literal_constant.parse("42").unwrap().0.is_int());
+        assert!(non_complex_literal_constant.parse("42.0").unwrap().0.is_real());
+        assert!(non_complex_literal_constant.parse("42e1").unwrap().0.is_real());
+        assert!(non_complex_literal_constant.parse(".TRUE.").unwrap().0.is_logical());
+        assert!(non_complex_literal_constant.parse("'a'").unwrap().0.is_char());
+        assert!(non_complex_literal_constant.parse("B'1010'").unwrap().0.is_boz());
+        assert!(non_complex_literal_constant.parse("O'123'").unwrap().0.is_boz());
+        assert!(non_complex_literal_constant.parse("Z'ABC'").unwrap().0.is_boz());
     }
 
     #[test]
     pub fn test_lexical_token() {
-        for ref cfg in test_configs() {
-            assert!(lexical_token(cfg).parse(".").unwrap().0.is_error());
-            assert!(lexical_token(cfg).parse("ciao").unwrap().0.is_name());
-            assert!(lexical_token(cfg).parse("42").unwrap().0.is_literal_constant());
-            assert!(lexical_token(cfg).parse("'42'").unwrap().0.as_literal_constant().unwrap().is_char());
-            assert!(lexical_token(cfg).parse(".true.").unwrap().0.as_literal_constant().unwrap().is_logical());
-            assert_eq!(
-                lexical_token(cfg)
-                    .parse(">=").unwrap()
-                    .0.as_operator().unwrap()
-                    .as_intrinsic_ex().unwrap()
-                    .as_rel_op().unwrap()
-                    .0.value,
-                ">=",
-            );
-            assert_eq!(
-                lexical_token(cfg)
-                    .parse("==").unwrap()
-                    .0.as_operator().unwrap()
-                    .as_intrinsic_ex().unwrap()
-                    .as_rel_op().unwrap()
-                    .0.value,
-                "==",
-            );
-            
-            assert!(lexical_token(cfg).parse(",").unwrap().0.is_comma());
-            assert!(lexical_token(cfg).parse("=").unwrap().0.is_equals());
-            assert!(lexical_token(cfg).parse("=>").unwrap().0.is_arrow());
-            assert!(lexical_token(cfg).parse(":").unwrap().0.is_colon());
-            assert!(lexical_token(cfg).parse("::").unwrap().0.is_double_colon());
-            assert!(lexical_token(cfg).parse(";").unwrap().0.is_semicolon());
-            assert!(lexical_token(cfg).parse("..").unwrap().0.is_dot_dot());
-            assert!(lexical_token(cfg).parse("%").unwrap().0.is_percent());
-        }
+        assert!(lexical_token.parse(".").unwrap().0.is_error());
+        assert!(lexical_token.parse("ciao").unwrap().0.is_name());
+        assert!(lexical_token.parse("42").unwrap().0.is_literal_constant());
+        assert!(lexical_token.parse("'42'").unwrap().0.as_literal_constant().unwrap().is_char());
+        assert!(lexical_token.parse(".true.").unwrap().0.as_literal_constant().unwrap().is_logical());
+        assert_eq!(
+            lexical_token
+                .parse(">=").unwrap()
+                .0.as_operator().unwrap()
+                .as_intrinsic_ex().unwrap()
+                .as_rel_op().unwrap()
+                .0.value,
+            ">=",
+        );
+        assert_eq!(
+            lexical_token
+                .parse("==").unwrap()
+                .0.as_operator().unwrap()
+                .as_intrinsic_ex().unwrap()
+                .as_rel_op().unwrap()
+                .0.value,
+            "==",
+        );
+        
+        assert!(lexical_token.parse(",").unwrap().0.is_comma());
+        assert!(lexical_token.parse("=").unwrap().0.is_equals());
+        assert!(lexical_token.parse("=>").unwrap().0.is_arrow());
+        assert!(lexical_token.parse(":").unwrap().0.is_colon());
+        assert!(lexical_token.parse("::").unwrap().0.is_double_colon());
+        assert!(lexical_token.parse(";").unwrap().0.is_semicolon());
+        assert!(lexical_token.parse("..").unwrap().0.is_dot_dot());
+        assert!(lexical_token.parse("%").unwrap().0.is_percent());
     }
 }

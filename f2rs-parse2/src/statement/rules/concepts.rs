@@ -44,20 +44,20 @@ impl<Span> ImplicitPartStmt<Span> {
     }
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "implicit-part-stmt" #506 :
     "is implicit-stmt"
     "or parameter-stmt"
     "or format-stmt"
     "or entry-stmt",
 )]
-pub fn implicit_part_stmt_2<S: Lexed>(cfg: &Cfg, source: S) -> Vec<(ImplicitPartStmt<MultilineSpan>, Option<S::Span>)> {
+pub fn implicit_part_stmt_2<S: Lexed>(source: S) -> Vec<(ImplicitPartStmt<MultilineSpan>, Option<S::Span>)> {
     parse_options!(
         source;
-        implicit_stmt_2(cfg) => ImplicitPartStmt::Implicit,
-        parameter_stmt_2(cfg) => ImplicitPartStmt::Parameter,
-        format_stmt_2(cfg) => ImplicitPartStmt::Format,
-        entry_stmt_2(cfg) => ImplicitPartStmt::Entry,
+        implicit_stmt_2 => ImplicitPartStmt::Implicit,
+        parameter_stmt_2 => ImplicitPartStmt::Parameter,
+        format_stmt_2 => ImplicitPartStmt::Format,
+        entry_stmt_2 => ImplicitPartStmt::Entry,
     )
 }
 
@@ -85,7 +85,7 @@ pub enum OtherSpecificationStmt<Span> {
     EquivalenceStmt(EquivalenceStmt<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "other-specification-stmt" #513 :
     "is access-stmt"
     "or allocatable-stmt"
@@ -108,29 +108,29 @@ pub enum OtherSpecificationStmt<Span> {
     "or common-stmt"
     "or equivalence-stmt",
 )]
-pub fn other_specification_stmt_2<S: Lexed>(cfg: &Cfg, source: S) -> Vec<(OtherSpecificationStmt<MultilineSpan>, Option<S::Span>)> {
+pub fn other_specification_stmt_2<S: Lexed>(source: S) -> Vec<(OtherSpecificationStmt<MultilineSpan>, Option<S::Span>)> {
     parse_options!(
         source;
-        access_stmt_2(cfg) => OtherSpecificationStmt::AccessStmt,
-        allocatable_stmt_2(cfg) => OtherSpecificationStmt::AllocatableStmt,
-        asynchronous_stmt_2(cfg) => OtherSpecificationStmt::AsynchronousStmt,
-        bind_stmt_2(cfg) => OtherSpecificationStmt::BindStmt,
-        codimension_stmt_2(cfg) => OtherSpecificationStmt::CodimensionStmt,
-        contiguous_stmt_2(cfg) => OtherSpecificationStmt::ContiguousStmt,
-        dimension_stmt_2(cfg) => OtherSpecificationStmt::DimensionStmt,
-        external_stmt_2(cfg) => OtherSpecificationStmt::ExternalStmt,
-        intent_stmt_2(cfg) => OtherSpecificationStmt::IntentStmt,
-        intrinsic_stmt_2(cfg) => OtherSpecificationStmt::IntrinsicStmt,
-        namelist_stmt_2(cfg) => OtherSpecificationStmt::NamelistStmt,
-        optional_stmt_2(cfg) => OtherSpecificationStmt::OptionalStmt,
-        pointer_stmt_2(cfg) => OtherSpecificationStmt::PointerStmt,
-        protected_stmt_2(cfg) => OtherSpecificationStmt::ProtectedStmt,
-        save_stmt_2(cfg) => OtherSpecificationStmt::SaveStmt,
-        target_stmt_2(cfg) => OtherSpecificationStmt::TargetStmt,
-        volatile_stmt_2(cfg) => OtherSpecificationStmt::VolatileStmt,
-        value_stmt_2(cfg) => OtherSpecificationStmt::ValueStmt,
-        common_stmt_2(cfg) => OtherSpecificationStmt::CommonStmt,
-        equivalence_stmt_2(cfg) => OtherSpecificationStmt::EquivalenceStmt,
+        access_stmt_2 => OtherSpecificationStmt::AccessStmt,
+        allocatable_stmt_2 => OtherSpecificationStmt::AllocatableStmt,
+        asynchronous_stmt_2 => OtherSpecificationStmt::AsynchronousStmt,
+        bind_stmt_2 => OtherSpecificationStmt::BindStmt,
+        codimension_stmt_2 => OtherSpecificationStmt::CodimensionStmt,
+        contiguous_stmt_2 => OtherSpecificationStmt::ContiguousStmt,
+        dimension_stmt_2 => OtherSpecificationStmt::DimensionStmt,
+        external_stmt_2 => OtherSpecificationStmt::ExternalStmt,
+        intent_stmt_2 => OtherSpecificationStmt::IntentStmt,
+        intrinsic_stmt_2 => OtherSpecificationStmt::IntrinsicStmt,
+        namelist_stmt_2 => OtherSpecificationStmt::NamelistStmt,
+        optional_stmt_2 => OtherSpecificationStmt::OptionalStmt,
+        pointer_stmt_2 => OtherSpecificationStmt::PointerStmt,
+        protected_stmt_2 => OtherSpecificationStmt::ProtectedStmt,
+        save_stmt_2 => OtherSpecificationStmt::SaveStmt,
+        target_stmt_2 => OtherSpecificationStmt::TargetStmt,
+        volatile_stmt_2 => OtherSpecificationStmt::VolatileStmt,
+        value_stmt_2 => OtherSpecificationStmt::ValueStmt,
+        common_stmt_2 => OtherSpecificationStmt::CommonStmt,
+        equivalence_stmt_2 => OtherSpecificationStmt::EquivalenceStmt,
     )
 }
 
@@ -176,7 +176,7 @@ pub enum ActionStmt<Span> {
     ForallStmt(ForallStmt<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "action-stmt" #515 :
     "is allocate-stmt"
     "or assignment-stmt"
@@ -217,46 +217,46 @@ pub enum ActionStmt<Span> {
     "or computed-goto-stmt"
     "or forall-stmt",
 )]
-pub fn action_stmt<S: Lexed>(cfg: &Cfg, source: S) -> Vec<(ActionStmt<MultilineSpan>, Option<S::Span>)> {
+pub fn action_stmt<S: Lexed>(source: S) -> Vec<(ActionStmt<MultilineSpan>, Option<S::Span>)> {
     parse_options!(
         source;
-        allocate_stmt_2(cfg) => ActionStmt::AllocateStmt,
-        assignment_stmt_2(cfg) => ActionStmt::AssignmentStmt,
-        backspace_stmt_2(cfg) => ActionStmt::BackspaceStmt,
-        call_stmt(cfg) => ActionStmt::CallStmt,
-        close_stmt(cfg) => ActionStmt::CloseStmt,
-        continue_stmt(cfg) => ActionStmt::ContinueStmt,
-        cycle_stmt(cfg) => ActionStmt::CycleStmt,
-        deallocate_stmt(cfg) => ActionStmt::DeallocateStmt,
-        endfile_stmt(cfg) => ActionStmt::EndfileStmt,
-        error_stop_stmt(cfg) => ActionStmt::ErrorStopStmt,
-        event_post_stmt(cfg) => ActionStmt::EventPostStmt,
-        event_wait_stmt(cfg) => ActionStmt::EventWaitStmt,
-        exit_stmt(cfg) => ActionStmt::ExitStmt,
-        fail_image_stmt(cfg) => ActionStmt::FailImageStmt,
-        flush_stmt(cfg) => ActionStmt::FlushStmt,
-        form_team_stmt(cfg) => ActionStmt::FormTeamStmt,
-        goto_stmt(cfg) => ActionStmt::GotoStmt,
-        if_stmt(cfg) => ActionStmt::IfStmt,
-        inquire_stmt(cfg) => ActionStmt::InquireStmt,
-        lock_stmt(cfg) => ActionStmt::LockStmt,
-        nullify_stmt(cfg) => ActionStmt::NullifyStmt,
-        open_stmt(cfg) => ActionStmt::OpenStmt,
-        pointer_assignment_stmt(cfg) => ActionStmt::PointerAssignmentStmt,
-        print_stmt(cfg) => ActionStmt::PrintStmt,
-        read_stmt(cfg) => ActionStmt::ReadStmt,
-        return_stmt(cfg) => ActionStmt::ReturnStmt,
-        rewind_stmt(cfg) => ActionStmt::RewindStmt,
-        stop_stmt(cfg) => ActionStmt::StopStmt,
-        sync_all_stmt(cfg) => ActionStmt::SyncAllStmt,
-        sync_images_stmt(cfg) => ActionStmt::SyncImagesStmt,
-        sync_memory_stmt(cfg) => ActionStmt::SyncMemoryStmt,
-        sync_team_stmt(cfg) => ActionStmt::SyncTeamStmt,
-        unlock_stmt(cfg) => ActionStmt::UnlockStmt,
-        wait_stmt(cfg) => ActionStmt::WaitStmt,
-        where_stmt(cfg) => ActionStmt::WhereStmt,
-        write_stmt(cfg) => ActionStmt::WriteStmt,
-        computed_goto_stmt(cfg) => ActionStmt::ComputedGotoStmt,
-        forall_stmt(cfg) => ActionStmt::ForallStmt,
+        allocate_stmt_2 => ActionStmt::AllocateStmt,
+        assignment_stmt_2 => ActionStmt::AssignmentStmt,
+        backspace_stmt_2 => ActionStmt::BackspaceStmt,
+        call_stmt => ActionStmt::CallStmt,
+        close_stmt => ActionStmt::CloseStmt,
+        continue_stmt => ActionStmt::ContinueStmt,
+        cycle_stmt => ActionStmt::CycleStmt,
+        deallocate_stmt => ActionStmt::DeallocateStmt,
+        endfile_stmt => ActionStmt::EndfileStmt,
+        error_stop_stmt => ActionStmt::ErrorStopStmt,
+        event_post_stmt => ActionStmt::EventPostStmt,
+        event_wait_stmt => ActionStmt::EventWaitStmt,
+        exit_stmt => ActionStmt::ExitStmt,
+        fail_image_stmt => ActionStmt::FailImageStmt,
+        flush_stmt => ActionStmt::FlushStmt,
+        form_team_stmt => ActionStmt::FormTeamStmt,
+        goto_stmt => ActionStmt::GotoStmt,
+        if_stmt => ActionStmt::IfStmt,
+        inquire_stmt => ActionStmt::InquireStmt,
+        lock_stmt => ActionStmt::LockStmt,
+        nullify_stmt => ActionStmt::NullifyStmt,
+        open_stmt => ActionStmt::OpenStmt,
+        pointer_assignment_stmt => ActionStmt::PointerAssignmentStmt,
+        print_stmt => ActionStmt::PrintStmt,
+        read_stmt => ActionStmt::ReadStmt,
+        return_stmt => ActionStmt::ReturnStmt,
+        rewind_stmt => ActionStmt::RewindStmt,
+        stop_stmt => ActionStmt::StopStmt,
+        sync_all_stmt => ActionStmt::SyncAllStmt,
+        sync_images_stmt => ActionStmt::SyncImagesStmt,
+        sync_memory_stmt => ActionStmt::SyncMemoryStmt,
+        sync_team_stmt => ActionStmt::SyncTeamStmt,
+        unlock_stmt => ActionStmt::UnlockStmt,
+        wait_stmt => ActionStmt::WaitStmt,
+        where_stmt => ActionStmt::WhereStmt,
+        write_stmt => ActionStmt::WriteStmt,
+        computed_goto_stmt => ActionStmt::ComputedGotoStmt,
+        forall_stmt => ActionStmt::ForallStmt,
     )
 }

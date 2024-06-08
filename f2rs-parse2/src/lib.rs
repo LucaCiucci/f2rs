@@ -3,41 +3,39 @@
 pub mod phases;
 pub mod tokens;
 pub mod statement;
-mod cfg; use std::{char, ops::Range, rc::Rc};
+mod cfg; use std::{char, ops::Range};
 
 pub use cfg::*;
 use colored::Color;
-use f2rs_parser_combinator::{provided::text::Chars, tokenization::{MapSpan, Parser, ParserCore, Source, SourceSpan, Spanned, TextSource}};
+use f2rs_parser_combinator::{provided::text::Chars, tokenization::{Parser, ParserCore, Source, SourceSpan, Spanned, TextSource}};
 use statement::MultilineSpan;
 use tokens::rules::{Label, LexicalToken, LineComment, SpecialCharacterMatch};
 
-macro_rules! decl_rule {
+macro_rules! s_rule {
     (
-        $(#[$meta:meta])*
-        $name:ident:
-            $(
-                $standard:ident rule $rule_name:literal $(# $rule_number:literal)? $(section $rule_section:literal)? $(: $($rule_text:literal)*)?,
-            )*
+        $(
+            $standard:ident rule $rule_name:literal $(# $rule_number:literal)? $(section $rule_section:literal)? $(: $($rule_text:literal)*)?,
+        )*
     ) => {
-        $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        #[allow(non_camel_case_types)]
-        pub struct $name;
+        "**TODO**"
+        //paste::paste!{
+        //    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        //    #[allow(non_camel_case_types)]
+        //    pub struct [<_$name>];
+//
+        //    $(#[$meta])*
+        //    pub const $name: [<_$name>] = [<_$name>];
+        //}
     };
 }
-pub(crate) use decl_rule;
+pub(crate) use s_rule;
 
-pub trait LexRule: Clone + Copy {
-    type Token: MapSpan<Range<usize>>;
-    fn parse<S: TextSource>(self, source: S) -> Option<Self::Token>;
-}
-
-decl_rule! {
-    ignored_example_rule:
-        F18V007r1 rule "xyz-list" #401 : "is xyz [ , xyz ] ...",
-        F18V007r1 rule "xyz-name" #402 : "is name",
-        F18V007r1 rule "scalar-xyz" #403 : "is xyz",
-}
+#[doc = s_rule!(
+    F18V007r1 rule "xyz-list" #401 : "is xyz [ , xyz ] ...",
+    F18V007r1 rule "xyz-name" #402 : "is name",
+    F18V007r1 rule "scalar-xyz" #403 : "is xyz",
+)]
+pub fn ignored_example_rules() {}
 
 #[derive(Debug, Clone)]
 pub struct Line {
@@ -63,7 +61,7 @@ pub struct TokenizedFreeLine<Span> {
 
 impl TokenizedFreeLine<Range<usize>> {
     pub fn parse_chars(chars: &[char]) -> Option<Self> {
-        let (content, _) = tokenized_free_line(&Cfg::f2018())
+        let (content, _) = tokenized_free_line()
             .parse(Chars::new(chars, 0))?;
         Some(content)
     }
@@ -173,25 +171,25 @@ impl<Span> TokenizedFreeLine<Span> {
 //#[syntax_rule(
 //    F18V007r1 rule 
 //)]
-pub fn tokenized_free_line<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = TokenizedFreeLine<S::Span>> + 'a {
+pub fn tokenized_free_line<'a, S: TextSource + 'a>() -> impl Parser<S, Token = TokenizedFreeLine<S::Span>> {
     use f2rs_parser_combinator::prelude::*;
     use crate::tokens::rules::*;
 
     (
         space(0),
-        label(cfg).optional(),
+        label.optional(),
         space(0),
-        special_character(cfg).condition(|c, _| c.character.is_ampersand()).optional(), // TODO use SpecialCharacter::Ampersand.optional(),
+        special_character.condition(|c, _| c.character.is_ampersand()).optional(), // TODO use SpecialCharacter::Ampersand.optional(),
         space(0),
         many_until(
-            (lexical_token(cfg), space(0)).map(|(t, _)| t),
+            (lexical_token, space(0)).map(|(t, _)| t),
             (
                 (
                     SpecialCharacter::Ampersand,
                     space(0),
                 ).map(|(c, _)| c).optional(),
-                line_comment().optional(),
-                eol(),
+                line_comment.optional(),
+                eol,
             ),
             0..,
         )

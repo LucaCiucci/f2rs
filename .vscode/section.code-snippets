@@ -56,7 +56,7 @@
 		"prefix": "parse-rule",
 		"body": [
 			"// TODO test",
-			"pub fn $1<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = $2<S::Span>> + 'a {",
+			"pub fn $1<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = $2<S::Span>, S> {",
 			"	dbg_compatible_with!(",
 			"		cfg,",
 			"		$3, // R$4",
@@ -73,7 +73,7 @@
 			"#[syntax_rule("
 			"    F18V007r1 rule \"$3\" #$4,",
 			")]",
-			"pub fn $1<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = $2<S::Span>> + 'a {",
+			"pub fn $1<'a, S: TextSource + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = $2<S::Span>, S> {",
 			"    |_| todo!(\"TODO: \\\"$1\\\" parser not implemented yet\")$0",
 			"}",
 		]

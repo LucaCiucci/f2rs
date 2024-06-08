@@ -8,16 +8,17 @@ pub enum Constant<Span> {
     Named(NamedConstant<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "constant" #604 :
     "is literal-constant"
     "or named-constant",
 )]
-pub fn constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = Constant<MultilineSpan>> + 'a {
+pub fn constant<S: Lexed>(source: S) -> PResult<Constant<MultilineSpan>, S> {
     alt!(
-        literal_constant(cfg).map(Constant::Literal),
-        named_constant(cfg).map(Constant::Named),
-    )
+        for S =>
+        literal_constant.map(Constant::Literal),
+        named_constant.map(Constant::Named),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -25,21 +26,21 @@ pub struct NamedConstant<Span> {
     pub name: Name<Span>,
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "named-constant" #606 : "is name",
 )]
-pub fn named_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = NamedConstant<MultilineSpan>> + 'a {
-    name().map(|name| NamedConstant { name })
+pub fn named_constant<S: Lexed>(source: S) -> PResult<NamedConstant<MultilineSpan>, S> {
+    name().map(|name| NamedConstant { name }).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct IntConstant<Span>(pub Constant<Span>);
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "int-constant" #607 : "is constant",
 )]
-pub fn int_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = IntConstant<MultilineSpan>> + 'a {
-    constant(cfg).map(IntConstant)
+pub fn int_constant<S: Lexed>(source: S) -> PResult<IntConstant<MultilineSpan>, S> {
+    constant.map(IntConstant).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -52,7 +53,7 @@ pub enum LiteralConstant<Span> {
     Boz(BozLiteralConstant<Span>),
 }
 
-#[syntax_rule(
+#[doc = s_rule!(
     F18V007r1 rule "literal-constant" #605 :
     "is int-literal-constant"
     "or real-literal-constant"
@@ -61,9 +62,10 @@ pub enum LiteralConstant<Span> {
     "or char-literal-constant"
     "or boz-literal-constant",
 )]
-pub fn literal_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token = LiteralConstant<MultilineSpan>> + 'a {
+pub fn literal_constant<S: Lexed>(source: S) -> PResult<LiteralConstant<MultilineSpan>, S> {
     // NOTE: The order of the alternatives is important, is different from the standard
     alt!(
+        for S =>
         non_complex_literal_constant().map(|c| match c {
             NonComplexLiteralConstant::Int(i) => LiteralConstant::Int(i),
             NonComplexLiteralConstant::Real(r) => LiteralConstant::Real(r),
@@ -71,8 +73,8 @@ pub fn literal_constant<'a, S: Lexed + 'a>(cfg: &'a Cfg) -> impl Parser<S, Token
             NonComplexLiteralConstant::Char(c) => LiteralConstant::Char(c),
             NonComplexLiteralConstant::Boz(b) => LiteralConstant::Boz(b),
         }),
-        complex_literal_constant(cfg).map(LiteralConstant::Complex),
-    )
+        complex_literal_constant.map(LiteralConstant::Complex),
+    ).parse(source)
 }
 
 #[cfg(test)]
