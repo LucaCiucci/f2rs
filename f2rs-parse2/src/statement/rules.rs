@@ -18,10 +18,10 @@ mod execution_control; pub use execution_control::*;
 mod concepts; pub use concepts::*;
 mod input_output_editing; pub use input_output_editing::*;
 mod statements; pub use statements::*;
-use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, LexicalToken, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}, Cfg};
+use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, Equals, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, LexicalToken, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}};
 use std::ops::RangeBounds;
 
-use crate::{tokens::rules::{Colon, Comma, DoubleColon, Name}, Standard::*};
+use crate::tokens::rules::{Colon, Comma, DoubleColon, Name};
 
 use super::*;
 
@@ -255,8 +255,11 @@ pub fn delim<S: Lexed>(delim: impl Into<SpecialCharacter>) -> impl Parser<S, Tok
     })
 }
 
-pub fn equals<S: Lexed>() -> impl Parser<S, Token = SpecialCharacterMatch<MultilineSpan>> {
-    delim(SpecialCharacter::Equals)
+pub fn equals<S: Lexed>() -> impl Parser<S, Token = Equals<MultilineSpan>> {
+    token().map_if(|t| match t {
+        LexicalToken::Equals(t) => Some(t),
+        _ => None,
+    })
 }
 
 pub fn arrow<S: Lexed>() -> impl Parser<S, Token = Arrow<MultilineSpan>> {

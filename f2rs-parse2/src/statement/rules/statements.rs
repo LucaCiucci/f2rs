@@ -163,26 +163,6 @@ pub fn forall_assignment_stmt<S: Lexed>(source: S) -> PResult<ForallAssignmentSt
     .parse(source)
 }
 
-fn forall_assignment_stmt_1<S: Lexed>(source: S) -> PResult<ForallAssignmentStmt<MultilineSpan>, S> {
-    (move |source: S| {
-        if false {
-            panic!()
-        } else if let Some((token, source)) =
-            (assignment_stmt_2.map(ForallAssignmentStmt::AssignmentStmt)).parse(source.clone())
-        {
-            Some((token, source))
-        } else if let Some((token, source)) = (pointer_assignment_stmt
-            .map(ForallAssignmentStmt::PointerAssignmentStmt))
-        .parse(source.clone())
-        {
-            Some((token, source))
-        } else {
-            None
-        }
-    })
-    .parse(source)
-}
-
 #[derive(Debug, Clone)]
 pub struct ForallStmt<Span> {
     pub concurrent_header: Option<ConcurrentHeader<Span>>,

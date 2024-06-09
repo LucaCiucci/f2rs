@@ -462,14 +462,39 @@ pub fn component_def_stmt<S: Lexed>(source: S) -> PResult<ComponentDefStmt<Multi
 }
 
 #[derive(Debug, Clone)]
-pub struct ProcComponentDefStmt<Span>(std::marker::PhantomData<Span>);// TODO
+pub struct ProcComponentDefStmt<Span> {
+    pub interface: Option<ProcInterface<Span>>,
+    pub attrs: Vec<ProcComponentAttrSpec<Span>>,
+    pub decls: Vec<ProcDecl<Span>>,
+}
 
 #[doc = s_rule!(
     F18V007r1 rule "proc-component-def-stmt" #741 :
     "is PROCEDURE ( [ proc-interface ] ) , proc-component-attr-spec-list :: proc-decl-list",
 )]
 pub fn proc_component_def_stmt<S: Lexed>(source: S) -> PResult<ProcComponentDefStmt<MultilineSpan>, S> {
-    todo!()
+    (
+        kw!(PROCEDURE),
+        delim('('),
+        proc_interface.optional(),
+        delim(')'),
+        comma(),
+        separated(
+            proc_component_attr_spec,
+            comma(),
+            1..,
+        ),
+        double_colon(),
+        separated(
+            proc_decl,
+            comma(),
+            1..,
+        ),
+    ).map(|(_, _, interface, _, _, attrs, _, decls)| ProcComponentDefStmt {
+        interface,
+        attrs,
+        decls,
+    }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -505,9 +530,8 @@ pub fn proc_component_attr_spec<S: Lexed>(source: S) -> PResult<ProcComponentAtt
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum TypeSpec<Span> {
-    Intrinsic, // TODO
-    Derived, // TODO
-    _Phantom(Span),
+    Intrinsic(IntrinsicTypeSpec<Span>),
+    Derived(DerivedTypeSpec<Span>),
 }
 
 #[doc = s_rule!(
@@ -516,7 +540,11 @@ pub enum TypeSpec<Span> {
     "or derived-type-spec",
 )]
 pub fn type_spec<S: Lexed>(source: S) -> PResult<TypeSpec<MultilineSpan>, S> {
-    todo!()
+    alt!(
+        for S =>
+        intrinsic_type_spec.map(TypeSpec::Intrinsic),
+        derived_type_spec.map(TypeSpec::Derived),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -870,7 +898,11 @@ pub fn component_spec<S: Lexed>(source: S) -> PResult<ComponentSpec<MultilineSpa
 }
 
 #[derive(Debug, Clone)]
-pub struct ComponentDataSource<Span>(PhantomData<Span>); // TODO
+pub enum ComponentDataSource<Span> {
+    Expr(Expr<Span>),
+    DataTarget(DataTarget<Span>),
+    ProcTarget(ProcTarget<Span>),
+}
 
 #[doc = s_rule!(
     F18V007r1 rule "component-data-source" #758 :
@@ -879,7 +911,12 @@ pub struct ComponentDataSource<Span>(PhantomData<Span>); // TODO
     "or proc-target",
 )]
 pub fn component_data_source<S: Lexed>(source: S) -> PResult<ComponentDataSource<MultilineSpan>, S> {
-    todo!()
+    alt!(
+        for S =>
+        expr.map(ComponentDataSource::Expr),
+        data_target.map(ComponentDataSource::DataTarget),
+        proc_target.map(ComponentDataSource::ProcTarget),
+    ).parse(source)
 }
 
 #[cfg(test)]

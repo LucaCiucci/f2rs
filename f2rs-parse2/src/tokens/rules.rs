@@ -2318,7 +2318,7 @@ mod test {
 
     #[test]
     pub fn test_lexical_token() {
-        assert!(lexical_token.parse(".").unwrap().0.is_error());
+        assert!(lexical_token.parse(".").unwrap().0.is_dot());
         assert!(lexical_token.parse("ciao").unwrap().0.is_name());
         assert!(lexical_token.parse("42").unwrap().0.is_literal_constant());
         assert!(lexical_token.parse("'42'").unwrap().0.as_literal_constant().unwrap().is_char());

@@ -592,14 +592,14 @@ pub fn initialization<S: Lexed>(source: S) -> PResult<Initialization<MultilineSp
 }
 
 #[derive(Debug, Clone)]
-pub struct NullInit<Span>(std::marker::PhantomData<Span>); // TODO
+pub struct NullInit<Span>(pub FunctionReference<Span>); // TODO
 
 #[doc = s_rule!(
     F18V007r1 rule "null-init" #806 :
     "is function-reference",
 )]
 pub fn null_init<S: Lexed>(source: S) -> PResult<NullInit<MultilineSpan>, S> {
-    todo!()
+    function_reference.map(NullInit).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1013,4 +1013,23 @@ pub fn common_block_object<S: Lexed>(source: S) -> PResult<CommonBlockObject<Mul
         variable_name,
         array_spec,
     }).parse(source)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_named_constant_def() {
+        let named_constant_def = |s: &str| named_constant_def(tokenize(s).as_slice()).map(|(r, _)| r);
+        let equals = |s: &str| {
+            let tokens = &tokenize(s)[..];
+            let r = equals().parse(tokens);
+            r.map(|(r, _)| r)
+        };
+
+        assert!(equals("=").is_some());
+        assert!(named_constant_def("a = b").is_some());
+        assert!(named_constant_def("a = 1").is_some());
+    }
 }

@@ -675,7 +675,7 @@ pub fn case_stmt<S: Lexed>(source: S) -> PResult<CaseStmt<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct EndSelectStmt<Span> {
-    case_construct_name: Option<Name<Span>>,
+    pub case_construct_name: Option<Name<Span>>,
 }
 
 #[doc = s_rule!(
@@ -765,9 +765,9 @@ pub fn case_value<S: Lexed>(source: S) -> PResult<CaseValue<MultilineSpan>, S> {
 }
 
 pub struct SelectRankStmt<Span> {
-    select_construct_name: Option<Name<Span>>,
-    associate_name: Option<Name<Span>>,
-    selector: Selector<Span>,
+    pub select_construct_name: Option<Name<Span>>,
+    pub associate_name: Option<Name<Span>>,
+    pub selector: Selector<Span>,
 }
 
 #[doc = s_rule!(
@@ -827,7 +827,7 @@ pub fn select_rank_case_stmt<S: Lexed>(source: S) -> PResult<SelectRankCaseStmt<
 
 #[derive(Debug, Clone)]
 pub struct EndSelectRankStmt<Span> {
-    select_construct_name: Option<Name<Span>>,
+    pub select_construct_name: Option<Name<Span>>,
 }
 
 #[doc = s_rule!(
@@ -844,9 +844,9 @@ pub fn end_select_rank_stmt<S: Lexed>(source: S) -> PResult<EndSelectRankStmt<Mu
 
 #[derive(Debug, Clone)]
 pub struct SelectTypeStmt<Span> {
-    select_construct_name: Option<Name<Span>>,
-    associate_name: Option<Name<Span>>,
-    selector: Selector<Span>,
+    pub select_construct_name: Option<Name<Span>>,
+    pub associate_name: Option<Name<Span>>,
+    pub selector: Selector<Span>,
 }
 
 #[doc = s_rule!(
@@ -997,8 +997,8 @@ pub fn continue_stmt<S: Lexed>(source: S) -> PResult<ContinueStmt<MultilineSpan>
 
 #[derive(Debug, Clone)]
 pub struct StopStmt<Span> {
-    stop_code: Option<StopCode<Span>>,
-    quiet: Option<Expr<Span>>,
+    pub stop_code: Option<StopCode<Span>>,
+    pub quiet: Option<Expr<Span>>,
 }
 
 #[doc = s_rule!(
@@ -1020,8 +1020,8 @@ pub fn stop_stmt<S: Lexed>(source: S) -> PResult<StopStmt<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct ErrorStopStmt<Span> {
-    stop_code: Option<StopCode<Span>>,
-    quiet: Option<Expr<Span>>,
+    pub stop_code: Option<StopCode<Span>>,
+    pub quiet: Option<Expr<Span>>,
 }
 
 #[doc = s_rule!(
@@ -1078,7 +1078,7 @@ pub fn fail_image_stmt<S: Lexed>(source: S) -> PResult<FailImageStmt<MultilineSp
 
 #[derive(Debug, Clone)]
 pub struct SyncAllStmt<Span> {
-    sync_stat_list: Option<Vec<SyncStat<Span>>>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1125,8 +1125,8 @@ pub fn sync_stat<S: Lexed>(source: S) -> PResult<SyncStat<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct SyncImagesStmt<Span> {
-    image_set: ImageSet<Span>,
-    sync_stat_list: Option<Vec<SyncStat<Span>>>,
+    pub image_set: ImageSet<Span>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1170,7 +1170,7 @@ pub fn image_set<S: Lexed>(source: S) -> PResult<ImageSet<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct SyncMemoryStmt<Span> {
-    sync_stat_list: Option<Vec<SyncStat<Span>>>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1192,8 +1192,8 @@ pub fn sync_memory_stmt<S: Lexed>(source: S) -> PResult<SyncMemoryStmt<Multiline
 
 #[derive(Debug, Clone)]
 pub struct SyncTeamStmt<Span> {
-    team_value: TeamValue<Span>,
-    sync_stat_list: Option<Vec<SyncStat<Span>>>,
+    pub team_value: TeamValue<Span>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1218,8 +1218,8 @@ pub fn sync_team_stmt<S: Lexed>(source: S) -> PResult<SyncTeamStmt<MultilineSpan
 
 #[derive(Debug, Clone)]
 pub struct EventPostStmt<Span> {
-    event_variable: EventVariable<Span>,
-    sync_stat_list: Option<Vec<SyncStat<Span>>>,
+    pub event_variable: EventVariable<Span>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1254,8 +1254,8 @@ pub fn event_variable<S: Lexed>(source: S) -> PResult<EventVariable<MultilineSpa
 
 #[derive(Debug, Clone)]
 pub struct EventWaitStmt<Span> {
-    event_variable: EventVariable<Span>,
-    event_wait_spec_list: Vec<EventWaitSpec<Span>>,
+    pub event_variable: EventVariable<Span>,
+    pub event_wait_spec_list: Vec<EventWaitSpec<Span>>,
 }
 
 #[doc = s_rule!(
@@ -1318,9 +1318,9 @@ pub fn until_spec<S: Lexed>(source: S) -> PResult<UntilSpec<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct FormTeamStmt<Span> {
-    team_number: IntExpr<Span>,
-    team_variable: Variable<Span>,
-    form_team_spec_list: Option<Vec<FormTeamSpec<Span>>>,
+    pub team_number: IntExpr<Span>,
+    pub team_variable: Variable<Span>,
+    pub form_team_spec_list: Option<Vec<FormTeamSpec<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1393,8 +1393,8 @@ pub fn form_team_spec<S: Lexed>(source: S) -> PResult<FormTeamSpec<MultilineSpan
 
 #[derive(Debug, Clone)]
 pub struct LockStmt<Span> {
-    lock_variable: Variable<Span>,
-    lock_stat_list: Option<Vec<LockStat<Span>>>,
+    pub lock_variable: Variable<Span>,
+    pub lock_stat_list: Option<Vec<LockStat<Span>>>,
 }
 
 #[doc = s_rule!(
@@ -1442,15 +1442,29 @@ pub fn lock_stat<S: Lexed>(source: S) -> PResult<LockStat<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct UnlockStmt<Span> {
-    lock_variable: Variable<Span>,
-    sync_stat_list: Vec<SyncStat<Span>>,
+    pub lock_variable: LockVariable<Span>,
+    pub sync_stat_list: Option<Vec<SyncStat<Span>>>,
 }
 
 #[doc = s_rule!(
     F18V007r1 rule "unlock-stmt" #1181 : "is UNLOCK ( lock-variable [ , sync-stat-list ] )",
 )]
 pub fn unlock_stmt<S: Lexed>(source: S) -> PResult<UnlockStmt<MultilineSpan>, S> {
-    todo!()
+    (
+        kw!(UNLOCK),
+        delim('('),
+        lock_variable,
+        (
+            comma(),
+            list(sync_stat, 0..),
+        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
+        delim(')'),
+    ).map(|(_, _, lock_variable, sync_stat_list, _)| {
+        UnlockStmt {
+            lock_variable,
+            sync_stat_list,
+        }
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]

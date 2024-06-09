@@ -1498,7 +1498,9 @@ pub struct WhereAssignmentStmt<Span> {
     F18V007r1 rule "where-assignment-stmt" #1045 : "is assignment-stmt",
 )]
 pub fn where_assignment_stmt<S: Lexed>(source: S) -> PResult<WhereAssignmentStmt<MultilineSpan>, S> {
-    todo!()
+    assignment_stmt_2
+        .map(|assignment_stmt| WhereAssignmentStmt { assignment_stmt })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1590,7 +1592,12 @@ pub enum IoUnit<Span> {
     "or internal-file-variable",
 )]
 pub fn io_unit<S: Lexed>(source: S) -> PResult<IoUnit<MultilineSpan>, S> {
-    todo!()
+    alt!(
+        for S =>
+        file_unit_number.map(IoUnit::FileUnitNumber),
+        asterisk().map(|_| IoUnit::Star),
+        internal_file_variable.map(IoUnit::InternalFileVariable),
+    ).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2481,23 +2488,18 @@ pub fn mask_expr<S: Lexed>(source: S) -> PResult<MaskExpr<MultilineSpan>, S> {
 
 #[cfg(test)]
 mod test {
-    //use crate::test_configs;
-//
-    //use super::*;
-//
-    //#[test]
-    //fn tmp() {
-    //    for cfg in test_configs() {
-    //        let p = expr(&cfg);
-    //        assert!(p.parses("1"));
-    //        assert!(p.parses("2.1 + 3.4 + 4.9"));
-    //        assert!(p.parses("2.1 * 3.4 * 4.9"));
-    //        assert!(p.parses("2.1 / 3.4 / 4.9"));
-    //        assert!(p.parses("2 ** 3 ** 4"));
-    //        assert!(p.parses("'AB' // 'CD' // 'EF'"));
-//
-    //        let p = p.parse("1 + 2**e * 3");
-    //        println!("{:#?}", p);
-    //    }
-    //}
+    use super::*;
+
+    #[test]
+    fn tmp() {
+        let expr = |s: &str| expr(tokenize(s).as_slice()).map(|(r, _)| r);
+
+        assert!(expr("1").is_some());
+        assert!(expr("1").unwrap().right.right.right.right.expr.right.right.right.right.expr.primary.is_literal());
+        assert!(expr("2.1 + 3.4 + 4.9").is_some());
+        assert!(expr("2.1 * 3.4 * 4.9").is_some());
+        assert!(expr("2.1 / 3.4 / 4.9").is_some());
+        assert!(expr("2 ** 3 ** 4").is_some());
+        assert!(expr("'AB' // 'CD' // 'EF'").is_some());
+    }
 }
