@@ -981,6 +981,7 @@ pub fn computed_goto_stmt<S: Lexed>(source: S) -> PResult<ComputedGotoStmt<Multi
 
 #[derive(Debug, Clone)]
 pub struct ContinueStmt<Span> {
+    label: Option<Label<Span>>,
     _p: std::marker::PhantomData<Span>,
 }
 
@@ -990,7 +991,9 @@ pub struct ContinueStmt<Span> {
 pub fn continue_stmt<S: Lexed>(source: S) -> PResult<ContinueStmt<MultilineSpan>, S> {
     (
         kw!(continue),
-    ).map(|_| ContinueStmt {
+        label().optional()
+    ).map(|(_, label)| ContinueStmt {
+        label,
         _p: std::marker::PhantomData,
     }).parse(source)
 }

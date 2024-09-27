@@ -971,6 +971,7 @@ pub struct CommonStmt<Span> {
 )]
 pub fn common_stmt_2<S: Lexed>(source: S) -> PResult<CommonStmt<MultilineSpan>, S> {
     (
+        kw!(COMMON),
         (
             op("/"),
             name(),
@@ -987,7 +988,7 @@ pub fn common_stmt_2<S: Lexed>(source: S) -> PResult<CommonStmt<MultilineSpan>, 
             ).map(|(_, _, name, _, common_block_object_list)| (name, common_block_object_list)),
             0..,
         ),
-    ).map(|(first_common_block_name, first_common_block_object_list, rest)| CommonStmt {
+    ).map(|(_, first_common_block_name, first_common_block_object_list, rest)| CommonStmt {
         first_common_block_name,
         first_common_block_object_list,
         rest,

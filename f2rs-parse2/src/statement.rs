@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use enum_as_inner::EnumAsInner;
-use rules::{import_stmt, ImportStmt};
+use rules::{action_stmt, entry_stmt_2, format_stmt_2, implicit_part_stmt_2, implicit_stmt_2, import_stmt, keyword, kw, other_specification_stmt_2, parameter_stmt_2, ActionStmt, ImplicitPartStmt, ImportStmt, Keyword, Lexed, OtherSpecificationStmt};
 
 use crate::tokens::rules::LexicalToken;
 
@@ -78,4 +78,45 @@ impl StatementValue<MultilineSpan> {
     pub fn parse<S: Source<Element = LexicalToken<MultilineSpan>>>(source: S) -> Option<Self> {
         statement.parse(source).map(|r| r.0)
     }
+}
+
+#[derive(Debug, Clone, EnumAsInner)]
+pub enum Stmt<Span> {
+    ImplicitPartStmt(ImplicitPartStmt<Span>),
+    OtherSpecificationStmt(OtherSpecificationStmt<Span>),
+    ActionStmt(ActionStmt<Span>),
+}
+
+impl<Span> Stmt<Span> {
+    pub fn statement_kind_name(&self) -> &'static str {
+        match self {
+            Stmt::ImplicitPartStmt(s) => s.statement_kind_name(),
+            Stmt::OtherSpecificationStmt(s) => s.statement_kind_name(),
+            Stmt::ActionStmt(s) => s.statement_kind_name(),
+        }
+    }
+}
+
+pub struct ClassifiedStmt<Span> {
+    /// The statement, if none, parsing failed
+    pub stmt: Option<Stmt<Span>>,
+    pub next_unparsed: Option<LexicalToken<Span>>,
+}
+
+pub fn classify_stmt<S: Lexed>(source: S) -> ClassifiedStmt<MultilineSpan> {
+    //println!("CLASSIFY STMT");
+    alt!(
+        for S =>
+        implicit_part_stmt_2.map(Stmt::ImplicitPartStmt),
+        other_specification_stmt_2.map(Stmt::OtherSpecificationStmt),
+        action_stmt.map(Stmt::ActionStmt),
+    ).parse(source.clone())
+        .map(|(stmt, s)| ClassifiedStmt {
+            stmt: Some(stmt),
+            next_unparsed: s.get_at(&s.start()),
+        })
+        .unwrap_or(ClassifiedStmt {
+            stmt: None,
+            next_unparsed: source.get_at(&source.start()),
+        })
 }

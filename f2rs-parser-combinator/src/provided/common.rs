@@ -137,7 +137,10 @@ macro_rules! alt {
         move |source: $S| {
             if false { unreachable!() }
             $(
-                else if let Some((token, source)) = $a.parse(source.clone()) {
+                else if let Some((token, source)) = {
+                    //eprintln!("{}", stringify!($a));
+                    $a.parse(source.clone())
+                } {
                     Some((
                         token,
                         source,

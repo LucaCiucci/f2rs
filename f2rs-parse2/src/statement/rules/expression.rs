@@ -2264,15 +2264,13 @@ pub fn flush_spec<S: Lexed>(source: S) -> PResult<FlushSpec<MultilineSpan>, S> {
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum InquireStmt<Span> {
     InquireSpecList(Vec<InquireSpec<Span>>),
-    IoLength(IntVariable<Span>),
-    OutputItemList(Vec<OutputItem<Span>>),
+    IoLength(IntVariable<Span>, Vec<OutputItem<Span>>),
 }
 
 #[doc = s_rule!(
     F18V007r1 rule "inquire-stmt" #1230 :
     "is INQUIRE ( inquire-spec-list )"
-    "or INQUIRE ( IOLENGTH = scalar-int-variable )"
-    "output-item-list",
+    "or INQUIRE ( IOLENGTH = scalar-int-variable ) output-item-list",
 )]
 pub fn inquire_stmt<S: Lexed>(source: S) -> PResult<InquireStmt<MultilineSpan>, S> {
     alt!(
@@ -2286,8 +2284,8 @@ pub fn inquire_stmt<S: Lexed>(source: S) -> PResult<InquireStmt<MultilineSpan>, 
             (kw!(INQUIRE), delim('('), kw!(IOLENGTH), equals()),
             int_variable(false), // TODO false???
             delim(')'),
-        ).map(|(_, scalar_int_variable, _)| InquireStmt::IoLength(scalar_int_variable)),
-        list(output_item, 1..).map(InquireStmt::OutputItemList),
+            list(output_item, 0..),
+        ).map(|(_, scalar_int_variable, _, output_item_list)| InquireStmt::IoLength(scalar_int_variable, output_item_list)),
     ).parse(source)
 }
 
