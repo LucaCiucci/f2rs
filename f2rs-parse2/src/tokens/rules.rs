@@ -409,6 +409,54 @@ pub fn sign<S: TextSource>(source: S) -> PResult<Sign<S::Span>, S> {
 }
 
 #[derive(Debug, Clone)]
+pub struct SignedIntLiteralConstant<Span> {
+    pub span: Span,
+    pub sign: Option<Sign<Span>>,
+    pub int_literal_constant: IntLiteralConstant<Span>,
+}
+
+impl<Span> Spanned<Span> for SignedIntLiteralConstant<Span> {
+    fn span(&self) -> &Span {
+        &self.span
+    }
+}
+
+impl<Span> MapSpan<Span> for SignedIntLiteralConstant<Span> {
+    type Spanned<T> = SignedIntLiteralConstant<T>;
+
+    fn map_span<S>(self, f: &impl Fn(Span) -> S) -> Self::Spanned<S> {
+        SignedIntLiteralConstant {
+            span: f(self.span),
+            sign: self.sign.map(|s| s.map_span(f)),
+            int_literal_constant: self.int_literal_constant.map_span(f),
+        }
+    }
+}
+
+#[doc = s_rule!(
+    F18V007r1 rule "signed-int-literal-constant" #707 : "is [ sign ] int-literal-constant",
+)]
+pub fn signed_int_literal_constant<S: TextSource>(source: S) -> PResult<SignedIntLiteralConstant<S::Span>, S> {
+    (
+        sign.optional(),
+        int_literal_constant,
+    )
+        .map(|(sign, int_literal_constant): (Option<Sign<<S as Source>::Span>>, IntLiteralConstant<<S as Source>::Span>)| {
+            let span = if let Some(sign) = &sign {
+                S::Span::merge(sign.span().clone(), int_literal_constant.span.clone())
+            } else {
+                int_literal_constant.span.clone()
+            };
+            SignedIntLiteralConstant {
+                span,
+                sign,
+                int_literal_constant,
+            }
+        })
+        .parse(source)
+}
+
+#[derive(Debug, Clone)]
 pub struct IntLiteralConstant<Span> {
     pub span: Span,
     pub digits: StringMatch<Span>,
@@ -811,6 +859,7 @@ pub fn significand<S: TextSource>(source: S) -> PResult<Significand<S::Span>, S>
 }
 
 #[derive(Debug, Clone)]
+#[derive(EnumAsInner)]
 pub enum StringElement<Span> {
     Char(Char<Span>),
     EscapeSequence(StringMatch<Span>, &'static str),
@@ -1757,102 +1806,6 @@ pub fn delimiter<S: TextSource>(source: S) -> PResult<SpecialCharacterMatch<S::S
     .parse(source)
 }
 
-#[derive(Debug, Clone, EnumAsInner)]
-pub enum LexicalToken<Span> {
-    /// Name or keyword
-    ///
-    /// Note that keywords are not distinguished from names at this level.
-    /// Also note that in FORTRAN keywords can actually be used as names, for example variable names.
-    Name(Name<Span>),
-
-    /// Literal constant
-    ///
-    /// # Note:
-    /// This is a non-complex literal constant, complex literals are expressed as a pair of
-    /// non-complex literals at a higher level of the grammar.
-    LiteralConstant(NonComplexLiteralConstant<Span>),
-
-    Operator(DefinedOperator<Span>),
-
-    //StatementLabel,
-
-    Delimiter(SpecialCharacterMatch<Span>),
-
-    /// `,`
-    Comma(Comma<Span>),
-
-    /// `=`
-    Equals(Equals<Span>),
-
-    /// `=>`
-    Arrow(Arrow<Span>),
-
-    /// `:`
-    Colon(Colon<Span>),
-
-    /// `::`
-    DoubleColon(DoubleColon<Span>),
-
-    /// `;`
-    Semicolon(Semicolon<Span>),
-
-    /// `..`
-    DotDot(DotDot<Span>),
-
-    /// `%`
-    Percent(Percent<Span>),
-
-    // TODO not in the standard but necessary ???
-    Dot(Dot<Span>),
-
-    // TODO use StringMatch instead
-    Error(Char<Span>),
-}
-
-impl<Span> Spanned<Span> for LexicalToken<Span> {
-    fn span(&self) -> &Span {
-        match self {
-            LexicalToken::Name(n) => n.span(),
-            LexicalToken::LiteralConstant(l) => l.span(),
-            LexicalToken::Operator(o) => o.span(),
-            LexicalToken::Delimiter(d) => d.span(),
-            LexicalToken::Comma(c) => c.span(),
-            LexicalToken::Equals(e) => e.span(),
-            LexicalToken::Arrow(a) => a.span(),
-            LexicalToken::Colon(c) => c.span(),
-            LexicalToken::DoubleColon(c) => c.span(),
-            LexicalToken::Semicolon(s) => s.span(),
-            LexicalToken::DotDot(d) => d.span(),
-            LexicalToken::Percent(p) => p.span(),
-            LexicalToken::Dot(d) => d.span(),
-            LexicalToken::Error(e) => e.span(),
-        }
-    }
-}
-
-impl<Span> MapSpan<Span> for LexicalToken<Span> {
-    type Spanned<T> = LexicalToken<T>;
-
-    fn map_span<S>(self, f: &impl Fn(Span) -> S) -> Self::Spanned<S> {
-        match self {
-            LexicalToken::Name(n) => LexicalToken::Name(n.map_span(f)),
-            LexicalToken::LiteralConstant(l) => LexicalToken::LiteralConstant(l.map_span(f)),
-            LexicalToken::Operator(o) => LexicalToken::Operator(o.map_span(f)),
-            LexicalToken::Delimiter(d) => LexicalToken::Delimiter(d.map_span(f)),
-            LexicalToken::Comma(c) => LexicalToken::Comma(c.map_span(f)),
-            LexicalToken::Equals(e) => LexicalToken::Equals(e.map_span(f)),
-            LexicalToken::Arrow(a) => LexicalToken::Arrow(a.map_span(f)),
-            LexicalToken::Colon(c) => LexicalToken::Colon(c.map_span(f)),
-            LexicalToken::DoubleColon(c) => LexicalToken::DoubleColon(c.map_span(f)),
-            LexicalToken::Semicolon(s) => LexicalToken::Semicolon(s.map_span(f)),
-            LexicalToken::DotDot(d) => LexicalToken::DotDot(d.map_span(f)),
-            LexicalToken::Percent(p) => LexicalToken::Percent(p.map_span(f)),
-            LexicalToken::Dot(d) => LexicalToken::Dot(d.map_span(f)),
-            LexicalToken::Error(e) => LexicalToken::Error(e.map_span(f)),
-        }
-    }
-}
-
 macro_rules! just_spanned {
     ($name:ident) => {
         #[derive(Debug, Clone)]
@@ -1972,7 +1925,6 @@ pub fn lexical_token<S: TextSource>(source: S) -> PResult<LexicalToken<S::Span>,
         delimiter.map(LexicalToken::Delimiter),
         defined_operator.map(LexicalToken::Operator),
         (SpecialCharacter::Equals, SpecialCharacter::GreaterThan).map(|(c1, c2): (SpecialCharacterMatch<S::Span>, SpecialCharacterMatch<S::Span>)| LexicalToken::Arrow(Arrow::new_spanned(S::Span::merge(c1.span, c2.span)))),
-        (SpecialCharacter::Colon, SpecialCharacter::Colon).map(|(c1, c2)| LexicalToken::DoubleColon(DoubleColon::new_spanned(S::Span::merge(c1.span, c2.span)))),
         (SpecialCharacter::DecimalPointOrPeriod, SpecialCharacter::DecimalPointOrPeriod).map(|(c1, c2)| LexicalToken::DotDot(DotDot::new_spanned(S::Span::merge(c1.span, c2.span)))),
         SpecialCharacter::Comma.map(|c| LexicalToken::Comma(Comma::new_spanned(c.span))),
         SpecialCharacter::Equals.map(|c| LexicalToken::Equals(Equals::new_spanned(c.span))),
@@ -2069,286 +2021,748 @@ pub fn eol<S: TextSource>(source: S) -> PResult<(), S> {
 #[cfg(test)]
 mod test {
 
+    use crate::rule_test;
+    use super::super::examples;
+
     use super::*;
 
-    #[test]
-    pub fn test_alphanumeric_character() {
-        assert_eq!(alphanumeric_character.parses("a"), true);
-        assert_eq!(alphanumeric_character.parses("A"), true);
-        assert_eq!(alphanumeric_character.parses("3"), true);
-        assert_eq!(alphanumeric_character.parses("_"), true);
-        assert_eq!(alphanumeric_character.parses(" "), false);
-        assert_eq!(alphanumeric_character.parses("="), false);
+    rule_test! {
+        alphanumeric_character(F18V007r1 601) {
+            assert_eq!(alphanumeric_character.parses("a"), true);
+            assert_eq!(alphanumeric_character.parses("A"), true);
+            assert_eq!(alphanumeric_character.parses("3"), true);
+            assert_eq!(alphanumeric_character.parses("_"), true);
+            assert_eq!(alphanumeric_character.parses(" "), false);
+            assert_eq!(alphanumeric_character.parses("="), false);
+        }
     }
 
-    #[test]
-    pub fn test_letter() {
-        assert_eq!(letter.parses("a"), true);
-        assert_eq!(letter.parses("A"), true);
-        assert_eq!(letter.parses("3"), false);
-        assert_eq!(letter.parses("_"), false);
+    rule_test! {
+        letter() {
+            assert_eq!(letter.parses("a"), true);
+            assert_eq!(letter.parses("A"), true);
+            assert_eq!(letter.parses("3"), false);
+            assert_eq!(letter.parses("_"), false);
+        }
     }
 
-    #[test]
-    pub fn test_digit() {
-        assert_eq!(digit.parses("a"), false);
-        assert_eq!(digit.parses("A"), false);
-        assert_eq!(digit.parses("3"), true);
-        assert_eq!(digit.parses("_"), false);
+    rule_test! {
+        digit() {
+            assert_eq!(digit.parses("a"), false);
+            assert_eq!(digit.parses("A"), false);
+            assert_eq!(digit.parses("3"), true);
+            assert_eq!(digit.parses("_"), false);
+        }
     }
 
-    #[test]
-    pub fn test_underscore() {
-        assert_eq!(underscore.parses("a"), false);
-        assert_eq!(underscore.parses("A"), false);
-        assert_eq!(underscore.parses("3"), false);
-        assert_eq!(underscore.parses("_"), true);
+    rule_test! {
+        underscore(F18V007r1 602) {
+            assert_eq!(underscore.parses("a"), false);
+            assert_eq!(underscore.parses("A"), false);
+            assert_eq!(underscore.parses("3"), false);
+            assert_eq!(underscore.parses("_"), true);
+        }
     }
 
-    #[test]
-    pub fn test_special_character() {
-        use SpecialCharacter::*;
-        assert_eq!(special_character.parse(" ").unwrap().0.character, Blank);
-        assert_eq!(special_character.parse("=").unwrap().0.character, Equals);
-        assert_eq!(special_character.parse("+").unwrap().0.character, Plus);
-        assert_eq!(special_character.parse("-").unwrap().0.character, Minus);
-        assert_eq!(special_character.parse("*").unwrap().0.character, Asterisk);
-        assert_eq!(special_character.parse("/").unwrap().0.character, Slash);
-        assert_eq!(special_character.parse("\\").unwrap().0.character, Backslash);
-        assert_eq!(special_character.parse("(").unwrap().0.character, LeftParenthesis);
-        assert_eq!(special_character.parse(")").unwrap().0.character, RightParenthesis);
-        assert_eq!(special_character.parse("[").unwrap().0.character, LeftSquareBracket);
-        assert_eq!(special_character.parse("]").unwrap().0.character, RightSquareBracket);
-        assert_eq!(special_character.parse("{").unwrap().0.character, LeftCurlyBracket);
-        assert_eq!(special_character.parse("}").unwrap().0.character, RightCurlyBracket);
-        assert_eq!(special_character.parse(",").unwrap().0.character, Comma);
-        assert_eq!(special_character.parse(".").unwrap().0.character, DecimalPointOrPeriod);
-        assert_eq!(special_character.parse(":").unwrap().0.character, Colon);
-        assert_eq!(special_character.parse(";").unwrap().0.character, SemiColon);
-        assert_eq!(special_character.parse("!").unwrap().0.character, ExclamationPoint);
-        assert_eq!(special_character.parse("\"").unwrap().0.character, QuotationMarkOrQuote);
-        assert_eq!(special_character.parse("%").unwrap().0.character, Percent);
-        assert_eq!(special_character.parse("&").unwrap().0.character, Ampersand);
-        assert_eq!(special_character.parse("~").unwrap().0.character, Tilde);
-        assert_eq!(special_character.parse("<").unwrap().0.character, LessThan);
-        assert_eq!(special_character.parse(">").unwrap().0.character, GreaterThan);
-        assert_eq!(special_character.parse("?").unwrap().0.character, QuestionMark);
-        assert_eq!(special_character.parse("'").unwrap().0.character, Apostrophe);
-        assert_eq!(special_character.parse("`").unwrap().0.character, GraveAccent);
-        assert_eq!(special_character.parse("^").unwrap().0.character, CircumflexAccent);
-        assert_eq!(special_character.parse("|").unwrap().0.character, VerticalLine);
-        assert_eq!(special_character.parse("¤").unwrap().0.character, CurrencySymbol);
-        assert_eq!(special_character.parse("#").unwrap().0.character, NumberSign);
-        assert_eq!(special_character.parse("@").unwrap().0.character, CommercialAt);
-        assert_eq!(special_character.parses("a"), false);
-        assert_eq!(special_character.parses("A"), false);
-        assert_eq!(special_character.parses("3"), false);
-        assert_eq!(special_character.parses("_"), false);
+    rule_test! {
+        special_character() {
+            use SpecialCharacter::*;
+            assert_eq!(special_character.parse(" ").unwrap().0.character, Blank);
+            assert_eq!(special_character.parse("=").unwrap().0.character, Equals);
+            assert_eq!(special_character.parse("+").unwrap().0.character, Plus);
+            assert_eq!(special_character.parse("-").unwrap().0.character, Minus);
+            assert_eq!(special_character.parse("*").unwrap().0.character, Asterisk);
+            assert_eq!(special_character.parse("/").unwrap().0.character, Slash);
+            assert_eq!(special_character.parse("\\").unwrap().0.character, Backslash);
+            assert_eq!(special_character.parse("(").unwrap().0.character, LeftParenthesis);
+            assert_eq!(special_character.parse(")").unwrap().0.character, RightParenthesis);
+            assert_eq!(special_character.parse("[").unwrap().0.character, LeftSquareBracket);
+            assert_eq!(special_character.parse("]").unwrap().0.character, RightSquareBracket);
+            assert_eq!(special_character.parse("{").unwrap().0.character, LeftCurlyBracket);
+            assert_eq!(special_character.parse("}").unwrap().0.character, RightCurlyBracket);
+            assert_eq!(special_character.parse(",").unwrap().0.character, Comma);
+            assert_eq!(special_character.parse(".").unwrap().0.character, DecimalPointOrPeriod);
+            assert_eq!(special_character.parse(":").unwrap().0.character, Colon);
+            assert_eq!(special_character.parse(";").unwrap().0.character, SemiColon);
+            assert_eq!(special_character.parse("!").unwrap().0.character, ExclamationPoint);
+            assert_eq!(special_character.parse("\"").unwrap().0.character, QuotationMarkOrQuote);
+            assert_eq!(special_character.parse("%").unwrap().0.character, Percent);
+            assert_eq!(special_character.parse("&").unwrap().0.character, Ampersand);
+            assert_eq!(special_character.parse("~").unwrap().0.character, Tilde);
+            assert_eq!(special_character.parse("<").unwrap().0.character, LessThan);
+            assert_eq!(special_character.parse(">").unwrap().0.character, GreaterThan);
+            assert_eq!(special_character.parse("?").unwrap().0.character, QuestionMark);
+            assert_eq!(special_character.parse("'").unwrap().0.character, Apostrophe);
+            assert_eq!(special_character.parse("`").unwrap().0.character, GraveAccent);
+            assert_eq!(special_character.parse("^").unwrap().0.character, CircumflexAccent);
+            assert_eq!(special_character.parse("|").unwrap().0.character, VerticalLine);
+            assert_eq!(special_character.parse("¤").unwrap().0.character, CurrencySymbol);
+            assert_eq!(special_character.parse("#").unwrap().0.character, NumberSign);
+            assert_eq!(special_character.parse("@").unwrap().0.character, CommercialAt);
+            assert_eq!(special_character.parses("a"), false);
+            assert_eq!(special_character.parses("A"), false);
+            assert_eq!(special_character.parses("3"), false);
+            assert_eq!(special_character.parses("_"), false);
+        }
     }
 
-    #[test]
-    pub fn test_name() {
-        assert_eq!(name(false).parse("some_name").unwrap().0.0.value, "some_name");
-        assert_eq!(name(false).parse("some_name ").unwrap().0.0.value, "some_name");
-        assert_eq!(name(false).parses(" some_name"), false);
+    rule_test! {
+        name(F18V007r1 603) {
+            assert_eq!(name(false).parse("some_name").unwrap().0.0.value, "some_name");
+            assert_eq!(name(false).parse("some_name ").unwrap().0.0.value, "some_name");
+            assert_eq!(name(false).parses(" some_name"), false);
 
-        assert_eq!(name(false).parse("A1 ").unwrap().0.0.value, "A1");
-        assert_eq!(name(false).parse("NAME_LENGTH ").unwrap().0.0.value, "NAME_LENGTH");
-        assert_eq!(name(false).parse("S_P_R_E_A_D__O_U_T ").unwrap().0.0.value, "S_P_R_E_A_D__O_U_T");
-        assert_eq!(name(false).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER_");
-        assert_eq!(name(true).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER");
-        assert_eq!(name(true).parse("TRAILER_ ").unwrap().1, "_ ");
+            assert_eq!(name(false).parse("A1 ").unwrap().0.0.value, "A1");
+            assert_eq!(name(false).parse("NAME_LENGTH ").unwrap().0.0.value, "NAME_LENGTH");
+            assert_eq!(name(false).parse("S_P_R_E_A_D__O_U_T ").unwrap().0.0.value, "S_P_R_E_A_D__O_U_T");
+            assert_eq!(name(false).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER_");
+            assert_eq!(name(true).parse("TRAILER_ ").unwrap().0.0.value, "TRAILER");
+            assert_eq!(name(true).parse("TRAILER_ ").unwrap().1, "_ ");
 
-        assert_eq!(name(false).parse("a").unwrap().0.0.value, "a");
-        assert_eq!(name(false).parse("a ").unwrap().0.0.value, "a");
-        assert_eq!(name(false).parse("A%").unwrap().0.0.value, "A");
-        assert_eq!(name(false).parse("A ").unwrap().0.0.value, "A");
-        assert_eq!(name(false).parses("3+"), false);
-        assert_eq!(name(false).parses("_"), false);
-        assert_eq!(name(false).parse("a3|").unwrap().0.0.value, "a3");
-        assert_eq!(name(false).parse("a3 ").unwrap().0.0.value, "a3");
-        assert_eq!(name(false).parse("a_").unwrap().0.0.value, "a_");
-        assert_eq!(name(false).parse("a_! ").unwrap().0.0.value, "a_");
-        assert_eq!(name(false).parse("a3_").unwrap().0.0.value, "a3_");
-        assert_eq!(name(false).parse("a3_ ").unwrap().0.0.value, "a3_");
+            assert_eq!(name(false).parse("a").unwrap().0.0.value, "a");
+            assert_eq!(name(false).parse("a ").unwrap().0.0.value, "a");
+            assert_eq!(name(false).parse("A%").unwrap().0.0.value, "A");
+            assert_eq!(name(false).parse("A ").unwrap().0.0.value, "A");
+            assert_eq!(name(false).parses("3+"), false);
+            assert_eq!(name(false).parses("_"), false);
+            assert_eq!(name(false).parse("a3|").unwrap().0.0.value, "a3");
+            assert_eq!(name(false).parse("a3 ").unwrap().0.0.value, "a3");
+            assert_eq!(name(false).parse("a_").unwrap().0.0.value, "a_");
+            assert_eq!(name(false).parse("a_! ").unwrap().0.0.value, "a_");
+            assert_eq!(name(false).parse("a3_").unwrap().0.0.value, "a3_");
+            assert_eq!(name(false).parse("a3_ ").unwrap().0.0.value, "a3_");
+
+            // Examples from the standard
+            examples(name(false), [
+                "A1",
+                "NAME_LENGTH",
+                "S_P_R_E_A_D__O_U_T",
+                "TRAILER_"
+            ]);
+        }
     }
 
-    #[test]
-    fn test_power_op() {
-        assert_eq!(power_op.parses(""), false);
-        assert_eq!(power_op.parses("*"), false);
-        assert_eq!(power_op.parses("**"), true);
+    rule_test! {
+        power_op(F18V007r1 1007) {
+            assert_eq!(power_op.parses(""), false);
+            assert_eq!(power_op.parses("*"), false);
+            assert_eq!(power_op.parses("**"), true);
+        }
     }
 
-    #[test]
-    fn test_mult_op() {
-        assert_eq!(mult_op.parses(""), false);
-        assert_eq!(mult_op.parses("*"), true);
-        assert_eq!(mult_op.parses("/"), true);
-        assert_eq!(mult_op.parses("**"), true); // TODO maybe false??
-        assert_eq!(mult_op.parses("//"), true); // TODO maybe false??
+    rule_test! {
+        mult_op(F18V007r1 1008) {
+            assert_eq!(mult_op.parses(""), false);
+            assert_eq!(mult_op.parses("*"), true);
+            assert_eq!(mult_op.parses("/"), true);
+            assert_eq!(mult_op.parses("**"), true); // TODO maybe false??
+            assert_eq!(mult_op.parses("//"), true); // TODO maybe false??
+        }
     }
 
-    #[test]
-    fn test_add_op() {
-        assert_eq!(add_op.parses(""), false);
-        assert_eq!(add_op.parses("+"), true);
-        assert_eq!(add_op.parses("-"), true);
-        assert_eq!(add_op.parses("**"), false);
+    rule_test! {
+        add_op(F18V007r1 1009) {
+            assert_eq!(add_op.parses(""), false);
+            assert_eq!(add_op.parses("+"), true);
+            assert_eq!(add_op.parses("-"), true);
+            assert_eq!(add_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_concat_op() {
-        assert_eq!(concat_op.parses(""), false);
-        assert_eq!(concat_op.parses("//"), true);
-        assert_eq!(concat_op.parses("**"), false);
+    rule_test! {
+        concat_op(F18V007r1 1011) {
+            assert_eq!(concat_op.parses(""), false);
+            assert_eq!(concat_op.parses("//"), true);
+            assert_eq!(concat_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_rel_op() {
-        assert_eq!(rel_op.parses(""), false);
-        assert_eq!(rel_op.parse(".eq. ").unwrap().0.0.value(), ".eq.");
-        assert_eq!(rel_op.parse(".ne. ").unwrap().0.0.value(), ".ne.");
-        assert_eq!(rel_op.parse(".lt. ").unwrap().0.0.value(), ".lt.");
-        assert_eq!(rel_op.parse(".le. ").unwrap().0.0.value(), ".le.");
-        assert_eq!(rel_op.parse(".gt. ").unwrap().0.0.value(), ".gt.");
-        assert_eq!(rel_op.parse(".ge. ").unwrap().0.0.value(), ".ge.");
-        assert_eq!(rel_op.parse("== ").unwrap().0.0.value(), "==");
-        assert_eq!(rel_op.parse("/= ").unwrap().0.0.value(), "/=");
-        assert_eq!(rel_op.parse("<= ").unwrap().0.0.value(), "<=");
-        assert_eq!(rel_op.parse(">= ").unwrap().0.0.value(), ">=");
-        assert_eq!(rel_op.parse("< ").unwrap().0.0.value(), "<");
-        assert_eq!(rel_op.parse("> ").unwrap().0.0.value(), ">");
-        assert_eq!(rel_op.parses("**"), false);
+    rule_test! {
+        rel_op(F18V007r1 1013) {
+            assert_eq!(rel_op.parses(""), false);
+            assert_eq!(rel_op.parse(".eq. ").unwrap().0.0.value(), ".eq.");
+            assert_eq!(rel_op.parse(".ne. ").unwrap().0.0.value(), ".ne.");
+            assert_eq!(rel_op.parse(".lt. ").unwrap().0.0.value(), ".lt.");
+            assert_eq!(rel_op.parse(".le. ").unwrap().0.0.value(), ".le.");
+            assert_eq!(rel_op.parse(".gt. ").unwrap().0.0.value(), ".gt.");
+            assert_eq!(rel_op.parse(".ge. ").unwrap().0.0.value(), ".ge.");
+            assert_eq!(rel_op.parse("== ").unwrap().0.0.value(), "==");
+            assert_eq!(rel_op.parse("/= ").unwrap().0.0.value(), "/=");
+            assert_eq!(rel_op.parse("<= ").unwrap().0.0.value(), "<=");
+            assert_eq!(rel_op.parse(">= ").unwrap().0.0.value(), ">=");
+            assert_eq!(rel_op.parse("< ").unwrap().0.0.value(), "<");
+            assert_eq!(rel_op.parse("> ").unwrap().0.0.value(), ">");
+            assert_eq!(rel_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_not_op() {
-        assert_eq!(not_op.parses(""), false);
-        assert_eq!(not_op.parse(".not. ").unwrap().0.0.value(), ".not.");
-        assert_eq!(not_op.parses("**"), false);
-    } 
-
-    #[test]
-    fn test_and_op() {
-        assert_eq!(and_op.parses(""), false);
-        assert_eq!(and_op.parse(".and. ").unwrap().0.0.value(), ".and.");
-        assert_eq!(and_op.parses("**"), false);
+    rule_test! {
+        not_op(F18V007r1 1018) {
+            assert_eq!(not_op.parses(""), false);
+            assert_eq!(not_op.parse(".not. ").unwrap().0.0.value(), ".not.");
+            assert_eq!(not_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_or_op() {
-        assert_eq!(or_op.parses(""), false);
-        assert_eq!(or_op.parse(".or. ").unwrap().0.0.value(), ".or.");
-        assert_eq!(or_op.parses("**"), false);
+    rule_test! {
+        and_op(F18V007r1 1019) {
+            assert_eq!(and_op.parses(""), false);
+            assert_eq!(and_op.parse(".and. ").unwrap().0.0.value(), ".and.");
+            assert_eq!(and_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_equiv_op() {
-        assert_eq!(equiv_op.parses(""), false);
-        assert_eq!(equiv_op.parse(".eqv. ").unwrap().0.0.value(), ".eqv.");
-        assert_eq!(equiv_op.parse(".neqv. ").unwrap().0.0.value(), ".neqv.");
-        assert_eq!(equiv_op.parses("**"), false);
+    rule_test! {
+        or_op(F18V007r1 1020) {
+            assert_eq!(or_op.parses(""), false);
+            assert_eq!(or_op.parse(".or. ").unwrap().0.0.value(), ".or.");
+            assert_eq!(or_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_intrinsic_operator() {
-        assert_eq!(intrinsic_operator.parses(""), false);
-        assert_eq!(intrinsic_operator.parse(".eqv. ").unwrap().0.is_equiv_op(), true);
-        assert_eq!(intrinsic_operator.parse(".neqv. ").unwrap().0.is_equiv_op(), true);
-        assert_eq!(intrinsic_operator.parse(".eq. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".ne. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".lt. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".le. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".gt. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".ge. ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse("== ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse("/= ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse("<= ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(">= ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse("< ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse("> ").unwrap().0.is_rel_op(), true);
-        assert_eq!(intrinsic_operator.parse(".not. ").unwrap().0.is_not_op(), true);
-        assert_eq!(intrinsic_operator.parse(".and. ").unwrap().0.is_and_op(), true);
-        assert_eq!(intrinsic_operator.parse(".or. ").unwrap().0.is_or_op(), true);
-        assert_eq!(intrinsic_operator.parse("**").unwrap().0.is_power_op(), true);
-        assert_eq!(intrinsic_operator.parse("*").unwrap().0.is_mult_op(), true);
-        assert_eq!(intrinsic_operator.parse("/").unwrap().0.is_mult_op(), true);
-        assert_eq!(intrinsic_operator.parse("+").unwrap().0.is_add_op(), true);
-        assert_eq!(intrinsic_operator.parse("-").unwrap().0.is_add_op(), true);
-        assert_eq!(intrinsic_operator.parse("//").unwrap().0.is_concat_op(), true);
+    rule_test! {
+        equiv_op(F18V007r1 1021) {
+            assert_eq!(equiv_op.parses(""), false);
+            assert_eq!(equiv_op.parse(".eqv. ").unwrap().0.0.value(), ".eqv.");
+            assert_eq!(equiv_op.parse(".neqv. ").unwrap().0.0.value(), ".neqv.");
+            assert_eq!(equiv_op.parses("**"), false);
+        }
     }
 
-    #[test]
-    fn test_defined_unary_op() {
-        assert_eq!(defined_unary_op.parses(""), false);
-        assert_eq!(defined_unary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
-        assert_eq!(defined_unary_op.parses(".foo"), false);
-        assert_eq!(defined_unary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
+    rule_test! {
+        intrinsic_operator(F18V007r1 608, F18V007r1 610) {
+            assert_eq!(intrinsic_operator.parses(""), false);
+            assert_eq!(intrinsic_operator.parse(".eqv. ").unwrap().0.is_equiv_op(), true);
+            assert_eq!(intrinsic_operator.parse(".neqv. ").unwrap().0.is_equiv_op(), true);
+            assert_eq!(intrinsic_operator.parse(".eq. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".ne. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".lt. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".le. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".gt. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".ge. ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse("== ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse("/= ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse("<= ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(">= ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse("< ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse("> ").unwrap().0.is_rel_op(), true);
+            assert_eq!(intrinsic_operator.parse(".not. ").unwrap().0.is_not_op(), true);
+            assert_eq!(intrinsic_operator.parse(".and. ").unwrap().0.is_and_op(), true);
+            assert_eq!(intrinsic_operator.parse(".or. ").unwrap().0.is_or_op(), true);
+            assert_eq!(intrinsic_operator.parse("**").unwrap().0.is_power_op(), true);
+            assert_eq!(intrinsic_operator.parse("*").unwrap().0.is_mult_op(), true);
+            assert_eq!(intrinsic_operator.parse("/").unwrap().0.is_mult_op(), true);
+            assert_eq!(intrinsic_operator.parse("+").unwrap().0.is_add_op(), true);
+            assert_eq!(intrinsic_operator.parse("-").unwrap().0.is_add_op(), true);
+            assert_eq!(intrinsic_operator.parse("//").unwrap().0.is_concat_op(), true);
+        }
     }
 
-    #[test]
-    fn test_defined_binary_op() {
-        assert_eq!(defined_binary_op.parses(""), false);
-        assert_eq!(defined_binary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
-        assert_eq!(defined_binary_op.parses(".foo"), false);
-        assert_eq!(defined_binary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
+    rule_test! {
+        defined_unary_op(F18V007r1 1003) {
+            assert_eq!(defined_unary_op.parses(""), false);
+            assert_eq!(defined_unary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
+            assert_eq!(defined_unary_op.parses(".foo"), false);
+            assert_eq!(defined_unary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
+        }
     }
 
-    #[test]
-    fn test_defined_operator() {
-        assert_eq!(defined_operator.parses(""), false);
-        assert_eq!(defined_operator.parse(".foo.").unwrap().0.is_defined_unary_or_binary(), true);
-        assert_eq!(defined_operator.parse(".eqv. ").unwrap().0.is_intrinsic_ex(), true);
-        assert_eq!(defined_operator.parse("+ ").unwrap().0.is_intrinsic_ex(), true);
+    rule_test! {
+        defined_binary_op(F18V007r1 1023) {
+            assert_eq!(defined_binary_op.parses(""), false);
+            assert_eq!(defined_binary_op.parse(".foo.").unwrap().0.m.value(), ".foo.");
+            assert_eq!(defined_binary_op.parses(".foo"), false);
+            assert_eq!(defined_binary_op.parse(".foo.bar.").unwrap().0.m.value(), ".foo.");
+        }
     }
 
-    #[test]
-    pub fn test_non_complex_literal_constant() {
-        assert_eq!(non_complex_literal_constant.parses("a"), false);
-        assert!(non_complex_literal_constant.parse("42").unwrap().0.is_int());
-        assert!(non_complex_literal_constant.parse("42.0").unwrap().0.is_real());
-        assert!(non_complex_literal_constant.parse("42e1").unwrap().0.is_real());
-        assert!(non_complex_literal_constant.parse(".TRUE.").unwrap().0.is_logical());
-        assert!(non_complex_literal_constant.parse("'a'").unwrap().0.is_char());
-        assert!(non_complex_literal_constant.parse("B'1010'").unwrap().0.is_boz());
-        assert!(non_complex_literal_constant.parse("O'123'").unwrap().0.is_boz());
-        assert!(non_complex_literal_constant.parse("Z'ABC'").unwrap().0.is_boz());
+    rule_test! {
+        defined_operator(F18V007r1 609) {
+            assert_eq!(defined_operator.parses(""), false);
+            assert_eq!(defined_operator.parse(".foo.").unwrap().0.is_defined_unary_or_binary(), true);
+            assert_eq!(defined_operator.parse(".eqv. ").unwrap().0.is_intrinsic_ex(), true);
+            assert_eq!(defined_operator.parse("+ ").unwrap().0.is_intrinsic_ex(), true);
+        }
     }
 
-    #[test]
-    pub fn test_lexical_token() {
-        assert!(lexical_token.parse(".").unwrap().0.is_dot());
-        assert!(lexical_token.parse("ciao").unwrap().0.is_name());
-        assert!(lexical_token.parse("42").unwrap().0.is_literal_constant());
-        assert!(lexical_token.parse("'42'").unwrap().0.as_literal_constant().unwrap().is_char());
-        assert!(lexical_token.parse(".true.").unwrap().0.as_literal_constant().unwrap().is_logical());
-        assert_eq!(
-            lexical_token
-                .parse(">=").unwrap()
-                .0.as_operator().unwrap()
-                .as_intrinsic_ex().unwrap()
-                .as_rel_op().unwrap()
-                .0.value,
-            ">=",
-        );
-        assert_eq!(
-            lexical_token
-                .parse("==").unwrap()
-                .0.as_operator().unwrap()
-                .as_intrinsic_ex().unwrap()
-                .as_rel_op().unwrap()
-                .0.value,
-            "==",
-        );
-        
-        assert!(lexical_token.parse(",").unwrap().0.is_comma());
-        assert!(lexical_token.parse("=").unwrap().0.is_equals());
-        assert!(lexical_token.parse("=>").unwrap().0.is_arrow());
-        assert!(lexical_token.parse(":").unwrap().0.is_colon());
-        assert!(lexical_token.parse("::").unwrap().0.is_double_colon());
-        assert!(lexical_token.parse(";").unwrap().0.is_semicolon());
-        assert!(lexical_token.parse("..").unwrap().0.is_dot_dot());
-        assert!(lexical_token.parse("%").unwrap().0.is_percent());
+    rule_test! {
+        non_complex_literal_constant() {
+            assert_eq!(non_complex_literal_constant.parses("a"), false);
+            assert!(non_complex_literal_constant.parse("42").unwrap().0.is_int());
+            assert!(non_complex_literal_constant.parse("42.0").unwrap().0.is_real());
+            assert!(non_complex_literal_constant.parse("42e1").unwrap().0.is_real());
+            assert!(non_complex_literal_constant.parse(".TRUE.").unwrap().0.is_logical());
+            assert!(non_complex_literal_constant.parse("'a'").unwrap().0.is_char());
+            assert!(non_complex_literal_constant.parse("B'1010'").unwrap().0.is_boz());
+            assert!(non_complex_literal_constant.parse("O'123'").unwrap().0.is_boz());
+            assert!(non_complex_literal_constant.parse("Z'ABC'").unwrap().0.is_boz());
+        }
+    }
+
+    rule_test! {
+        lexical_token() {
+            assert!(lexical_token.parse(".").unwrap().0.is_dot());
+            assert!(lexical_token.parse("ciao").unwrap().0.is_name());
+            assert!(lexical_token.parse("42").unwrap().0.is_literal_constant());
+            assert!(lexical_token.parse("'42'").unwrap().0.as_literal_constant().unwrap().is_char());
+            assert!(lexical_token.parse(".true.").unwrap().0.as_literal_constant().unwrap().is_logical());
+            assert_eq!(
+                lexical_token
+                    .parse(">=").unwrap()
+                    .0.as_operator().unwrap()
+                    .as_intrinsic_ex().unwrap()
+                    .as_rel_op().unwrap()
+                    .0.value,
+                ">=",
+            );
+            assert_eq!(
+                lexical_token
+                    .parse("==").unwrap()
+                    .0.as_operator().unwrap()
+                    .as_intrinsic_ex().unwrap()
+                    .as_rel_op().unwrap()
+                    .0.value,
+                "==",
+            );
+            
+            assert!(lexical_token.parse(",").unwrap().0.is_comma());
+            assert!(lexical_token.parse("=").unwrap().0.is_equals());
+            assert!(lexical_token.parse("=>").unwrap().0.is_arrow());
+            assert!(lexical_token.parse(":").unwrap().0.is_colon());
+            assert!(lexical_token.parse(";").unwrap().0.is_semicolon());
+            assert!(lexical_token.parse("..").unwrap().0.is_dot_dot());
+            assert!(lexical_token.parse("%").unwrap().0.is_percent());
+
+            examples(lexical_token, [
+                "hello",
+                "74e1_foo",
+                "'HELLO'",
+                // WARNING: standard also says "complex literal constant",
+                // but this is a pretty bad mix of concepts from different levels
+                // (here we are lexing/tokenizing)
+                "+",
+                "42",
+                "(",
+                ",",
+                "=",
+                "=>",
+                ":",
+                //"::",
+                ";",
+                "..",
+                "%"
+            ]);
+        }
+    }
+
+    rule_test! {
+        digit_string(F18V007r1 711, F18V007r1 611) {
+            assert_eq!(digit_string.parses(""), false);
+            assert_eq!(digit_string.parse("1").unwrap().0.value, "1");
+            assert_eq!(digit_string.parses("a"), false);
+            assert_eq!(digit_string.parse("42").unwrap().0.value, "42");
+            assert_eq!(digit_string.parse("42 ").unwrap().0.value, "42");
+            assert_eq!(digit_string.parse("42.0").unwrap().0.value, "42");
+            assert_eq!(digit_string.parse("42e1").unwrap().0.value, "42");
+            assert_eq!(digit_string.parses(" 42.0 "), false);
+            assert_eq!(digit_string.parses("-42"), false);
+            assert_eq!(digit_string.parses("+42.0"), false);
+            assert_eq!(digit_string.parses("a42.0"), false);
+
+            // examples from "label" (F18V007r1§6.2.5)
+            examples(digit_string, [
+                "99999",
+                "10",
+                "010",
+            ]);
+        }
+    }
+
+    rule_test! {
+        signed_digit_string(F18V007r1 710) {
+            assert_eq!(signed_digit_string.parses(""), false);
+            assert_eq!(signed_digit_string.parse("1").unwrap().0.digits.value, "1");
+            assert_eq!(signed_digit_string.parse("1").unwrap().0.sign.is_some(), false);
+            assert_eq!(signed_digit_string.parses("a"), false);
+            assert_eq!(signed_digit_string.parse("+1").unwrap().0.digits.value, "1");
+            assert_eq!(signed_digit_string.parse("+1").unwrap().0.sign.unwrap().is_plus(), true);
+            assert_eq!(signed_digit_string.parse("-1").unwrap().0.digits.value, "1");
+            assert_eq!(signed_digit_string.parse("-1").unwrap().0.sign.unwrap().is_minus(), true);
+            assert_eq!(signed_digit_string.parse("42").unwrap().0.digits.value, "42");
+            assert_eq!(signed_digit_string.parse("42").unwrap().0.sign.is_some(), false);
+            assert_eq!(signed_digit_string.parse("+42").unwrap().0.digits.value, "42");
+            assert_eq!(signed_digit_string.parse("+42").unwrap().0.sign.unwrap().is_plus(), true);
+            assert_eq!(signed_digit_string.parse("-42").unwrap().0.digits.value, "42");
+            assert_eq!(signed_digit_string.parse("-42").unwrap().0.sign.unwrap().is_minus(), true);
+            assert_eq!(signed_digit_string.parse("42.0").unwrap().0.digits.value, "42");
+            assert_eq!(signed_digit_string.parse("42.0").unwrap().0.sign.is_some(), false);
+            assert_eq!(signed_digit_string.parse("+42e1").unwrap().0.digits.value, "42");
+            assert_eq!(signed_digit_string.parse("+42e1").unwrap().0.sign.unwrap().is_plus(), true);
+            assert_eq!(signed_digit_string.parses("a42.0"), false);
+        }
+    }
+
+    rule_test! {
+        sign(F18V007r1 712) {
+            assert_eq!(sign.parses(""), false);
+            assert_eq!(sign.parse("+").unwrap().0.is_plus(), true);
+            assert_eq!(sign.parse("-").unwrap().0.is_minus(), true);
+            assert_eq!(sign.parses("a"), false);
+            assert_eq!(sign.parses("1"), false);
+        }
+    }
+
+    rule_test! {
+        // From the standard
+        signed_int_literal_constant(F18V007r1 707) {
+            examples(signed_int_literal_constant, [
+                "473",
+                "+56",
+                "-101",
+                "21_2",
+                "21_SHORT",
+                "1976354279568241_8",
+            ]);
+        }
+    }
+
+    rule_test! {
+        int_literal_constant(F18V007r1 708) {
+            assert_eq!(int_literal_constant.parses(""), false);
+            assert_eq!(int_literal_constant.parse("42").unwrap().0.digits.value, "42");
+            assert_eq!(int_literal_constant.parse("0").unwrap().0.digits.value, "0");
+            assert_eq!(int_literal_constant.parse("1234567890").unwrap().0.digits.value, "1234567890");
+            assert_eq!(int_literal_constant.parse("42 ").unwrap().0.digits.value, "42");
+            assert_eq!(int_literal_constant.parse("42_").unwrap().0.digits.value, "42");
+            assert_eq!(int_literal_constant.parse("42_").unwrap().0.kind_param.is_none(), true);
+            assert_eq!(int_literal_constant.parse("42_123").unwrap().0.digits.value, "42");
+            assert_eq!(int_literal_constant.parse("42_123").unwrap().0.kind_param.is_some(), true);
+            assert_eq!(int_literal_constant.parse("42_123").unwrap().0.kind_param.unwrap().as_digit_string().unwrap().value, "123");
+            assert_eq!(int_literal_constant.parse("42_abc").unwrap().0.kind_param.unwrap().as_scalar_int_constant_name().unwrap().0.value, "abc");
+            assert_eq!(int_literal_constant.parse("42_q").unwrap().0.kind_param.unwrap().as_scalar_int_constant_name().unwrap().0.value, "q");
+            assert_eq!(int_literal_constant.parses(" 42"), false);
+            assert_eq!(int_literal_constant.parses("a42"), false);
+            assert_eq!(int_literal_constant.parses("-42"), false);
+            assert_eq!(int_literal_constant.parses("+42"), false);
+        }
+    }
+
+    rule_test! {
+        kind_param(F18V007r1 709) {
+            assert_eq!(kind_param(false).parses(""), false);
+            assert_eq!(kind_param(false).parse("42").unwrap().0.is_digit_string(), true);
+            assert_eq!(kind_param(false).parse("42").unwrap().0.as_digit_string().unwrap().value, "42");
+            assert_eq!(kind_param(false).parses("_42"), false);
+            assert_eq!(kind_param(false).parses("a_b"), true);
+            assert_eq!(kind_param(false).parses("_a_b"), false);
+            assert_eq!(kind_param(false).parse("a_b_").unwrap().0.as_scalar_int_constant_name().unwrap().0.value, "a_b_");
+            assert_eq!(kind_param(true).parse("a_b_").unwrap().0.as_scalar_int_constant_name().unwrap().0.value, "a_b");
+            assert_eq!(kind_param(false).parses(" a_b"), false);
+        }
+    }
+
+    rule_test! {
+        real_literal_constant(F18V007r1 714) {
+            assert_eq!(real_literal_constant.parses(""), false);
+            assert_eq!(real_literal_constant.parses("42"), false);
+            assert_eq!(real_literal_constant.parses("+42"), false);
+            assert_eq!(real_literal_constant.parses("-42"), false);
+            assert_eq!(real_literal_constant.parses("-1.1"), false);
+            assert_eq!(real_literal_constant.parses("-1e1"), false);
+            assert_eq!(real_literal_constant.parses("1.1"), true);
+            assert_eq!(real_literal_constant.parses("1e1"), true);
+            assert_eq!(real_literal_constant.parses("1_foo"), false);
+            assert_eq!(real_literal_constant.parses("12345_11"), false);
+            assert_eq!(real_literal_constant.parses("1234567890e"), false);
+            let m = real_literal_constant.parse("1234567890e42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), false);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890E42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), false);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890d42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_d(), true);
+            assert_eq!(m.2.sign.is_some(), false);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890D42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_d(), true);
+            assert_eq!(m.2.sign.is_some(), false);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890e+42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), true);
+            assert_eq!(m.2.sign.unwrap().is_plus(), true);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890e-42").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), true);
+            assert_eq!(m.2.sign.unwrap().is_minus(), true);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890e-42_").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), true);
+            assert_eq!(m.2.sign.unwrap().is_minus(), true);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.is_some(), false);
+            let m = real_literal_constant.parse("1234567890e-42_foo").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), true);
+            assert_eq!(m.2.sign.unwrap().is_minus(), true);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.as_ref().unwrap().as_scalar_int_constant_name().unwrap().0.value, "foo");
+            let m = real_literal_constant.parse("1234567890e-42_11").unwrap();
+            let m = m.0.as_starts_with_digits().unwrap();
+            assert_eq!(m.0.value, "1234567890");
+            assert_eq!(m.1.is_e(), true);
+            assert_eq!(m.2.sign.is_some(), true);
+            assert_eq!(m.2.sign.unwrap().is_minus(), true);
+            assert_eq!(m.2.digits.value, "42");
+            assert_eq!(m.3.as_ref().unwrap().as_digit_string().unwrap().value, "11");
+            let m = real_literal_constant.parse("12345.67890").unwrap();
+            let m = m.0.as_starts_with_significand().unwrap();
+            assert_eq!(m.0.as_dot_after().unwrap().0.value, "12345");
+            assert_eq!(m.0.as_dot_after().unwrap().1.as_ref().unwrap().value, "67890");
+            let m = real_literal_constant.parse("12345.67890e+42").unwrap();
+            let m = m.0.as_starts_with_significand().unwrap();
+            assert_eq!(m.0.as_dot_after().unwrap().0.value, "12345");
+            assert_eq!(m.0.as_dot_after().as_ref().unwrap().1.as_ref().unwrap().value, "67890");
+            assert_eq!(m.1.as_ref().unwrap().0.is_e(), true);
+            assert_eq!(m.1.as_ref().unwrap().1.digits.value, "42");
+            let m = real_literal_constant.parse("12345.e+42").unwrap();
+            let m = m.0.as_starts_with_significand().unwrap();
+            assert_eq!(m.0.as_dot_after().unwrap().0.value, "12345");
+            assert_eq!(m.1.as_ref().unwrap().0.is_e(), true);
+            assert_eq!(m.1.as_ref().unwrap().1.digits.value, "42");
+            let m = real_literal_constant.parse("12345.e+42_foo").unwrap();
+            let m = m.0.as_starts_with_significand().unwrap();
+            assert_eq!(m.0.as_dot_after().unwrap().0.value, "12345");
+            assert_eq!(m.1.as_ref().unwrap().0.is_e(), true);
+            assert_eq!(m.1.as_ref().unwrap().1.digits.value, "42");
+            assert_eq!(m.2.as_ref().unwrap().as_scalar_int_constant_name().unwrap().0.value, "foo");
+        }
+    }
+
+    rule_test! {
+        signed_real_literal_constant(F18V007r1 713) {
+            assert_eq!(signed_real_literal_constant.parses(""), false);
+            assert_eq!(signed_real_literal_constant.parses("42"), false);
+            assert_eq!(signed_real_literal_constant.parses("+42"), false);
+            assert_eq!(signed_real_literal_constant.parses("-42"), false);
+            assert_eq!(signed_real_literal_constant.parses("-1.1"), true);
+            assert_eq!(signed_real_literal_constant.parses("1e1"), true);
+            assert_eq!(signed_real_literal_constant.parses("1_foo"), false);
+            assert_eq!(signed_real_literal_constant.parses("12345_11"), false);
+            assert_eq!(signed_real_literal_constant.parses("1234567890e"), false);
+            let m = signed_real_literal_constant.parse("-12345.67890e42_11").unwrap();
+            assert_eq!(m.0.sign.is_some(), true);
+            assert_eq!(m.0.sign.unwrap().is_minus(), true);
+            let m = m.0;
+            let m = m.real_literal_constant.as_starts_with_significand().unwrap();
+            assert_eq!(m.0.as_dot_after().unwrap().0.value, "12345");
+            assert_eq!(m.0.as_dot_after().as_ref().unwrap().1.as_ref().unwrap().value, "67890");
+            assert_eq!(m.1.as_ref().unwrap().0.is_e(), true);
+            assert_eq!(m.1.as_ref().unwrap().1.digits.value, "42");
+            assert_eq!(m.2.as_ref().unwrap().as_digit_string().unwrap().value, "11");
+
+            // Examples from the standard
+            examples(signed_real_literal_constant, [
+                "-12.78",
+                "+1.6E3",
+                "2.1",
+                "-16.E4_8",
+                "0.45D-4",
+                "10.93E7_QUAD",
+                ".123",
+                "3E4",
+            ]);
+        }
+    }
+
+    rule_test! {
+        significand(F18V007r1 715) {
+            assert_eq!(significand.parses(""), false);
+            assert_eq!(significand.parses("42"), false);
+            assert_eq!(significand.parses("42.0"), true);
+            assert_eq!(significand.parses("1."), true);
+            assert_eq!(significand.parses("1.2"), true);
+            assert_eq!(significand.parses(".2"), true);
+            assert_eq!(significand.parses("."), false);
+            let m = significand.parse("42.0").unwrap().0;
+            let m = m.as_dot_after().unwrap();
+            assert_eq!(m.0.value, "42");
+            assert_eq!(m.1.as_ref().unwrap().value, "0");
+            assert_eq!(significand.parses("42.0e1"), true);
+            let m = significand.parse("42.0e1").unwrap().0;
+            let m = m.as_dot_after().unwrap();
+            assert_eq!(m.0.value, "42");
+            assert_eq!(m.1.as_ref().unwrap().value, "0");
+            let m = significand.parse("42.").unwrap().0;
+            let m = m.as_dot_after().unwrap();
+            assert_eq!(m.0.value, "42");
+            assert_eq!(m.1.is_none(), true);
+            let m = significand.parse(".42").unwrap().0;
+            let m = m.as_dot_before().unwrap();
+            assert_eq!(m.value, "42");
+        }
+    }
+
+    rule_test! {
+        exponent_letter(F18V007r1 716) {
+            assert_eq!(exponent_letter.parses(""), false);
+            assert_eq!(exponent_letter.parse("e").unwrap().0.is_e(), true);
+            assert_eq!(exponent_letter.parse("E").unwrap().0.is_e(), true);
+            assert_eq!(exponent_letter.parse("d").unwrap().0.is_d(), true);
+            assert_eq!(exponent_letter.parse("D").unwrap().0.is_d(), true);
+            assert_eq!(exponent_letter.parses("a"), false);
+            assert_eq!(exponent_letter.parses("1"), false);
+        }
+    }
+
+    rule_test! {
+        exponent(F18V007r1 717) {
+            assert_eq!(exponent.parses(""), false);
+            assert_eq!(exponent.parses("42"), true);
+            assert_eq!(exponent.parses("+42"), true);
+            assert_eq!(exponent.parses("-42"), true);
+            assert_eq!(exponent.parses("-"), false);
+        }
+    }
+
+    rule_test! {
+        char_literal_constant(F18V007r1 724) {
+            assert_eq!(char_literal_constant.parses(""), false);
+            assert_eq!(char_literal_constant.parses("\"abc\""), true);
+            assert_eq!(char_literal_constant.parses("'abc'"), true);
+            let m = char_literal_constant.parse("123_'abc''").unwrap();
+            let m = m.0;
+            assert!(m.kind_param.as_ref().unwrap().is_digit_string());
+            assert_eq!(m.kind_param.as_ref().unwrap().as_digit_string().unwrap().value, "123");
+            assert_eq!(m.delimiter, '\'');
+            assert!(m.close_quote.is_none());
+            assert_eq!(m.content.last().unwrap().as_escape_sequence().unwrap().0.value, "''");
+            let m = char_literal_constant.parse("123_\"abc\"\"").unwrap();
+            let m = m.0;
+            assert!(m.kind_param.as_ref().unwrap().is_digit_string());
+            assert_eq!(m.kind_param.as_ref().unwrap().as_digit_string().unwrap().value, "123");
+            assert_eq!(m.delimiter, '"');
+            assert!(m.close_quote.is_none());
+            assert_eq!(m.content.last().unwrap().as_escape_sequence().unwrap().0.value, "\"\"");
+
+            // Examples from the standard
+            examples(char_literal_constant, [
+                "\"DON'T\"",
+                "'DON''T'",
+                "''",
+            ]);
+            // TODO add example "Note 2" in F18V007r1 §7.4.4.3
+        }
+    }
+
+    rule_test! {
+        logical_literal_constant(F18V007r1 725) {
+            assert_eq!(logical_literal_constant.parses(""), false);
+            assert_eq!(logical_literal_constant.parses(".true."), true);
+            assert_eq!(logical_literal_constant.parses(".false."), true);
+            assert_eq!(logical_literal_constant.parses(".TRUE._foo"), true);
+            assert_eq!(logical_literal_constant.parses(".FALSE."), true);
+            assert_eq!(logical_literal_constant.parses(".true"), false);
+            assert_eq!(logical_literal_constant.parses(".false"), false);
+            assert_eq!(logical_literal_constant.parses(".TRUE"), false);
+            assert_eq!(logical_literal_constant.parses(".FALSE"), false);
+
+            let m = logical_literal_constant.parse(".true._foo").unwrap();
+            let m = m.0;
+            assert_eq!(m.value, true);
+            assert!(m.kind.is_some());
+            assert_eq!(m.kind.unwrap().as_scalar_int_constant_name().unwrap().0.value, "foo");
+
+            let m = logical_literal_constant.parse(".FALSE._42").unwrap();
+            let m = m.0;
+            assert_eq!(m.value, false);
+            assert!(m.kind.is_some());
+            assert_eq!(m.kind.unwrap().as_digit_string().unwrap().value, "42");
+        }
+    }
+
+    rule_test! {
+        boz_literal_constant(F18V007r1 764) {
+            assert!(boz_literal_constant.parse("b'1010'").unwrap().0.is_binary());
+            assert!(boz_literal_constant.parse("o'123'").unwrap().0.is_octal());
+            assert!(boz_literal_constant.parse("z'ABC'").unwrap().0.is_hex());
+        }
+    }
+
+    rule_test! {
+        binary_constant(F18V007r1 765) {
+            assert_eq!(binary_constant.parses(""), false);
+            assert_eq!(binary_constant.parses("B"), false);
+            assert_eq!(binary_constant.parses("B101"), false);
+            assert_eq!(binary_constant.parses("b'101"), true);
+            assert_eq!(binary_constant.parses("B\"101\""), true);
+            assert_eq!(binary_constant.parses("B\"141"), true);
+        }
+    }
+
+    rule_test! {
+        octal_constant(F18V007r1 766) {
+            assert_eq!(octal_constant.parses(""), false);
+            assert_eq!(octal_constant.parses("O"), false);
+            assert_eq!(octal_constant.parses("O123"), false);
+            assert_eq!(octal_constant.parses("o'123"), true);
+            assert_eq!(octal_constant.parses("O\"123\""), true);
+            assert_eq!(octal_constant.parses("O\"123"), true);
+        }
+    }
+
+    rule_test! {
+        hex_constant(F18V007r1 767) {
+            assert_eq!(hex_constant.parses(""), false);
+            assert_eq!(hex_constant.parses("Z"), false);
+            assert_eq!(hex_constant.parses("ZABC"), false);
+            assert_eq!(hex_constant.parses("z'ABC"), true);
+            assert_eq!(hex_constant.parses("Z\"ABC\""), true);
+            assert_eq!(hex_constant.parses("Z\"AB1C"), true);
+            let m = hex_constant.parse("Z\"AB1C").unwrap();
+            let m = m.0;
+            assert_eq!(m.value, "AB1C");
+        }
+    }
+
+    rule_test! {
+        hex_digit(F18V007r1 768) {
+            assert_eq!(hex_digit.parses(""), false);
+            assert_eq!(hex_digit.parses("A"), true);
+            assert_eq!(hex_digit.parses("B"), true);
+            assert_eq!(hex_digit.parses("C"), true);
+            assert_eq!(hex_digit.parses("D"), true);
+            assert_eq!(hex_digit.parses("e"), true);
+            assert_eq!(hex_digit.parses("F"), true);
+            assert_eq!(hex_digit.parses("G"), false);
+            assert_eq!(hex_digit.parses("1"), true);
+        }
     }
 }

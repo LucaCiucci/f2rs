@@ -156,7 +156,8 @@ pub enum LengthSelector<Span> {
 pub fn length_selector<S: Lexed>(source: S) -> PResult<LengthSelector<MultilineSpan>, S> {
     alt!(
         for S =>
-        (delim('('), type_param_value, delim(')')).map(|(_, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
+        (
+            delim('('), (kw!(len), equals()).optional(), type_param_value, delim(')')).map(|(_, _, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
         (asterisk(), char_length, comma().optional()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
     ).parse(source)
 }
@@ -320,21 +321,44 @@ pub struct AcImpliedDo<Span> {
     F18V007r1 rule "ac-implied-do" #774 : "is ( ac-value-list , ac-implied-do-control )",
 )]
 pub fn ac_implied_do<S: Lexed>(source: S) -> PResult<AcImpliedDo<MultilineSpan>, S> {
-    // TODO test
+    // OLD:
+    //// TODO test
+    //(
+    //    delim('('),
+    //    separated(
+    //        ac_value,
+    //        comma(),
+    //        0..,
+    //    ),
+    //    comma(),
+    //    ac_implied_do_control,
+    //    delim(')'),
+    //).map(|(_, ac_values, _, ac_implied_do_control, _)| AcImpliedDo {
+    //    ac_values,
+    //    ac_implied_do_control,
+    //}).parse(source)
+
     (
         delim('('),
-        separated(
-            ac_value,
-            comma(),
-            0..,
-        ),
-        comma(),
-        ac_implied_do_control,
+        ac_implied_do_inner,
         delim(')'),
-    ).map(|(_, ac_values, _, ac_implied_do_control, _)| AcImpliedDo {
+    ).map(|(_, ac_implied_do, _)| ac_implied_do).parse(source)
+}
+
+fn ac_implied_do_inner<S: Lexed>(source: S) -> PResult<AcImpliedDo<MultilineSpan>, S> {
+    let (r, source) = many_until(
+        (ac_value, comma()).map(|(ac_value, _)| ac_value),
+        ac_implied_do_control,
+        0..,
+    ).parse(source)?;
+    let (ac_values, ac_implied_do_control) = r;
+    let Some(ac_implied_do_control) = ac_implied_do_control else {
+        return None
+    };
+    Some((AcImpliedDo {
         ac_values,
         ac_implied_do_control,
-    }).parse(source)
+    }, source))
 }
 
 #[derive(Debug, Clone)]
@@ -394,3 +418,210 @@ pub fn do_variable<S: Lexed>(source: S) -> PResult<DoVariable<MultilineSpan>, S>
     // TODO test
     name().map(DoVariable)
 }*/
+
+
+#[cfg(test)]
+mod tests {
+    use crate::rule_test;
+    use super::*;
+
+    rule_test! {
+        // TODO more tests
+
+        type_param_value(F18V007r1 701) {
+            examples(|s| type_param_value.parse(s), [
+                "1",
+                "42",
+                "*",
+                ":",
+            ]);
+        }
+    }
+
+    rule_test! {
+        kind_selector(F18V007r1 706) {
+            // TODO more tests
+
+            examples(|s| kind_selector.parse(s), [
+                "(1)",
+                "(kind=1)",
+                "(KIND = 1)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        integer_type_spec(F18V007r1 705) {
+            // TODO more tests
+
+            examples(|s| integer_type_spec.parse(s), [
+                "INTEGER",
+                "INTEGER(1)",
+                "INTEGER(kind=1)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        intrinsic_type_spec(F18V007r1 704) {
+            // TODO more tests
+
+            examples(|s| intrinsic_type_spec.parse(s), [
+                "INTEGER",
+                "REAL",
+                "REAL(kind=1)",
+                "DOUBLE PRECISION",
+                "COMPLEX",
+                "COMPLEX(kind=1)",
+                "CHARACTER",
+                "CHARACTER(1)",
+                "CHARACTER(kind=1)",
+                "CHARACTER(len=1)",
+                "CHARACTER(len=1, kind=1)",
+                "CHARACTER(kind=1, len=1)",
+                "LOGICAL",
+                "LOGICAL(1)",
+                "LOGICAL(kind=1)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        char_length(F18V007r1 723) {
+            // TODO more tests
+
+            examples(|s| char_length.parse(s), [
+                "(1)",
+                "(*)",
+                "(:)",
+                "1",
+            ]);
+        }
+    }
+
+    rule_test! {
+        length_selector(F18V007r1 722) {
+            // TODO more tests
+
+            examples(|s| length_selector.parse(s), [
+                "(1)",
+                "(len=1)",
+                "* 1",
+                "*1,",
+                "* (1),",
+                "*(:),",
+                "*(:),",
+            ]);
+        }
+    }
+
+    rule_test! {
+        char_selector(F18V007r1 721) {
+            // TODO more tests
+
+            examples(|s| char_selector.parse(s), [
+                "(1)",
+                "(len=1)",
+                "(len=1, kind=1)",
+                "(1, kind=1)",
+                "(kind=1)",
+                "(kind=1, len=1)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        array_constructor(F18V007r1 769) {
+            // TODO more tests
+
+            examples(|s| array_constructor.parse(s), [
+                "(/ 1 /)",
+                "(/ REAL :: /)",
+                "(/ REAL :: 1, 1, 1 /)",
+                "(/ 1, 1, 1 /)",
+                "[1]",
+                "[REAL :: 1, 1, 1 ]",
+            ]);
+
+            // from the standard
+            examples(|s| array_constructor.parse(s), [
+                "(/ (I, I = 1, 1075) /)",
+                "[ 3.6, (3.6 / I, I = 1, N) ]",
+                "[ PERSON (40,'SMITH'), PERSON (20, 'JONES') ]",
+            ]);
+        }
+    }
+
+    rule_test! {
+        ac_spec(F18V007r1 770) {
+            // TODO more tests
+
+            examples(|s| ac_spec.parse(s), [
+                "REAL ::",
+                "REAL :: 1, 1, 1",
+                "1, 1, 1",
+            ]);
+        }
+    }
+
+    rule_test! {
+        ac_value(F18V007r1 773) {
+            // TODO more tests
+
+            examples(|s| ac_value.parse(s), [
+                "1",
+                "(1, 2, 3, I = 1, 2, 3)",
+                "PERSON (40,'SMITH')",
+            ]);
+        }
+    }
+
+    rule_test! {
+        ac_implied_do(F18V007r1 774) {
+            // TODO more tests
+
+            examples(|s| ac_implied_do.parse(s), [
+                "(1, 2, 3, I = 1, 2, 3)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        ac_implied_do_control(F18V007r1 775) {
+            // TODO more tests
+
+            examples(|s| ac_implied_do_control.parse(s), [
+                "INTEGER :: i = 1, 1 + 2, (1 * 3)",
+                "i = 1, 1 + 2",
+            ]);
+        }
+    }
+
+    rule_test! {
+        ac_do_variable(F18V007r1 776) {
+            // TODO more tests
+
+            examples(|s| ac_do_variable.parse(s), [
+                "i",
+            ]);
+        }
+    }
+
+    rule_test! {
+        // TODO test delim instead, this is just a placeholder
+        lbracket(F18V007r1 771) {
+            examples(|s| delim('[').parse(s), [
+                "[",
+            ]);
+        }
+    }
+
+    rule_test! {
+        // TODO test delim instead, this is just a placeholder
+        rbracket(F18V007r1 772) {
+            examples(|s| delim(']').parse(s), [
+                "]",
+            ]);
+        }
+    }
+}

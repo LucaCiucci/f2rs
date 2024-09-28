@@ -102,14 +102,14 @@ pub struct EndEnumStmt<Span> {
     F18V007r1 rule "end-enum-stmt" #763 : "is END ENUM",
 )]
 pub fn end_enum_stmt<S: Lexed>(source: S) -> PResult<EndEnumStmt<MultilineSpan>, S> {
-    (kw!(end), kw!(enum)).map(|_| EndEnumStmt {
+    (kw!(end enum)).map(|_| EndEnumStmt {
         _phantom: PhantomData,
     }).parse(source)
 }
 
 #[cfg(test)]
 mod test {
-    //use super::*;
+    use super::*;
 
     // TODO #[test]
     //fn test_enum_def() {
@@ -124,6 +124,63 @@ mod test {
     //        assert_eq!(p.enumerator_def_stmt_list[3].as_statement().unwrap().list.len(), 1);
     //    }
     //}
+
+    use crate::rule_test;
+
+    rule_test! {
+        enum_def_stmt(F18V007r1 760) {
+            examples(|s| enum_def_stmt(s), [
+                "ENUM, BIND(C)",
+                "ENUM, BIND(C)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        enumerator_def_stmt(F18V007r1 761) {
+            examples(|s| enumerator_def_stmt(s), [
+                "ENUMERATOR :: a",
+                "ENUMERATOR a",
+                "ENUMERATOR a, b",
+                "ENUMERATOR a, b = 1",
+                "ENUMERATOR a, b = 1,",
+                "ENUMERATOR a, b = 1, c",
+            ]);
+
+            // from the standard
+            examples(|s| enumerator_def_stmt(s), [
+                "ENUMERATOR :: RED = 4, BLUE = 9",
+                "ENUMERATOR YELLOW",
+            ]);
+        }
+    }
+
+    rule_test! {
+        enumerator(F18V007r1 762) {
+            examples(|s| enumerator(s), [
+                "foo",
+                "foo = 1",
+                "foo = exp(1 **2 + 2)",
+            ]);
+
+            // from the standard
+            examples(|s| enumerator(s), [
+                "RED = 4",
+                "BLUE = 9",
+                "YELLOW",
+            ]);
+        }
+    }
+
+    rule_test! {
+        end_enum_stmt(F18V007r1 763) {
+            examples(|s| end_enum_stmt(s), [
+                "END ENUM",
+                "ENDENUM",
+            ]);
+        }
+    }
+
 //
     // TODO #[test]
     //fn test_enum_def_stmt() {

@@ -14,9 +14,11 @@ pub fn access_stmt_2<S: Lexed>(source: S) -> PResult<AccessStmt<MultilineSpan>, 
     (
         access_spec,
         (
-            dot_dot(),
+            double_colon(),
             list(access_id, 0..),
-        ).map(|(_, access_id_list)| access_id_list).optional(),
+        )
+            .map(|(_, access_id_list)| access_id_list)
+            .optional(),
     ).map(|(access_spec, access_id_list)| AccessStmt {
         access_spec,
         access_id_list,
@@ -37,8 +39,8 @@ pub enum AccessId<Span> {
 pub fn access_id<S: Lexed>(source: S) -> PResult<AccessId<MultilineSpan>, S> {
     alt!(
         for S =>
-        name().map(AccessId::AccessName),
         generic_spec.map(AccessId::GenericSpec),
+        name().map(AccessId::AccessName),
     ).parse(source)
 }
 
@@ -271,11 +273,7 @@ pub fn data_stmt_object<S: Lexed>(source: S) -> PResult<DataStmtObject<Multiline
 #[derive(Debug, Clone)]
 pub struct DataImpliedDo<Span> {
     pub data_i_do_object_list: Vec<DataIDoObject<Span>>,
-    pub integer_type_spec: Option<IntegerTypeSpec<Span>>,
-    pub data_i_do_variable: DataIDoVariable<Span>,
-    pub int_constant_expr1: IntConstantExpr<Span>,
-    pub int_constant_expr2: IntConstantExpr<Span>,
-    pub int_constant_expr3: Option<IntConstantExpr<Span>>,
+    pub data_implied_do_control: DataImpliedDoControl<Span>,
 }
 
 #[doc = s_rule!(
@@ -285,12 +283,39 @@ pub struct DataImpliedDo<Span> {
 pub fn data_implied_do<S: Lexed>(source: S) -> PResult<DataImpliedDo<MultilineSpan>, S> {
     (
         delim('('),
-        list(data_i_do_object, 0..),
-        comma(),
-        (
-            integer_type_spec,
-            double_colon(),
-        ).map(|(integer_type_spec, _)| integer_type_spec).optional(),
+        data_implied_do_inner,
+        delim(')'),
+    ).map(|(_, data_implied_do, _)| data_implied_do).parse(source)
+}
+
+fn data_implied_do_inner<S: Lexed>(source: S) -> PResult<DataImpliedDo<MultilineSpan>, S> {
+    let (r, source) = many_until(
+        (data_i_do_object, comma()).map(|(data_i_do_object, _)| data_i_do_object),
+        data_implied_do_control,
+        0..,
+    ).parse(source)?;
+    let (data_i_do_object_list, data_implied_do_control) = r;
+    let Some(data_implied_do_control) = data_implied_do_control else {
+        return None;
+    };
+    Some((DataImpliedDo {
+        data_i_do_object_list,
+        data_implied_do_control,
+    }, source))
+}
+
+#[derive(Debug, Clone)]
+pub struct DataImpliedDoControl<Span> {
+    pub integer_type_spec: Option<IntegerTypeSpec<Span>>,
+    pub data_i_do_variable: DataIDoVariable<Span>,
+    pub int_constant_expr1: IntConstantExpr<Span>,
+    pub int_constant_expr2: IntConstantExpr<Span>,
+    pub int_constant_expr3: Option<IntConstantExpr<Span>>,
+}
+
+fn data_implied_do_control<S: Lexed>(source: S) -> PResult<DataImpliedDoControl<MultilineSpan>, S> {
+    (
+        (integer_type_spec, double_colon()).map(|(integer_type_spec, _)| integer_type_spec).optional(),
         data_i_do_variable,
         equals(),
         int_constant_expr,
@@ -300,9 +325,7 @@ pub fn data_implied_do<S: Lexed>(source: S) -> PResult<DataImpliedDo<MultilineSp
             comma(),
             int_constant_expr,
         ).map(|(_, int_constant_expr)| int_constant_expr).optional(),
-        delim(')'),
-    ).map(|(_, data_i_do_object_list, _, integer_type_spec, data_i_do_variable, _, int_constant_expr1, _, int_constant_expr2, int_constant_expr3, _)| DataImpliedDo {
-        data_i_do_object_list,
+    ).map(|(integer_type_spec, data_i_do_variable, _, int_constant_expr1, _, int_constant_expr2, int_constant_expr3)| DataImpliedDoControl {
         integer_type_spec,
         data_i_do_variable,
         int_constant_expr1,
@@ -579,7 +602,7 @@ pub fn save_stmt_2<S: Lexed>(source: S) -> PResult<SaveStmt<MultilineSpan>, S> {
     (
         kw!(save),
         (
-            double_colon(),
+            double_colon().optional(),
             list(saved_entity, 0..),
         ).map(|(_, saved_entity_list)| saved_entity_list).optional(),
     ).map(|(_, saved_entity_list)| SaveStmt {
@@ -611,4 +634,337 @@ pub fn saved_entity<S: Lexed>(source: S) -> PResult<SavedEntity<MultilineSpan>, 
             op("/"),
         ).map(|(_, common_block_name, _)| SavedEntity::CommonBlockName(common_block_name)),
     ).parse(source)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rule_test;
+
+    use super::*;
+
+    rule_test! {
+        access_stmt(F18V007r1 827) {
+            examples(|s| access_stmt_2(s), [
+                "public",
+                "public :: a",
+                "public :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        access_id(F18V007r1 828) {
+            examples(|s| access_id(s), [
+                "a",
+                "b",
+                "OPERATOR (.foo.)",
+                "ASSIGNMENT (=)",
+                "READ (FORMATTED)",
+                "READ (UNFORMATTED)",
+                "WRITE (FORMATTED)",
+                "WRITE (UNFORMATTED)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        allocatable_stmt(F18V007r1 829) {
+            examples(|s| allocatable_stmt_2(s), [
+                "allocatable a",
+                "allocatable a, b",
+                "allocatable :: a",
+                "allocatable :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        allocatable_decl(F18V007r1 830) {
+            examples(|s| allocatable_decl(s), [
+                "a",
+                "a(1)",
+                "a(1, 2)",
+                "a(1, 2, 3)",
+                "a(1, 2, 3)[*]",
+                "a(1, 2, 3)[1,*]",
+                "a(1, 2, 3)[1:1,*]",
+            ]);
+        }
+    }
+
+    rule_test! {
+        asynchronous_stmt(F18V007r1 831) {
+            examples(|s| asynchronous_stmt_2(s), [
+                "asynchronous a",
+                "asynchronous a, b",
+                "asynchronous :: a",
+                "asynchronous :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        bind_stmt(F18V007r1 832) {
+            examples(|s| bind_stmt_2(s), [
+                "bind(c) a",
+                "bind(c) :: a",
+                "bind(c) :: a, /b/",
+            ]);
+        }
+    }
+
+    rule_test! {
+        bind_entity(F18V007r1 833) {
+            examples(|s| bind_entity(s), [
+                "a",
+                "/b/",
+            ]);
+        }
+    }
+
+    rule_test! {
+        codimension_stmt(F18V007r1 834) {
+            examples(|s| codimension_stmt_2(s), [
+                "codimension a[*]",
+                "codimension a[:]",
+                "codimension :: a[*]",
+                "codimension :: a[1:*]",
+                "codimension :: a[1:*], b[1:1,*]",
+            ]);
+        }
+    }
+
+    rule_test! {
+        codimension_decl(F18V007r1 835) {
+            examples(|s| codimension_decl(s), [
+                "a[*]",
+                "a[:]",
+                "a[1:*]",
+                "a[1:*]",
+            ]);
+        }
+    }
+
+    rule_test! {
+        contiguous_stmt(F18V007r1 836) {
+            examples(|s| contiguous_stmt_2(s), [
+                "contiguous a",
+                "contiguous a, b",
+                "contiguous :: a",
+                "contiguous :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt(F18V007r1 837) {
+            examples(|s| data_stmt(s), [
+                "data a / 1 /",
+                "data a / 1 /, b / 2 /",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt_set(F18V007r1 838) {
+            examples(|s| data_stmt_set(s), [
+                "a / 1 /",
+                "a / 1, 2 /",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt_object(F18V007r1 839) {
+            examples(|s| data_stmt_object(s), [
+                "a",
+                "(a, I = 1, 1, 1 )",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_implied_do(F18V007r1 840) {
+            examples(|s| data_implied_do(s), [
+                "(a, I = 1, 1, 1 )",
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_implied_do_control() {
+            examples(|s| data_implied_do_control(s), [
+                "I = 1, 1, 1",
+                "I = 1, 1",
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_i_do_object(F18V007r1 841) {
+            examples(|s| data_i_do_object(s), [
+                "a",
+                "(a, I = 1, 1, 1 )",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_i_do_variable(F18V007r1 842) {
+            examples(|s| data_i_do_variable(s), [
+                "I",
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt_value(F18V007r1 843) {
+            examples(|s| data_stmt_value(s), [
+                "1",
+                "1* 1",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt_repeat(F18V007r1 844) {
+            examples(|s| data_stmt_repeat(s), [
+                "1",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_stmt_constant(F18V007r1 845) {
+            examples(|s| data_stmt_constant(s), [
+                "1",
+                "1.0",
+                "1.0d0",
+            ]);
+        }
+    }
+
+    rule_test! {
+        int_constant_subobject(F18V007r1 846) {
+            examples(|s| int_constant_subobject(s), [
+                "a",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        constant_subobject(F18V007r1 847) {
+            examples(|s| constant_subobject(s), [
+                "a",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        dimension_stmt(F18V007r1 848) {
+            examples(|s| dimension_stmt_2(s), [
+                "dimension a(1)",
+                "dimension a(1), b(1)",
+                "dimension :: a(1)",
+                "dimension :: a(1), b(1)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        intent_stmt(F18V007r1 849) {
+            examples(|s| intent_stmt_2(s), [
+                "intent(in) a",
+                "intent(in) a, b",
+                "intent(in) :: a",
+                "intent(in) :: a, b",
+                "intent(inout) a",
+                "intent(inout) a, b",
+                "intent(inout) :: a",
+                "intent(inout) :: a, b",
+                "intent(out) a",
+                "intent(out) a, b",
+                "intent(out) :: a",
+                "intent(out) :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        optional_stmt(F18V007r1 850) {
+            examples(|s| optional_stmt_2(s), [
+                "optional a",
+                "optional a, b",
+                "optional :: a",
+                "optional :: a, b",
+            ]);
+        }
+    }
+
+    rule_test! {
+        pointer_stmt(F18V007r1 853) {
+            examples(|s| pointer_stmt_2(s), [
+                "pointer a",
+                "pointer a, b",
+                "pointer :: a",
+                "pointer :: a, b",
+                "pointer :: a(:), b",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        pointer_decl(F18V007r1 854) {
+            examples(|s| pointer_decl(s), [
+                "a",
+                "a(:)",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        protected_stmt(F18V007r1 855) {
+            examples(|s| protected_stmt_2(s), [
+                "protected a",
+                "protected a, b",
+                "protected :: a",
+                "protected :: a, b",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        save_stmt(F18V007r1 856) {
+            examples(|s| save_stmt_2(s), [
+                "save a",
+                "save a, b",
+                "save :: a",
+                "save :: a, b",
+                "save :: a, /b/",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        saved_entity(F18V007r1 857) {
+            examples(|s| saved_entity(s), [
+                "a",
+                "b",
+                "/c/",
+                // TODO ...
+            ]);
+        }
+    }
 }

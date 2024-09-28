@@ -330,19 +330,14 @@ pub struct ExplicitCoshapeSpec<Span> {
 )]
 pub fn explicit_coshape_spec<S: Lexed>(source: S) -> PResult<ExplicitCoshapeSpec<MultilineSpan>, S> {
     (
-        (
-            list(
-                (
-                    (lower_cobound, colon()).map(|(lower_cobound, _)| lower_cobound).optional(),
-                    upper_cobound
-                ),
-                0..
-            ),
-            comma(),
-        )
-            .map(|(list, _)| list)
-            .optional()
-            .map(|list| list.unwrap_or(vec![])),
+        many(
+            (
+                (lower_cobound, colon()).map(|(lower_cobound, _)| lower_cobound).optional(),
+                upper_cobound,
+                comma(),
+            ).map(|(lower_cobound, upper_cobound, _)| (lower_cobound, upper_cobound)),
+            0..
+        ),
         (
             lower_cobound,
             colon(),
@@ -358,7 +353,7 @@ pub fn explicit_coshape_spec<S: Lexed>(source: S) -> PResult<ExplicitCoshapeSpec
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum CoarraySpec<Span> {
-    Deferred(DeferredCoShapeSpec),
+    Deferred(Vec<DeferredCoShapeSpec>),
     Explicit(ExplicitCoshapeSpec<Span>),
 }
 
@@ -371,7 +366,7 @@ pub enum CoarraySpec<Span> {
 pub fn coarray_spec<S: Lexed>(source: S) -> PResult<CoarraySpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        deferred_coshape_spec.map(CoarraySpec::Deferred),
+        list(deferred_coshape_spec, 1..).map(CoarraySpec::Deferred),
         explicit_coshape_spec.map(CoarraySpec::Explicit),
     ).parse(source)
 }

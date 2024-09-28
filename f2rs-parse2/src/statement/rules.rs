@@ -18,7 +18,7 @@ mod execution_control; pub use execution_control::*;
 mod concepts; pub use concepts::*;
 mod input_output_editing; pub use input_output_editing::*;
 mod statements; pub use statements::*;
-use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, Equals, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, LexicalToken, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}};
+use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, Equals, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}};
 use std::ops::RangeBounds;
 
 use crate::tokens::rules::{Colon, Comma, DoubleColon, Name};
@@ -234,10 +234,11 @@ pub fn colon<S: Source<Element = LexicalToken<MultilineSpan>>>() -> impl Parser<
 }
 
 pub fn double_colon<S: Source<Element = LexicalToken<MultilineSpan>>>() -> impl Parser<S, Token = DoubleColon<MultilineSpan>> {
-    token().map_if(|t| match t {
-        LexicalToken::DoubleColon(t) => Some(t),
-        _ => None,
-    })
+    (
+        colon(),
+        colon(),
+    )
+        .map(|(c1, c2)| DoubleColon::new_spanned(MultilineSpan::merge(c1.span().clone(), c2.span().clone())))
 }
 
 pub fn dot_dot<S: Source<Element = LexicalToken<MultilineSpan>>>() -> impl Parser<S, Token = DotDot<MultilineSpan>> {
@@ -404,7 +405,34 @@ fn tokenize(source: &str) -> Vec<LexicalToken<MultilineSpan>> {
         .parse(Chars::new(&chars, 0))
         .unwrap();
 
+    // TODO check if we parsed all the source?
+
     r
+}
+
+#[cfg(test)]
+fn example<T>(
+    rule: for<'a> fn(&'a [LexicalToken<MultilineSpan>]) -> PResult<T, &'a [LexicalToken<MultilineSpan>]>,
+    example: &'static str,
+) -> T {
+    eprintln!("Testing match with: \"{example}\"");
+    let (tokens, tail) = tokenize(example).split_at(tokenize(example).len() - 1);
+    let tokens = tokenize(example);
+    //let parsed = &example[0..example.len() - tail.len()];
+    //assert!(tail.is_empty(), "TOKENS did not parse all the source: \"{parsed}\" --- \"{tail}\"");
+    let (token, tail) = rule.parse(&tokens).expect("Rule did not parse");
+    assert!(tail.is_empty(), "Rule did not parse all the tokens, left: {} tokens", tail.len());
+    token
+}
+
+#[cfg(test)]
+fn examples<const N: usize, T>(
+    rule: for<'a> fn(&'a [LexicalToken<MultilineSpan>]) -> PResult<T, &'a [LexicalToken<MultilineSpan>]>,
+    examples: [&'static str; N],
+) {
+    for e in examples {
+        example(rule, e);
+    }
 }
 
 // ----------------------------------------

@@ -101,7 +101,6 @@ pub enum GenericSpec<Span> {
 pub fn generic_spec<S: Lexed>(source: S) -> PResult<GenericSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        name().map(GenericSpec::GenericName),
         (
             kw!(OPERATOR), delim('('),
             defined_operator(),
@@ -109,6 +108,7 @@ pub fn generic_spec<S: Lexed>(source: S) -> PResult<GenericSpec<MultilineSpan>, 
         ).map(|(_, _, defined_operator, _)| GenericSpec::Operator(defined_operator)),
         (kw!(assignment), delim('('), equals(), delim(')')).map(|_| GenericSpec::Assignment),
         defined_io_generic_spec.map(GenericSpec::DefinedIoGenericSpec),
+        name().map(GenericSpec::GenericName),
     ).parse(source)
 }
 

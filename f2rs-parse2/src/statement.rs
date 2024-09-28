@@ -1,11 +1,12 @@
 use std::ops::Range;
 
 use enum_as_inner::EnumAsInner;
-use rules::{action_stmt, entry_stmt_2, format_stmt_2, implicit_part_stmt_2, implicit_stmt_2, import_stmt, keyword, kw, other_specification_stmt_2, parameter_stmt_2, ActionStmt, ImplicitPartStmt, ImportStmt, Keyword, Lexed, OtherSpecificationStmt};
+use rules::{action_stmt, implicit_part_stmt_2, import_stmt, kw, other_specification_stmt_2, ActionStmt, ImplicitPartStmt, ImportStmt, Lexed, OtherSpecificationStmt};
 
-use crate::tokens::rules::LexicalToken;
 
 use f2rs_parser_combinator::prelude::*;
+
+use crate::tokens::LexicalToken;
 
 pub mod rules;
 

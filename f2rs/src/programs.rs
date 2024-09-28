@@ -5,7 +5,7 @@ use clap::Parser;
 
 use colored::Colorize;
 use console::{Key, Term};
-use f2rs_parse2::{statement::{classify_stmt, rules::implicit_part_stmt_2, MultilineSpan}, TokenizedFreeLine};
+use f2rs_parse2::{statement::{classify_stmt, rules::implicit_part_stmt_2, MultilineSpan}, tokens::TokenizedFreeLine};
 use f2rs_parser_combinator::tokenization::MapSpan;
 
 use crate::ColorArg;

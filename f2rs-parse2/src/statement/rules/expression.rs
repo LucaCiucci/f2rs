@@ -1,4 +1,3 @@
-
 use crate::tokens::rules::{DefinedUnaryOrBinaryOp, PowerOp};
 
 use super::*;
@@ -18,17 +17,11 @@ pub fn expr<S: Lexed>(source: S) -> PResult<Expr<MultilineSpan>, S> {
     let bin_op = defined_unary_or_binary_op(); // TODO binary
     let right_part = {
         let e5 = e5.clone();
-        (
-            bin_op,
-            e5
-        ).map(|(op, expr)| (op, expr))
+        (bin_op, e5).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = e5.parse(source)?;
-    let mut expr = Expr {
-        left: None,
-        right,
-    };
+    let mut expr = Expr { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -37,10 +30,8 @@ pub fn expr<S: Lexed>(source: S) -> PResult<Expr<MultilineSpan>, S> {
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -49,7 +40,6 @@ pub fn expr<S: Lexed>(source: S) -> PResult<Expr<MultilineSpan>, S> {
 
 #[derive(Debug, Clone)]
 pub struct IntExpr<Span>(pub Expr<Span>);
-
 
 #[doc = s_rule!(
     F18V007r1 rule "int-expr" #1026 :
@@ -62,7 +52,6 @@ pub fn int_expr<S: Lexed>(source: S) -> PResult<IntExpr<MultilineSpan>, S> {
 #[derive(Debug, Clone)]
 pub struct IntConstantExpr<Span>(pub IntExpr<Span>);
 
-
 #[doc = s_rule!(
     F18V007r1 rule "int-constant-expr" #1031 :
     "is int-expr",
@@ -73,7 +62,6 @@ pub fn int_constant_expr<S: Lexed>(source: S) -> PResult<IntConstantExpr<Multili
 
 #[derive(Debug, Clone)]
 pub struct ConstantExpr<Span>(pub Expr<Span>);
-
 
 #[doc = s_rule!(
     F18V007r1 rule "constant-expr" #1029 :
@@ -86,18 +74,18 @@ pub fn constant_expr<S: Lexed>(source: S) -> PResult<ConstantExpr<MultilineSpan>
 #[derive(Debug, Clone)]
 pub struct DefaultCharConstantExpr<Span>(pub DefaultCharExpr<Span>);
 
-
 #[doc = s_rule!(
     F18V007r1 rule "default-char-constant-expr" #1030 :
     "is default-char-expr",
 )]
-pub fn default_char_constant_expr<S: Lexed>(source: S) -> PResult<DefaultCharConstantExpr<MultilineSpan>, S> {
+pub fn default_char_constant_expr<S: Lexed>(
+    source: S,
+) -> PResult<DefaultCharConstantExpr<MultilineSpan>, S> {
     default_char_expr.map(DefaultCharConstantExpr).parse(source)
 }
 
 #[derive(Debug, Clone)]
 pub struct SpecificationExpr<Span>(pub IntExpr<Span>);
-
 
 #[doc = s_rule!(
     F18V007r1 rule "specification-expr" #1028 :
@@ -106,7 +94,6 @@ pub struct SpecificationExpr<Span>(pub IntExpr<Span>);
 pub fn specification_expr<S: Lexed>(source: S) -> PResult<SpecificationExpr<MultilineSpan>, S> {
     int_expr.map(SpecificationExpr).parse(source)
 }
-
 
 #[doc = s_rule!(
     F18V007r1 rule "logical-expr" #1024 :
@@ -119,7 +106,6 @@ pub fn logical_expr<S: Lexed>(source: S) -> PResult<Expr<MultilineSpan>, S> {
 #[derive(Debug, Clone)]
 pub struct DefaultCharExpr<Span>(pub Expr<Span>);
 
-
 #[doc = s_rule!(
     F18V007r1 rule "default-char-expr" #1025 :
     "is expr",
@@ -127,7 +113,6 @@ pub struct DefaultCharExpr<Span>(pub Expr<Span>);
 pub fn default_char_expr<S: Lexed>(source: S) -> PResult<DefaultCharExpr<MultilineSpan>, S> {
     expr.map(DefaultCharExpr).parse(source)
 }
-
 
 #[doc = s_rule!(
     F18V007r1 rule "numeric-expr" #1027 :
@@ -150,7 +135,6 @@ pub enum Primary<Span> {
     ParenthesizedExpr(Box<Expr<Span>>),
 }
 
-
 #[doc = s_rule!(
     F18V007r1 rule "primary" #1001 :
     "is literal-constant"
@@ -165,19 +149,20 @@ pub enum Primary<Span> {
 pub fn primary<S: Lexed>(source: S) -> PResult<Primary<MultilineSpan>, S> {
     alt! {
         for S =>
-        literal_constant.map(Primary::Literal),
-        designator(false).map(Primary::Designator),
-        array_constructor.map(Primary::ArrayConstructor),
-        structure_constructor.map(Primary::StructureConstructor),
-        function_reference.map(Primary::FunctionReference),
-        type_param_inquiry.map(Primary::TypeParamInquiry),
-        name().map(Primary::TypeParamName),
         (
             delim('('),
             expr,
             delim(')'),
         ).map(|(_, expr, _)| Primary::ParenthesizedExpr(Box::new(expr))),
-    }.parse(source)
+        type_param_inquiry.map(Primary::TypeParamInquiry),
+        structure_constructor.map(Primary::StructureConstructor),
+        function_reference.map(Primary::FunctionReference),
+        designator(false).map(Primary::Designator),
+        array_constructor.map(Primary::ArrayConstructor),
+        literal_constant.map(Primary::Literal),
+        name().map(Primary::TypeParamName),
+    }
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -193,11 +178,12 @@ pub fn level_1_expr<S: Lexed>(source: S) -> PResult<Level1Expr<MultilineSpan>, S
     (
         defined_unary_or_binary_op().optional(), // TODO unary
         primary,
-    ).map(|(operator, primary)| Level1Expr {
-        operator,
-        primary: Box::new(primary),
-    })
-    .parse(source)
+    )
+        .map(|(operator, primary)| Level1Expr {
+            operator,
+            primary: Box::new(primary),
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -212,14 +198,12 @@ pub struct MultOperand<Span> {
 pub fn mult_operand<S: Lexed>(source: S) -> PResult<MultOperand<MultilineSpan>, S> {
     (
         level_1_expr,
-        (
-            power_op(),
-            mult_operand,
-        ).map(|(power_op, mult_operand)| (power_op, Box::new(mult_operand))).optional(),
-    ).map(|(expr, exp)| MultOperand {
-        expr,
-        exp,
-    }).parse(source)
+        (power_op(), mult_operand)
+            .map(|(power_op, mult_operand)| (power_op, Box::new(mult_operand)))
+            .optional(),
+    )
+        .map(|(expr, exp)| MultOperand { expr, exp })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -236,17 +220,11 @@ pub fn add_operand<S: Lexed>(source: S) -> PResult<AddOperand<MultilineSpan>, S>
     let add_op = mult_op();
     let right_part = {
         let mult_operand = mult_operand.clone();
-        (
-            add_op,
-            mult_operand,
-        ).map(|(op, expr)| (op, expr))
+        (add_op, mult_operand).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = mult_operand.parse(source)?;
-    let mut expr = AddOperand {
-        left: None,
-        right,
-    };
+    let mut expr = AddOperand { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -255,10 +233,8 @@ pub fn add_operand<S: Lexed>(source: S) -> PResult<AddOperand<MultilineSpan>, S>
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -280,10 +256,7 @@ pub fn level_2_expr<S: Lexed>(source: S) -> PResult<Level2Expr<MultilineSpan>, S
     let right_part = {
         let add_op = add_op.clone();
         let add_operand = add_operand.clone();
-        (
-            add_op,
-            add_operand,
-        ).map(|(op, expr)| (op, expr))
+        (add_op, add_operand).map(|(op, expr)| (op, expr))
     };
 
     let (lop, source) = match add_op.parse(source.clone()) {
@@ -303,10 +276,8 @@ pub fn level_2_expr<S: Lexed>(source: S) -> PResult<Level2Expr<MultilineSpan>, S
                     left: Some((Some(Box::new(expr)), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -327,17 +298,11 @@ pub fn level_3_expr<S: Lexed>(source: S) -> PResult<Level3Expr<MultilineSpan>, S
     let concat_op = concat_op();
     let right_part = {
         let level_2_expr = level_2_expr.clone();
-        (
-            concat_op,
-            level_2_expr,
-        ).map(|(op, expr)| (op, expr))
+        (concat_op, level_2_expr).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = level_2_expr.parse(source)?;
-    let mut expr = Level3Expr {
-        left: None,
-        right,
-    };
+    let mut expr = Level3Expr { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -346,10 +311,8 @@ pub fn level_3_expr<S: Lexed>(source: S) -> PResult<Level3Expr<MultilineSpan>, S
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -370,17 +333,11 @@ pub fn level_4_expr<S: Lexed>(source: S) -> PResult<Level4Expr<MultilineSpan>, S
     let rel_op = rel_op();
     let right_part = {
         let level_3_expr = level_3_expr.clone();
-        (
-            rel_op,
-            level_3_expr,
-        ).map(|(op, expr)| (op, expr))
+        (rel_op, level_3_expr).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = level_3_expr.parse(source)?;
-    let mut expr = Level4Expr {
-        left: None,
-        right,
-    };
+    let mut expr = Level4Expr { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -389,10 +346,8 @@ pub fn level_4_expr<S: Lexed>(source: S) -> PResult<Level4Expr<MultilineSpan>, S
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -409,14 +364,9 @@ pub struct AndOperand<Span> {
     F18V007r1 rule "and-operand" #1014 : "is [ not-op ] level-4-expr",
 )]
 pub fn and_operand<S: Lexed>(source: S) -> PResult<AndOperand<MultilineSpan>, S> {
-    (
-        not_op().optional(),
-        level_4_expr,
-    ).map(|(operator, expr)| AndOperand {
-        operator,
-        expr,
-    })
-    .parse(source)
+    (not_op().optional(), level_4_expr)
+        .map(|(operator, expr)| AndOperand { operator, expr })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -433,17 +383,11 @@ pub fn or_operand<S: Lexed>(source: S) -> PResult<OrOperand<MultilineSpan>, S> {
     let and_op = and_op();
     let right_part = {
         let and_operand = and_operand.clone();
-        (
-            and_op,
-            and_operand,
-        ).map(|(op, expr)| (op, expr))
+        (and_op, and_operand).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = and_operand.parse(source)?;
-    let mut expr = OrOperand {
-        left: None,
-        right,
-    };
+    let mut expr = OrOperand { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -452,10 +396,8 @@ pub fn or_operand<S: Lexed>(source: S) -> PResult<OrOperand<MultilineSpan>, S> {
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -476,17 +418,11 @@ pub fn equiv_operand<S: Lexed>(source: S) -> PResult<EquivOperand<MultilineSpan>
     let or_op = or_op();
     let right_part = {
         let or_operand = or_operand.clone();
-        (
-            or_op,
-            or_operand,
-        ).map(|(op, expr)| (op, expr))
+        (or_op, or_operand).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = or_operand.parse(source)?;
-    let mut expr = EquivOperand {
-        left: None,
-        right,
-    };
+    let mut expr = EquivOperand { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -495,10 +431,8 @@ pub fn equiv_operand<S: Lexed>(source: S) -> PResult<EquivOperand<MultilineSpan>
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -519,17 +453,11 @@ pub fn level_5_expr<S: Lexed>(source: S) -> PResult<Level5Expr<MultilineSpan>, S
     let equiv_op = equiv_op();
     let right_part = {
         let equiv_operand = equiv_operand.clone();
-        (
-            equiv_op,
-            equiv_operand,
-        ).map(|(op, expr)| (op, expr))
+        (equiv_op, equiv_operand).map(|(op, expr)| (op, expr))
     };
 
     let (right, mut source) = equiv_operand.parse(source)?;
-    let mut expr = Level5Expr {
-        left: None,
-        right,
-    };
+    let mut expr = Level5Expr { left: None, right };
     loop {
         match right_part.parse(source.clone()) {
             Some(((op, right), new_source)) => {
@@ -538,10 +466,8 @@ pub fn level_5_expr<S: Lexed>(source: S) -> PResult<Level5Expr<MultilineSpan>, S
                     left: Some((Box::new(expr), op)),
                     right,
                 };
-            },
-            None => {
-                break
-            },
+            }
+            None => break,
         }
     }
 
@@ -574,13 +500,13 @@ pub fn designator<S: Lexed>(
 ) -> impl Parser<S, Token = Designator<MultilineSpan>> {
     alt!(
         for S =>
-        object_name.map(Designator::ObjectName),
-        array_element.map(Designator::ArrayElement),
         array_section(not_complex_part_designator).map(Designator::ArraySection),
+        array_element.map(Designator::ArrayElement),
+        substring.map(Designator::Substring),
+        object_name.map(Designator::ObjectName),
         coindexed_named_object.map(Designator::CoindexedNamedObject),
         complex_part_designator.map(Designator::ComplexPartDesignator).if_(!not_complex_part_designator),
         structure_component.map(Designator::StructureComponent),
-        substring.map(Designator::Substring),
     )
 }
 
@@ -673,18 +599,10 @@ pub struct Substring<Span> {
     F18V007r1 rule "substring" #908 : "is parent-string ( substring-range )",
 )]
 pub fn substring<S: Lexed>(source: S) -> PResult<Substring<MultilineSpan>, S> {
-    (
-        parent_string,
-        delim('('),
-        substring_range,
-        delim(')'),
-    ).map(|(parent, _, range, _)| Substring {
-        parent,
-        range,
-    }).parse(source)
+    (parent_string, delim('('), substring_range, delim(')'))
+        .map(|(parent, _, range, _)| Substring { parent, range })
+        .parse(source)
 }
-
-
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum ParentString<Span> {
@@ -711,7 +629,8 @@ pub fn parent_string<S: Lexed>(source: S) -> PResult<ParentString<MultilineSpan>
         coindexed_named_object.map(ParentString::CoindexedNamedObject),
         structure_component.map(ParentString::ScalarStructureComponent),
         constant.map(ParentString::ScalarConstant),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -724,14 +643,9 @@ pub struct SubstringRange<Span> {
     F18V007r1 rule "substring-range" #910 : "is [ scalar-int-expr ] : [ scalar-int-expr ]",
 )]
 pub fn substring_range<S: Lexed>(source: S) -> PResult<SubstringRange<MultilineSpan>, S> {
-    (
-        int_expr.optional(),
-        colon(),
-        int_expr.optional(),
-    ).map(|(left, _, right)| SubstringRange {
-        left,
-        right,
-    }).parse(source)
+    (int_expr.optional(), colon(), int_expr.optional())
+        .map(|(left, _, right)| SubstringRange { left, right })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -746,14 +660,10 @@ pub struct DataRef<Span> {
 pub fn data_ref<S: Lexed>(source: S) -> PResult<DataRef<MultilineSpan>, S> {
     (
         part_ref,
-        list(
-            (percent(), part_ref).map(|(_, part_ref)| part_ref),
-            0..,
-        ),
-    ).map(|(part, selectors)| DataRef {
-        part,
-        selectors,
-    }).parse(source)
+        list((percent(), part_ref).map(|(_, part_ref)| part_ref), 0..),
+    )
+        .map(|(part, selectors)| DataRef { part, selectors })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -769,20 +679,19 @@ pub struct PartRef<Span> {
 pub fn part_ref<S: Lexed>(source: S) -> PResult<PartRef<MultilineSpan>, S> {
     (
         name(),
-        (
-            delim('('),
-            list(
-                subscript,
-                0..,
-            ),
-            delim(')'),
-        ).map(|(_, list, _)| list).optional(),
+        (delim('('), list(subscript, 0..), delim(')'))
+            .map(|(_, list, _)| list)
+            .optional(),
         image_selector.optional(),
-    ).map(|(part_name, section_subscript_list, image_selector)| PartRef {
-        part_name,
-        section_subscript_list,
-        image_selector,
-    }).parse(source)
+    )
+        .map(
+            |(part_name, section_subscript_list, image_selector)| PartRef {
+                part_name,
+                section_subscript_list,
+                image_selector,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -801,7 +710,9 @@ pub struct CoindexedNamedObject<Span>(pub DataRef<Span>);
 #[doc = s_rule!(
     F18V007r1 rule "coindexed-named-object" #914 : "is data-ref",
 )]
-pub fn coindexed_named_object<S: Lexed>(source: S) -> PResult<CoindexedNamedObject<MultilineSpan>, S> {
+pub fn coindexed_named_object<S: Lexed>(
+    source: S,
+) -> PResult<CoindexedNamedObject<MultilineSpan>, S> {
     data_ref.map(CoindexedNamedObject).parse(source)
 }
 
@@ -816,7 +727,9 @@ pub enum ComplexPartDesignator<Span> {
     "is designator % RE"
     "or designator % IM",
 )]
-pub fn complex_part_designator<S: Lexed>(source: S) -> PResult<ComplexPartDesignator<MultilineSpan>, S> {
+pub fn complex_part_designator<S: Lexed>(
+    source: S,
+) -> PResult<ComplexPartDesignator<MultilineSpan>, S> {
     alt!(
         for S =>
         (designator(true), percent(), kw!(re)).map(|(designator, _, _)| ComplexPartDesignator::Re(Box::new(designator))),
@@ -835,14 +748,12 @@ pub struct TypeParamInquiry<Span> {
     F18V007r1 rule "type-param-inquiry" #916 : "is designator % type-param-name",
 )]
 pub fn type_param_inquiry<S: Lexed>(source: S) -> PResult<TypeParamInquiry<MultilineSpan>, S> {
-    (
-        designator(true),
-        percent(),
-        name(),
-    ).map(|(designator, _, type_param_name)| TypeParamInquiry {
-        designator,
-        type_param_name,
-    }).parse(source)
+    (designator(true), percent(), name())
+        .map(|(designator, _, type_param_name)| TypeParamInquiry {
+            designator,
+            type_param_name,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -909,10 +820,11 @@ pub enum SectionSubscript<Span> {
 pub fn section_subscript<S: Lexed>(source: S) -> PResult<SectionSubscript<MultilineSpan>, S> {
     alt!(
         for S =>
-        subscript.map(SectionSubscript::Subscript),
         subscript_triplet.map(SectionSubscript::SubscriptTriplet),
+        subscript.map(SectionSubscript::Subscript),
         vector_subscript.map(SectionSubscript::VectorSubscript),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -930,15 +842,14 @@ pub fn subscript_triplet<S: Lexed>(source: S) -> PResult<SubscriptTriplet<Multil
         subscript.optional(),
         colon(),
         subscript.optional(),
-        (
-            colon(),
+        (colon(), stride).map(|(_, subscript)| subscript).optional(),
+    )
+        .map(|(lower, _, upper, stride)| SubscriptTriplet {
+            lower,
+            upper,
             stride,
-        ).map(|(_, subscript)| subscript).optional(),
-    ).map(|(lower, _, upper, stride)| SubscriptTriplet {
-        lower,
-        upper,
-        stride,
-    }).parse(source)
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -974,15 +885,17 @@ pub fn image_selector<S: Lexed>(source: S) -> PResult<ImageSelector<MultilineSpa
     (
         delim('['),
         list(cosubscript, 0..),
-        (
-            comma(),
-            list(image_selector_spec, 0..),
-        ).map(|(_, image_selector_spec_list)| image_selector_spec_list),
+        (comma(), list(image_selector_spec, 0..))
+            .map(|(_, image_selector_spec_list)| image_selector_spec_list),
         delim(']'),
-    ).map(|(_, cosubscript_list, image_selector_spec_list, _)| ImageSelector {
-        cosubscript_list,
-        image_selector_spec_list,
-    }).parse(source)
+    )
+        .map(
+            |(_, cosubscript_list, image_selector_spec_list, _)| ImageSelector {
+                cosubscript_list,
+                image_selector_spec_list,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1042,21 +955,23 @@ pub fn allocate_stmt_2<S: Lexed>(source: S) -> PResult<AllocateStmt<MultilineSpa
     (
         (kw!(allocate)),
         delim('('),
-        (
-            type_spec,
-            double_colon(),
-        ).map(|(type_spec, _, )| type_spec).optional(),
+        (type_spec, double_colon())
+            .map(|(type_spec, _)| type_spec)
+            .optional(),
         list(allocation, 1..),
-        (
-            comma(),
-            list(alloc_opt, 0..),
-        ).map(|(_, alloc_opt_list)| alloc_opt_list).optional(),
+        (comma(), list(alloc_opt, 0..))
+            .map(|(_, alloc_opt_list)| alloc_opt_list)
+            .optional(),
         delim(')'),
-    ).map(|(_, _, type_spec, allocation_list, alloc_opt_list, _)| AllocateStmt {
-        type_spec,
-        allocation_list,
-        alloc_opt_list,
-    }).parse(source)
+    )
+        .map(
+            |(_, _, type_spec, allocation_list, alloc_opt_list, _)| AllocateStmt {
+                type_spec,
+                allocation_list,
+                alloc_opt_list,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1091,7 +1006,9 @@ pub struct ErrmsgVariable<Span>(pub DefaultCharVariable<Span>);
     F18V007r1 rule "errmsg-variable" #929 : "is scalar-default-char-variable",
 )]
 pub fn errmsg_variable<S: Lexed>(source: S) -> PResult<ErrmsgVariable<MultilineSpan>, S> {
-    default_char_variable(false).map(ErrmsgVariable).parse(source)
+    default_char_variable(false)
+        .map(ErrmsgVariable)
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1118,21 +1035,21 @@ pub struct Allocation<Span> {
 pub fn allocation<S: Lexed>(source: S) -> PResult<Allocation<MultilineSpan>, S> {
     (
         allocate_object,
-        (
-            delim('('),
-            list(allocate_shape_spec, 0..),
-            delim(')'),
-        ).map(|(_, allocate_shape_spec_list, _)| allocate_shape_spec_list).optional(),
-        (
-            delim('['),
-            allocate_coarray_spec,
-            delim(']'),
-        ).map(|(_, allocate_coarray_spec, _)| allocate_coarray_spec).optional(),
-    ).map(|(object, allocate_shape_spec_list, allocate_coarray_spec)| Allocation {
-        object,
-        allocate_shape_spec_list,
-        allocate_coarray_spec,
-    }).parse(source)
+        (delim('('), list(allocate_shape_spec, 0..), delim(')'))
+            .map(|(_, allocate_shape_spec_list, _)| allocate_shape_spec_list)
+            .optional(),
+        (delim('['), allocate_coarray_spec, delim(']'))
+            .map(|(_, allocate_coarray_spec, _)| allocate_coarray_spec)
+            .optional(),
+    )
+        .map(
+            |(object, allocate_shape_spec_list, allocate_coarray_spec)| Allocation {
+                object,
+                allocate_shape_spec_list,
+                allocate_coarray_spec,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1151,7 +1068,8 @@ pub fn allocate_object<S: Lexed>(source: S) -> PResult<AllocateObject<MultilineS
         for S =>
         variable_name.map(AllocateObject::VariableName),
         structure_component.map(AllocateObject::StructureComponent),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1165,15 +1083,16 @@ pub struct AllocateShapeSpec<Span> {
 )]
 pub fn allocate_shape_spec<S: Lexed>(source: S) -> PResult<AllocateShapeSpec<MultilineSpan>, S> {
     (
-        (
-            lower_bound_expr,
-            colon(),
-        ).map(|(lower_bound, _)| lower_bound).optional(),
+        (lower_bound_expr, colon())
+            .map(|(lower_bound, _)| lower_bound)
+            .optional(),
         upper_bound_expr,
-    ).map(|(lower_bound, upper_bound)| AllocateShapeSpec {
-        lower_bound,
-        upper_bound,
-    }).parse(source)
+    )
+        .map(|(lower_bound, upper_bound)| AllocateShapeSpec {
+            lower_bound,
+            upper_bound,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1205,21 +1124,25 @@ pub struct AllocateCoarraySpec<Span> {
 #[doc = s_rule!(
     F18V007r1 rule "allocate-coarray-spec" #936 : "is [ allocate-coshape-spec-list , ] [ lower-bound-expr : ] *",
 )]
-pub fn allocate_coarray_spec<S: Lexed>(source: S) -> PResult<AllocateCoarraySpec<MultilineSpan>, S> {
+pub fn allocate_coarray_spec<S: Lexed>(
+    source: S,
+) -> PResult<AllocateCoarraySpec<MultilineSpan>, S> {
     (
-        (
-            list(allocate_coshape_spec, 0..),
-            comma(),
-        ).map(|(allocate_coshape_spec_list, _)| allocate_coshape_spec_list).optional(),
-        (
-            lower_bound_expr,
-            colon(),
-        ).map(|(lower_bound, _)| lower_bound).optional(),
+        (list(allocate_coshape_spec, 0..), comma())
+            .map(|(allocate_coshape_spec_list, _)| allocate_coshape_spec_list)
+            .optional(),
+        (lower_bound_expr, colon())
+            .map(|(lower_bound, _)| lower_bound)
+            .optional(),
         asterisk(),
-    ).map(|(allocate_coshape_spec_list, lower_bound, _)| AllocateCoarraySpec {
-        allocate_coshape_spec_list: allocate_coshape_spec_list.unwrap_or_default(),
-        lower_bound,
-    }).parse(source)
+    )
+        .map(
+            |(allocate_coshape_spec_list, lower_bound, _)| AllocateCoarraySpec {
+                allocate_coshape_spec_list: allocate_coshape_spec_list.unwrap_or_default(),
+                lower_bound,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1231,19 +1154,21 @@ pub struct AllocateCoshapeSpec<Span> {
 #[doc = s_rule!(
     F18V007r1 rule "allocate-coshape-spec" #937 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
-pub fn allocate_coshape_spec<S: Lexed>(source: S) -> PResult<AllocateCoshapeSpec<MultilineSpan>, S> {
+pub fn allocate_coshape_spec<S: Lexed>(
+    source: S,
+) -> PResult<AllocateCoshapeSpec<MultilineSpan>, S> {
     (
-        (
-            lower_bound_expr,
-            colon(),
-        ).map(|(lower_bound, _)| lower_bound).optional(),
+        (lower_bound_expr, colon())
+            .map(|(lower_bound, _)| lower_bound)
+            .optional(),
         upper_bound_expr,
-    ).map(|(lower_bound, upper_bound)| AllocateCoshapeSpec {
-        lower_bound,
-        upper_bound,
-    }).parse(source)
+    )
+        .map(|(lower_bound, upper_bound)| AllocateCoshapeSpec {
+            lower_bound,
+            upper_bound,
+        })
+        .parse(source)
 }
-
 
 #[derive(Debug, Clone)]
 pub struct StatVariable<Span>(pub IntVariable<Span>);
@@ -1271,7 +1196,8 @@ pub fn proc_pointer_object<S: Lexed>(source: S) -> PResult<ProcPointerObject<Mul
         for S =>
         proc_pointer_name.map(ProcPointerObject::ProcPointerName),
         proc_component_ref.map(ProcPointerObject::ProcComponentRef),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1294,14 +1220,9 @@ pub struct AssignmentStmt<Span> {
     F18V007r1 rule "assignment-stmt" #1032 : "is variable = expr",
 )]
 pub fn assignment_stmt_2<S: Lexed>(source: S) -> PResult<AssignmentStmt<MultilineSpan>, S> {
-    (
-        variable(true),
-        (equals()),
-        expr,
-    ).map(|(variable, _, expr)| AssignmentStmt {
-        variable,
-        expr,
-    }).parse(source)
+    (variable(true), (equals()), expr)
+        .map(|(variable, _, expr)| AssignmentStmt { variable, expr })
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1328,7 +1249,9 @@ pub enum PointerAssignmentStmt<Span> {
     "or data-pointer-object (bounds-remapping-list ) => data-target"
     "or proc-pointer-object => proc-target",
 )]
-pub fn pointer_assignment_stmt<S: Lexed>(source: S) -> PResult<PointerAssignmentStmt<MultilineSpan>, S> {
+pub fn pointer_assignment_stmt<S: Lexed>(
+    source: S,
+) -> PResult<PointerAssignmentStmt<MultilineSpan>, S> {
     alt!(
         for S =>
         (
@@ -1394,7 +1317,8 @@ pub fn data_pointer_object<S: Lexed>(source: S) -> PResult<DataPointerObject<Mul
             scalar_variable,
             data_pointer_component_name,
         }),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1406,12 +1330,9 @@ pub struct BoundsSpec<Span> {
     F18V007r1 rule "bounds-spec" #1035 : "is lower-bound-expr :",
 )]
 pub fn bounds_spec<S: Lexed>(source: S) -> PResult<BoundsSpec<MultilineSpan>, S> {
-    (
-        lower_bound_expr,
-        colon(),
-    ).map(|(lower_bound, _)| BoundsSpec {
-        lower_bound,
-    }).parse(source)
+    (lower_bound_expr, colon())
+        .map(|(lower_bound, _)| BoundsSpec { lower_bound })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1424,14 +1345,12 @@ pub struct BoundsRemapping<Span> {
     F18V007r1 rule "bounds-remapping" #1036 : "is lower-bound-expr : upper-bound-expr",
 )]
 pub fn bounds_remapping<S: Lexed>(source: S) -> PResult<BoundsRemapping<MultilineSpan>, S> {
-    (
-        lower_bound_expr,
-        colon(),
-        upper_bound_expr,
-    ).map(|(lower_bound_expr, _, upper_bound_expr)| BoundsRemapping {
-        lower_bound_expr,
-        upper_bound_expr,
-    }).parse(source)
+    (lower_bound_expr, colon(), upper_bound_expr)
+        .map(|(lower_bound_expr, _, upper_bound_expr)| BoundsRemapping {
+            lower_bound_expr,
+            upper_bound_expr,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1459,10 +1378,12 @@ pub fn where_stmt<S: Lexed>(source: S) -> PResult<WhereStmt<MultilineSpan>, S> {
         mask_expr,
         delim(')'),
         where_assignment_stmt,
-    ).map(|(_, mask_expr, _, where_assignment_stmt)| WhereStmt {
-        mask_expr,
-        where_assignment_stmt,
-    }).parse(source)
+    )
+        .map(|(_, mask_expr, _, where_assignment_stmt)| WhereStmt {
+            mask_expr,
+            where_assignment_stmt,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1476,17 +1397,18 @@ pub struct WhereConstructStmt<Span> {
 )]
 pub fn where_construct_stmt<S: Lexed>(source: S) -> PResult<WhereConstructStmt<MultilineSpan>, S> {
     (
-        (
-            name(),
-            colon(),
-        ).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).optional(),
         (kw!(WHERE), delim('(')),
         mask_expr,
         delim(')'),
-    ).map(|(where_construct_name, _, mask_expr, _)| WhereConstructStmt {
-        where_construct_name,
-        mask_expr,
-    }).parse(source)
+    )
+        .map(
+            |(where_construct_name, _, mask_expr, _)| WhereConstructStmt {
+                where_construct_name,
+                mask_expr,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1497,7 +1419,9 @@ pub struct WhereAssignmentStmt<Span> {
 #[doc = s_rule!(
     F18V007r1 rule "where-assignment-stmt" #1045 : "is assignment-stmt",
 )]
-pub fn where_assignment_stmt<S: Lexed>(source: S) -> PResult<WhereAssignmentStmt<MultilineSpan>, S> {
+pub fn where_assignment_stmt<S: Lexed>(
+    source: S,
+) -> PResult<WhereAssignmentStmt<MultilineSpan>, S> {
     assignment_stmt_2
         .map(|assignment_stmt| WhereAssignmentStmt { assignment_stmt })
         .parse(source)
@@ -1512,16 +1436,22 @@ pub struct MaskedElsewhereStmt<Span> {
 #[doc = s_rule!(
     F18V007r1 rule "masked-elsewhere-stmt" #1047 : "is ELSEWHERE (mask-expr) [where-construct-name]",
 )]
-pub fn masked_elsewhere_stmt<S: Lexed>(source: S) -> PResult<MaskedElsewhereStmt<MultilineSpan>, S> {
+pub fn masked_elsewhere_stmt<S: Lexed>(
+    source: S,
+) -> PResult<MaskedElsewhereStmt<MultilineSpan>, S> {
     (
         (kw!(ELSEWHERE), delim('(')),
         mask_expr,
         delim(')'),
         name().optional(),
-    ).map(|(_, mask_expr, _, where_construct_name)| MaskedElsewhereStmt {
-        mask_expr,
-        where_construct_name,
-    }).parse(source)
+    )
+        .map(
+            |(_, mask_expr, _, where_construct_name)| MaskedElsewhereStmt {
+                mask_expr,
+                where_construct_name,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1533,12 +1463,11 @@ pub struct ElsewhereStmt<Span> {
     F18V007r1 rule "elsewhere-stmt" #1048 : "is ELSEWHERE [where-construct-name]",
 )]
 pub fn elsewhere_stmt<S: Lexed>(source: S) -> PResult<ElsewhereStmt<MultilineSpan>, S> {
-    (
-        kw!(ELSEWHERE),
-        name().optional(),
-    ).map(|(_, where_construct_name)| ElsewhereStmt {
-        where_construct_name,
-    }).parse(source)
+    (kw!(ELSEWHERE), name().optional())
+        .map(|(_, where_construct_name)| ElsewhereStmt {
+            where_construct_name,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1550,12 +1479,11 @@ pub struct EndWhereStmt<Span> {
     F18V007r1 rule "end-where-stmt" #1049 : "is END WHERE [where-construct-name]",
 )]
 pub fn end_where_stmt<S: Lexed>(source: S) -> PResult<EndWhereStmt<MultilineSpan>, S> {
-    (
-        kw!(END), kw!(WHERE),
-        name().optional(),
-    ).map(|(_, _, where_construct_name)| EndWhereStmt {
-        where_construct_name,
-    }).parse(source)
+    (kw!(END), kw!(WHERE), name().optional())
+        .map(|(_, _, where_construct_name)| EndWhereStmt {
+            where_construct_name,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1567,15 +1495,21 @@ pub struct ForallConstructStmt<Span> {
 #[doc = s_rule!(
     F18V007r1 rule "forall-construct-stmt" #1051 : "is [forall-construct-name :] FORALL concurrent-header",
 )]
-pub fn forall_construct_stmt<S: Lexed>(source: S) -> PResult<ForallConstructStmt<MultilineSpan>, S> {
+pub fn forall_construct_stmt<S: Lexed>(
+    source: S,
+) -> PResult<ForallConstructStmt<MultilineSpan>, S> {
     (
         (name(), colon()).map(|(name, _)| name).optional(),
         kw!(forall),
         concurrent_header,
-    ).map(|(forall_construct_name, _, concurrent_header)| ForallConstructStmt {
-        forall_construct_name,
-        concurrent_header,
-    }).parse(source)
+    )
+        .map(
+            |(forall_construct_name, _, concurrent_header)| ForallConstructStmt {
+                forall_construct_name,
+                concurrent_header,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1597,7 +1531,8 @@ pub fn io_unit<S: Lexed>(source: S) -> PResult<IoUnit<MultilineSpan>, S> {
         file_unit_number.map(IoUnit::FileUnitNumber),
         asterisk().map(|_| IoUnit::Star),
         internal_file_variable.map(IoUnit::InternalFileVariable),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1616,7 +1551,9 @@ pub struct InternalFileVariable<Span>(pub CharVariable<Span>);
 #[doc = s_rule!(
     F18V007r1 rule "internal-file-variable" #1203 : "is char-variable",
 )]
-pub fn internal_file_variable<S: Lexed>(source: S) -> PResult<InternalFileVariable<MultilineSpan>, S> {
+pub fn internal_file_variable<S: Lexed>(
+    source: S,
+) -> PResult<InternalFileVariable<MultilineSpan>, S> {
     char_variable(true).map(InternalFileVariable).parse(source) // TODO true???
 }
 
@@ -1629,14 +1566,9 @@ pub struct OpenStmt<Span> {
     F18V007r1 rule "open-stmt" #1204 : "is OPEN ( connect-spec-list )",
 )]
 pub fn open_stmt<S: Lexed>(source: S) -> PResult<OpenStmt<MultilineSpan>, S> {
-    (
-        (kw!(open), delim('(')),
-        list(connect_spec, 1..),
-        delim(')'),
-    ).map(|(_, connect_spec_list, _)| OpenStmt {
-        connect_spec_list,
-    })
-    .parse(source)
+    ((kw!(open), delim('(')), list(connect_spec, 1..), delim(')'))
+        .map(|(_, connect_spec_list, _)| OpenStmt { connect_spec_list })
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1732,7 +1664,9 @@ pub struct IomsgVariable<Span>(pub DefaultCharVariable<Span>);
     F18V007r1 rule "iomsg-variable" #1207 : "is scalar-default-char-variable",
 )]
 pub fn iomsg_variable<S: Lexed>(source: S) -> PResult<IomsgVariable<MultilineSpan>, S> {
-    default_char_variable(false).map(IomsgVariable).parse(source)
+    default_char_variable(false)
+        .map(IomsgVariable)
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1744,13 +1678,9 @@ pub struct CloseStmt<Span> {
     F18V007r1 rule "close-stmt" #1208 : "is CLOSE ( close-spec-list )",
 )]
 pub fn close_stmt<S: Lexed>(source: S) -> PResult<CloseStmt<MultilineSpan>, S> {
-    (
-        (kw!(close), delim('(')),
-        list(close_spec, 1..),
-        delim(')'),
-    ).map(|(_, close_spec_list, _)| CloseStmt {
-        close_spec_list,
-    }).parse(source)
+    ((kw!(close), delim('(')), list(close_spec, 1..), delim(')'))
+        .map(|(_, close_spec_list, _)| CloseStmt { close_spec_list })
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1830,10 +1760,12 @@ pub fn write_stmt<S: Lexed>(source: S) -> PResult<WriteStmt<MultilineSpan>, S> {
         list(io_control_spec, 1..),
         delim(')'),
         list(output_item, 1..).optional(),
-    ).map(|(_, io_control_spec_list, _, output_item_list)| WriteStmt {
-        io_control_spec_list,
-        output_item_list,
-    }).parse(source)
+    )
+        .map(|(_, io_control_spec_list, _, output_item_list)| WriteStmt {
+            io_control_spec_list,
+            output_item_list,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1849,14 +1781,15 @@ pub fn print_stmt<S: Lexed>(source: S) -> PResult<PrintStmt<MultilineSpan>, S> {
     (
         kw!(print),
         format,
-        (
-            comma(),
-            list(output_item, 1..),
-        ).map(|(_, output_item_list)| output_item_list).optional(),
-    ).map(|(_, format, output_item_list)| PrintStmt {
-        format,
-        output_item_list,
-    }).parse(source)
+        (comma(), list(output_item, 1..))
+            .map(|(_, output_item_list)| output_item_list)
+            .optional(),
+    )
+        .map(|(_, format, output_item_list)| PrintStmt {
+            format,
+            output_item_list,
+        })
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1970,7 +1903,8 @@ pub fn format<S: Lexed>(source: S) -> PResult<Format<MultilineSpan>, S> {
         default_char_expr.map(Format::DefaultCharExpr),
         label().map(Format::Label),
         asterisk().map(|_| Format::Star),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1989,7 +1923,8 @@ pub fn input_item<S: Lexed>(source: S) -> PResult<InputItem<MultilineSpan>, S> {
         for S =>
         variable(true).map(InputItem::Variable),
         io_implied_do.map(InputItem::IoImpliedDo),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2008,7 +1943,8 @@ pub fn output_item<S: Lexed>(source: S) -> PResult<OutputItem<MultilineSpan>, S>
         for S =>
         expr.map(OutputItem::Expr),
         io_implied_do.map(OutputItem::IoImpliedDo),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2027,10 +1963,14 @@ pub fn io_implied_do<S: Lexed>(source: S) -> PResult<IoImpliedDo<MultilineSpan>,
         comma(),
         io_implied_do_control,
         delim(')'),
-    ).map(|(_, io_implied_do_object_list, _, io_implied_do_control, _)| IoImpliedDo {
-        io_implied_do_object_list,
-        io_implied_do_control,
-    }).parse(source)
+    )
+        .map(
+            |(_, io_implied_do_object_list, _, io_implied_do_control, _)| IoImpliedDo {
+                io_implied_do_object_list,
+                io_implied_do_control,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2049,7 +1989,8 @@ pub fn io_implied_do_object<S: Lexed>(source: S) -> PResult<IoImpliedDoObject<Mu
         for S =>
         input_item.map(IoImpliedDoObject::InputItem),
         output_item.map(IoImpliedDoObject::OutputItem),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2064,14 +2005,14 @@ pub struct IoImpliedDoControl<Span> {
     "    scalar-int-expr [ , scalar-int-expr ]",
 )]
 pub fn io_implied_do_control<S: Lexed>(source: S) -> PResult<IoImpliedDoControl<MultilineSpan>, S> {
-    (
-        variable(true),
-        (equals()),
-        list(int_expr, 2..),
-    ).map(|(do_variable, _, scalar_int_expr_list)| IoImpliedDoControl {
-        do_variable,
-        scalar_int_expr_list,
-    }).parse(source)
+    (variable(true), (equals()), list(int_expr, 2..))
+        .map(
+            |(do_variable, _, scalar_int_expr_list)| IoImpliedDoControl {
+                do_variable,
+                scalar_int_expr_list,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -2102,13 +2043,9 @@ pub struct WaitStmt<Span> {
     F18V007r1 rule "wait-stmt" #1222 : "is WAIT (wait-spec-list)",
 )]
 pub fn wait_stmt<S: Lexed>(source: S) -> PResult<WaitStmt<MultilineSpan>, S> {
-    (
-        (kw!(wait), delim('(')),
-        list(wait_spec, 1..),
-        delim(')'),
-    ).map(|(_, wait_spec_list, _)| WaitStmt {
-        wait_spec_list,
-    }).parse(source)
+    ((kw!(wait), delim('(')), list(wait_spec, 1..), delim(')'))
+        .map(|(_, wait_spec_list, _)| WaitStmt { wait_spec_list })
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -2442,14 +2379,14 @@ pub struct ProcComponentRef<Span> {
     F18V007r1 rule "proc-component-ref" #1039 : "is scalar-variable % procedure-component-name",
 )]
 pub fn proc_component_ref<S: Lexed>(source: S) -> PResult<ProcComponentRef<MultilineSpan>, S> {
-    (
-        variable(true),
-        percent(),
-        name(),
-    ).map(|(scalar_variable, _, procedure_component_name)| ProcComponentRef {
-        scalar_variable,
-        procedure_component_name,
-    }).parse(source)
+    (variable(true), percent(), name())
+        .map(
+            |(scalar_variable, _, procedure_component_name)| ProcComponentRef {
+                scalar_variable,
+                procedure_component_name,
+            },
+        )
+        .parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -2471,7 +2408,8 @@ pub fn proc_target<S: Lexed>(source: S) -> PResult<ProcTarget<MultilineSpan>, S>
         expr.map(ProcTarget::Expr),
         name().map(ProcTarget::ProcedureName),
         proc_component_ref.map(ProcTarget::ProcComponentRef),
-    ).parse(source)
+    )
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -2486,6 +2424,8 @@ pub fn mask_expr<S: Lexed>(source: S) -> PResult<MaskExpr<MultilineSpan>, S> {
 
 #[cfg(test)]
 mod test {
+    use crate::rule_test;
+
     use super::*;
 
     #[test]
@@ -2493,11 +2433,503 @@ mod test {
         let expr = |s: &str| expr(tokenize(s).as_slice()).map(|(r, _)| r);
 
         assert!(expr("1").is_some());
-        assert!(expr("1").unwrap().right.right.right.right.expr.right.right.right.right.expr.primary.is_literal());
+        assert!(expr("1")
+            .unwrap()
+            .right
+            .right
+            .right
+            .right
+            .expr
+            .right
+            .right
+            .right
+            .right
+            .expr
+            .primary
+            .is_literal());
         assert!(expr("2.1 + 3.4 + 4.9").is_some());
         assert!(expr("2.1 * 3.4 * 4.9").is_some());
         assert!(expr("2.1 / 3.4 / 4.9").is_some());
         assert!(expr("2 ** 3 ** 4").is_some());
         assert!(expr("'AB' // 'CD' // 'EF'").is_some());
+    }
+
+    rule_test! {
+        array_element(F18V007r1 917) {
+            examples(|s| array_element(s), [
+                "arr(1)",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        array_section(F18V007r1 918) {
+            examples(|s| array_section(false).parse(s), [
+                "arr(1)",
+                "arr(:1)",
+                "arr(1:1)",
+                "arr(:)",
+                "arr%field(1:1)",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        subscript(F18V007r1 919) {
+            examples(|s| subscript(s), [
+                "1+1**1",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        section_subscript(F18V007r1 920) {
+            examples(|s| section_subscript(s), [
+                "1",
+                "1:1:1",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        subscript_triplet(F18V007r1 921) {
+            examples(|s| subscript_triplet(s), [
+                ":",
+                "1:",
+                ":1",
+                "1:1",
+                "1:1:1",
+                ":1:1",
+                "1::1",
+                "::1",
+            ]);
+        }
+    }
+
+    rule_test! {
+        stride(F18V007r1 922) {
+            examples(|s| stride(s), [
+                "1",
+                "42",
+                "1+(1**1)"
+            ]);
+        }
+    }
+
+    rule_test! {
+        vector_subscript(F18V007r1 923) {
+            examples(|s| vector_subscript(s), [
+                "1",
+                "42",
+                "1+(1**1)"
+            ]);
+        }
+    }
+
+    rule_test! {
+        primary(F18V007r1 1001) {
+            examples(|s| primary(s), [
+                "A",
+                "B(1:1)"
+            ]);
+
+            // from the standard
+            assert!(example(|s| primary(s), "1.0").is_literal());
+            // TODO assert!(example(|s| primary(s), "'ABCDEFGHIJKLMNOPQRSTUVWXYZ' (I:I)").is_literal());
+            assert!(example(|s| primary(s), "[ 1.0, 2.0 ]").is_array_constructor());
+            assert!(example(|s| primary(s), "PERSON ('Jones', 12)").is_structure_constructor());
+            // TODO assert!(example(|s| primary(s), "F (X, Y)").is_function_reference());
+            assert!(example(|s| primary(s), "X%KIND").is_type_param_inquiry());
+            // TODO assert!(example(|s| primary(s), "KIND").is_type_param_name());
+            assert!(example(|s| primary(s), "(S + T)").is_parenthesized_expr());
+
+            examples(|s| primary(s), [
+                "1.0",
+                "'ABCDEFGHIJKLMNOPQRSTUVWXYZ' (I:I)",
+                "[ 1.0, 2.0 ]",
+                "PERSON ('Jones', 12)",
+                "F (X, Y)",
+                "X%KIND",
+                "KIND",
+                "(S + T)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        level_1_expr(F18V007r1 1002) {
+            // from the standard
+            examples(|s| level_1_expr(s), [
+                "A",
+                ".INVERSE. B",
+                ".INVERSE. (A + B)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        mult_operand(F18V007r1 1004) {
+            // NOTE: mult-operand is level-1-expr [ power-op mult-operand ]
+            // so every level-1-expr is a valid mult-operand and we can combine them with power-op
+            // and still be a valid mult-operand. We do not test all combinations of the previous
+            // rules to avoid exponential growth of the number of cases.
+            examples(|s| mult_operand(s), [
+                "A",
+                ".INVERSE. B",
+                ".INVERSE. (A + B)",
+                "A ** A",
+                ".INVERSE. B ** .INVERSE. B",
+                ".INVERSE. (A + B) ** .INVERSE. (A + B)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        add_operand(F18V007r1 1005) {
+            examples(|s| add_operand(s), [
+                "A ** A",
+                ".INVERSE. B ** .INVERSE. B",
+                ".INVERSE. (A + B) ** .INVERSE. (A + B)",
+                "A ** A * A ** A",
+                ".INVERSE. B ** .INVERSE. B * .INVERSE. B ** .INVERSE. B",
+                ".INVERSE. (A + B) ** .INVERSE. (A + B) * .INVERSE. (A + B) ** .INVERSE. (A + B)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        level_2_expr(F18V007r1 1006) {
+            examples(|s| level_2_expr(s), [
+                "A ** A * A ** A",
+                ".INVERSE. B ** .INVERSE. B * .INVERSE. B ** .INVERSE. B",
+                ".INVERSE. (A + B) ** .INVERSE. (A + B) * .INVERSE. (A + B) ** .INVERSE. (A + B)",
+                "A ** A * A ** A + A ** A * A ** A",
+                ".INVERSE. B ** .INVERSE. B * .INVERSE. B ** .INVERSE. B + .INVERSE. B ** .INVERSE. B * .INVERSE. B ** .INVERSE. B",
+                ".INVERSE. (A + B) ** .INVERSE. (A + B) * .INVERSE. (A + B) ** .INVERSE. (A + B) + .INVERSE. (A + B) ** .INVERSE. (A + B) * .INVERSE. (A + B) ** .INVERSE. (A + B)",
+            ]);
+
+            // from the standard
+            examples(|s| level_2_expr(s), [
+                "A",
+                "B ** C",
+                "D * E",
+                "+1",
+                "F - I",
+                "- A + D * E + B ** C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        level_3_expr(F18V007r1 1010) {
+            examples(|s| level_3_expr(s), [
+                "A",
+                "B ** C",
+                "D * E",
+                "+1",
+                "F - I",
+                "- A + D * E + B ** C",
+                "A // A",
+                "B ** C // B ** C",
+                "D * E // D * E",
+                "+1 // +1",
+                "F - I // F - I",
+                "- A + D * E + B ** C // - A + D * E + B ** C",
+            ]);
+
+            // from the standard
+            examples(|s| level_3_expr(s), [
+                "A",
+                "B // C",
+                "X // Y // 'ABCD'",
+            ]);
+        }
+    }
+
+    rule_test! {
+        level_4_expr(F18V007r1 1012) {
+            examples(|s| level_4_expr(s), [
+                "A",
+                "B // C",
+                "X // Y // 'ABCD'",
+                "A .EQ. A",
+                "B // C .EQ. B // C",
+                "X // Y // 'ABCD' .EQ. X // Y // 'ABCD'",
+                "A .NE. A",
+                "B // C .NE. B // C",
+                "X // Y // 'ABCD' .NE. X // Y // 'ABCD'",
+                "A .LT. A",
+                "B // C .LT. B // C",
+                "X // Y // 'ABCD' .LT. X // Y // 'ABCD'",
+                "A .LE. A",
+                "B // C .LE. B // C",
+                "X // Y // 'ABCD' .LE. X // Y // 'ABCD'",
+                "A .GT. A",
+                "B // C .GT. B // C",
+                "X // Y // 'ABCD' .GT. X // Y // 'ABCD'",
+                "A .GE. A",
+                "B // C .GE. B // C",
+                "X // Y // 'ABCD' .GE. X // Y // 'ABCD'",
+                "A == A",
+                "B // C == B // C",
+                "X // Y // 'ABCD' == X // Y // 'ABCD'",
+                "A /= A",
+                "B // C /= B // C",
+                "X // Y // 'ABCD' /= X // Y // 'ABCD'",
+                "A < A",
+                "B // C < B // C",
+                "X // Y // 'ABCD' < X // Y // 'ABCD'",
+                "A <= A",
+                "B // C <= B // C",
+                "X // Y // 'ABCD' <= X // Y // 'ABCD'",
+                "A > A",
+                "B // C > B // C",
+                "X // Y // 'ABCD' > X // Y // 'ABCD'",
+                "A >= A",
+                "B // C >= B // C",
+                "X // Y // 'ABCD' >= X // Y // 'ABCD'",
+            ]);
+
+            // from the standard
+            examples(|s| level_4_expr(s), [
+                "A",
+                "B == C",
+                "D < E",
+                "(A + B) /= C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        and_operand(F18V007r1 1014) {
+            examples(|s| and_operand(s), [
+                "A",
+                "B == C",
+                "D < E",
+                "(A + B) /= C",
+                ".not. A",
+                ".not. B == C",
+                ".not. D < E",
+                ".not. (A + B) /= C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        or_operand(F18V007r1 1015) {
+            examples(|s| or_operand(s), [
+                "A",
+                "B == C",
+                "D < E",
+                "(A + B) /= C",
+                ".not. A",
+                ".not. B == C",
+                ".not. D < E",
+                ".not. (A + B) /= C",
+                "A .AND. A",
+                "B == C .AND. B == C",
+                "D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        equiv_operand(F18V007r1 1016) {
+            examples(|s| equiv_operand(s), [
+                "A",
+                "B == C",
+                "D < E",
+                "(A + B) /= C",
+                ".not. A",
+                ".not. B == C",
+                ".not. D < E",
+                ".not. (A + B) /= C",
+                "A .AND. A",
+                "B == C .AND. B == C",
+                "D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .OR. A",
+                "B == C .OR. B == C",
+                "D < E .OR. D < E",
+                "(A + B) /= C .OR. (A + B) /= C",
+                ".not. A .OR. .not. A",
+                ".not. B == C .OR. .not. B == C",
+                ".not. D < E .OR. .not. D < E",
+                ".not. (A + B) /= C .OR. .not. (A + B) /= C",
+                "A .AND. A .OR. A .AND. A",
+                "B == C .AND. B == C .OR. B == C .AND. B == C",
+                "D < E .AND. D < E .OR. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .OR. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        level_5_expr(F18V007r1 1017) {
+            examples(|s| level_5_expr(s), [
+                "A",
+                "B == C",
+                "D < E",
+                "(A + B) /= C",
+                ".not. A",
+                ".not. B == C",
+                ".not. D < E",
+                ".not. (A + B) /= C",
+                "A .AND. A",
+                "B == C .AND. B == C",
+                "D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .OR. A",
+                "B == C .OR. B == C",
+                "D < E .OR. D < E",
+                "(A + B) /= C .OR. (A + B) /= C",
+                ".not. A .OR. .not. A",
+                ".not. B == C .OR. .not. B == C",
+                ".not. D < E .OR. .not. D < E",
+                ".not. (A + B) /= C .OR. .not. (A + B) /= C",
+                "A .AND. A .OR. A .AND. A",
+                "B == C .AND. B == C .OR. B == C .AND. B == C",
+                "D < E .AND. D < E .OR. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .OR. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .EQV. A",
+                "B == C .EQV. B == C",
+                "D < E .EQV. D < E",
+                "(A + B) /= C .EQV. (A + B) /= C",
+                ".not. A .EQV. .not. A",
+                ".not. B == C .EQV. .not. B == C",
+                ".not. D < E .EQV. .not. D < E",
+                ".not. (A + B) /= C .EQV. .not. (A + B) /= C",
+                "A .AND. A .EQV. A .AND. A",
+                "B == C .AND. B == C .EQV. B == C .AND. B == C",
+                "D < E .AND. D < E .EQV. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .EQV. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .EQV. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .EQV. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .EQV. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .EQV. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .OR. A .EQV. A .OR. A",
+                "B == C .OR. B == C .EQV. B == C .OR. B == C",
+                "D < E .OR. D < E .EQV. D < E .OR. D < E",
+                "(A + B) /= C .OR. (A + B) /= C .EQV. (A + B) /= C .OR. (A + B) /= C",
+                ".not. A .OR. .not. A .EQV. .not. A .OR. .not. A",
+                ".not. B == C .OR. .not. B == C .EQV. .not. B == C .OR. .not. B == C",
+                ".not. D < E .OR. .not. D < E .EQV. .not. D < E .OR. .not. D < E",
+                ".not. (A + B) /= C .OR. .not. (A + B) /= C .EQV. .not. (A + B) /= C .OR. .not. (A + B) /= C",
+                "A .AND. A .OR. A .AND. A .EQV. A .AND. A .OR. A .AND. A",
+                "B == C .AND. B == C .OR. B == C .AND. B == C .EQV. B == C .AND. B == C .OR. B == C .AND. B == C",
+                "D < E .AND. D < E .OR. D < E .AND. D < E .EQV. D < E .AND. D < E .OR. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C .EQV. (A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .OR. .not. A .AND. .not. A .EQV. .not. A .AND. .not. A .OR. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C .EQV. .not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E .EQV. .not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C .EQV. .not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .NEQV. A",
+                "B == C .NEQV. B == C",
+                "D < E .NEQV. D < E",
+                "(A + B) /= C .NEQV. (A + B) /= C",
+                ".not. A .NEQV. .not. A",
+                ".not. B == C .NEQV. .not. B == C",
+                ".not. D < E .NEQV. .not. D < E",
+                ".not. (A + B) /= C .NEQV. .not. (A + B) /= C",
+                "A .AND. A .NEQV. A .AND. A",
+                "B == C .AND. B == C .NEQV. B == C .AND. B == C",
+                "D < E .AND. D < E .NEQV. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .NEQV. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .NEQV. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .NEQV. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .NEQV. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .NEQV. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+                "A .OR. A .NEQV. A .OR. A",
+                "B == C .OR. B == C .NEQV. B == C .OR. B == C",
+                "D < E .OR. D < E .NEQV. D < E .OR. D < E",
+                "(A + B) /= C .OR. (A + B) /= C .NEQV. (A + B) /= C .OR. (A + B) /= C",
+                ".not. A .OR. .not. A .NEQV. .not. A .OR. .not. A",
+                ".not. B == C .OR. .not. B == C .NEQV. .not. B == C .OR. .not. B == C",
+                ".not. D < E .OR. .not. D < E .NEQV. .not. D < E .OR. .not. D < E",
+                ".not. (A + B) /= C .OR. .not. (A + B) /= C .NEQV. .not. (A + B) /= C .OR. .not. (A + B) /= C",
+                "A .AND. A .OR. A .AND. A .NEQV. A .AND. A .OR. A .AND. A",
+                "B == C .AND. B == C .OR. B == C .AND. B == C .NEQV. B == C .AND. B == C .OR. B == C .AND. B == C",
+                "D < E .AND. D < E .OR. D < E .AND. D < E .NEQV. D < E .AND. D < E .OR. D < E .AND. D < E",
+                "(A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C .NEQV. (A + B) /= C .AND. (A + B) /= C .OR. (A + B) /= C .AND. (A + B) /= C",
+                ".not. A .AND. .not. A .OR. .not. A .AND. .not. A .NEQV. .not. A .AND. .not. A .OR. .not. A .AND. .not. A",
+                ".not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C .NEQV. .not. B == C .AND. .not. B == C .OR. .not. B == C .AND. .not. B == C",
+                ".not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E .NEQV. .not. D < E .AND. .not. D < E .OR. .not. D < E .AND. .not. D < E",
+                ".not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C .NEQV. .not. (A + B) /= C .AND. .not. (A + B) /= C .OR. .not. (A + B) /= C .AND. .not. (A + B) /= C",
+            ]);
+
+            // from the standard
+            examples(|s| level_5_expr(s), [
+                "A",
+                ".NOT. B",
+                "C .AND. D",
+                "E .OR. F",
+                "G .EQV. H",
+                "S .NEQV. T",
+                "A .AND. B .EQV. .NOT. C",
+            ]);
+        }
+    }
+
+    rule_test! {
+        designator(F18V007r1 901) {
+            todo!()
+        }
+    }
+
+    rule_test! {
+        expr(F18V007r1 1022, F18V007r1 1024, F18V007r1 1025, F18V007r1 1026, F18V007r1 1027, F18V007r1 1028, F18V007r1 1029, F18V007r1 1030, F18V007r1 1031) {
+            examples(|s| expr(s), [
+                "A",
+                ".NOT. B",
+                "C .AND. D",
+                "E .OR. F",
+                "G .EQV. H",
+                "S .NEQV. T",
+                "A .AND. B .EQV. .NOT. C",
+                "A .foo. A",
+                ".NOT. B .foo. .NOT. B",
+                "C .AND. D .foo. C .AND. D",
+                "E .OR. F .foo. E .OR. F",
+                "G .EQV. H .foo. G .EQV. H",
+                "S .NEQV. T .foo. S .NEQV. T",
+                "A .AND. B .EQV. .NOT. C .foo. A .AND. B .EQV. .NOT. C",
+            ]);
+
+            // from the standard
+            examples(|s| expr(s), [
+                "A",
+                "B.UNION.C",
+                "(B .INTERSECT. C) .UNION. (X - Y)",
+                "A + B == C * D",
+                ".INVERSE. (A + B)",
+                "A + B .AND. C * D",
+                "E // G == H (1:10)",
+            ]);
+        }
     }
 }

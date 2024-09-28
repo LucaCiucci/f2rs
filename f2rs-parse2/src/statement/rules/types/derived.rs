@@ -145,7 +145,7 @@ pub fn derived_type_stmt<S: Lexed>(source: S) -> PResult<DerivedTypeStmt<Multili
     (
         kw!(TYPE),
         (
-            type_attr_spec_list(),
+            type_attr_spec_list().optional().map(|l| l.unwrap_or(vec![])),
             double_colon(),
         )
             .map(|(spec_list, _)| spec_list)
@@ -196,8 +196,10 @@ pub fn type_attr_spec<S: Lexed>(source: S) -> PResult<TypeAttrSpec<MultilineSpan
         ).map(|_| TypeAttrSpec::BindC),
         (
             kw!(EXTENDS),
+            delim('('),
             name(),
-        ).map(|(_, name)| TypeAttrSpec::Extends(name)),
+            delim(')'),
+        ).map(|(_, _, name, _)| TypeAttrSpec::Extends(name)),
     ).parse(source)
 }
 
@@ -374,13 +376,17 @@ pub fn component_attr_spec<S: Lexed>(source: S) -> PResult<ComponentAttrSpec<Mul
         kw!(ALLOCATABLE).map(|_| ComponentAttrSpec::Allocatable),
         (
             kw!(CODIMENSION),
+            delim('['),
             coarray_spec,
-        ).map(|(_, a)| ComponentAttrSpec::Codimension(a)),
+            delim(']'),
+        ).map(|(_, _, a, _)| ComponentAttrSpec::Codimension(a)),
         kw!(CONTIGUOUS).map(|_| ComponentAttrSpec::Contiguous),
         (
             kw!(DIMENSION),
+            delim('('),
             component_array_spec,
-        ).map(|(_, a)| ComponentAttrSpec::Dimension(a)),
+            delim(')'),
+        ).map(|(_, _, a, _)| ComponentAttrSpec::Dimension(a)),
         kw!(POINTER).map(|_| ComponentAttrSpec::Pointer),
     ).parse(source)
 }
@@ -401,14 +407,15 @@ pub fn data_component_def_stmt<S: Lexed>(source: S) -> PResult<DataComponentDefS
     (
         declaration_type_spec,
         (
-            comma(),
-            separated(
-                component_attr_spec,
+            (
                 comma(),
-                0..,
-            ),
+                list(component_attr_spec, 1..),
+            ).map(|(_, l)| l).optional().map(|l| l.unwrap_or(vec![])),
             double_colon(),
-        ).map(|(_, attrs, _)| attrs).optional().map(|attrs| attrs.unwrap_or(vec![])),
+        )
+            .map(|(attrs, _)| attrs)
+            .optional()
+            .map(|attrs| attrs.unwrap_or(vec![])),
         separated(
             component_decl,
             comma(),
@@ -642,7 +649,7 @@ pub fn type_bound_proc_binding<S: Lexed>(source: S) -> PResult<TypeBoundProcBind
 
 #[derive(Debug, Clone, EnumAsInner)]
 pub enum TypeBoundProcedureStmt<Span> {
-    Form1(Option<Vec<BindingAttr<Span>>>, Vec<TypeBoundProcDecl<Span>>),
+    Form1(Vec<BindingAttr<Span>>, Vec<TypeBoundProcDecl<Span>>),
     Form2(Name<Span>, Vec<BindingAttr<Span>>, Vec<Name<Span>>),
 }
 
@@ -655,11 +662,15 @@ pub fn type_bound_procedure_stmt<S: Lexed>(source: S) -> PResult<TypeBoundProced
     let form_1 = (
         kw!(PROCEDURE),
         (
-            comma(),
-            list(binding_attr, 0..),
+            (
+                comma(),
+                list(binding_attr, 1..),
+            ).map(|(_, l)| l).optional().map(|l| l.unwrap_or(vec![])),
             double_colon(),
-        ).map(|(_, attrs, _)| attrs).optional(),
-        list(type_bound_proc_decl, 0..),
+        ).map(|(attrs, _)| attrs)
+            .optional()
+            .map(|attrs| attrs.unwrap_or(vec![])),
+        list(type_bound_proc_decl, 1..),
     ).map(|(_, attrs, decls)| TypeBoundProcedureStmt::Form1(attrs, decls));
 
     let form_2 = (
@@ -667,9 +678,9 @@ pub fn type_bound_procedure_stmt<S: Lexed>(source: S) -> PResult<TypeBoundProced
         delim('('),
         name(),
         (delim(')'), comma()),
-        list(binding_attr, 0..),
+        list(binding_attr, 1..),
         double_colon(),
-        list(name(), 0..),
+        list(name(), 1..),
     ).map(|(_, _, interface_name, _, attrs, _, names)| TypeBoundProcedureStmt::Form2(interface_name, attrs, names));
 
     alt!(
@@ -762,10 +773,9 @@ pub struct EndTypeStmt<Span>(Option<Name<Span>>);// TODO
 )]
 pub fn end_type_stmt<S: Lexed>(source: S) -> PResult<EndTypeStmt<MultilineSpan>, S> {
     (
-        kw!(END),
-        kw!(TYPE),
+        kw!(END TYPE),
         name().optional(),
-    ).map(|(_, _, _name)| EndTypeStmt(_name)).parse(source)
+    ).map(|(_, _name)| EndTypeStmt(_name)).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -859,7 +869,8 @@ pub struct StructureConstructor<Span> {
 pub fn structure_constructor<S: Lexed>(source: S) -> PResult<StructureConstructor<MultilineSpan>, S> {
     // TODO test
     (
-        derived_type_spec,
+        //derived_type_spec, // TODO this is what we shall actually use, but it would capture the group...
+        name(), // HACK see above
         delim('('),
         separated(
             component_spec,
@@ -868,7 +879,10 @@ pub fn structure_constructor<S: Lexed>(source: S) -> PResult<StructureConstructo
         ),
         delim(')'),
     ).map(|(type_spec, _, component_spec, _)| StructureConstructor {
-        type_spec,
+        type_spec: DerivedTypeSpec {
+            name: type_spec,
+            type_param_specifiers: None,
+        },
         component_spec,
     }).parse(source)
 }
@@ -935,4 +949,360 @@ mod test {
     //        assert_eq!(parser.parses("end type bar"), false);
     //    }
     //}
+
+    use crate::rule_test;
+
+    use super::*;
+
+    rule_test! {
+        type_spec(F18V007r1 702) {
+            examples(|s| type_spec(s), [
+                "INTEGER",
+                "INTEGER (KIND=8)",
+                "INTEGER (8)",
+                "REAL",
+                "REAL (KIND=8)",
+                "REAL (8)",
+                "DOUBLE PRECISION",
+                "COMPLEX",
+                "COMPLEX (KIND=8)",
+                "COMPLEX (8)",
+                "CHARACTER",
+                "CHARACTER (LEN=42)",
+                "CHARACTER (42)",
+                // TODO more on character
+                "LOGICAL",
+                "LOGICAL (KIND=8)",
+                "LOGICAL (8)",
+                "SOMETHING_DERIVED",
+                "SOMETHING_DERIVED (KIND=8)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        declaration_type_spec(F18V007r1 703) {
+            examples(|s| declaration_type_spec(s), [
+                "INTEGER",
+                "INTEGER (KIND=8)",
+                "INTEGER (8)",
+                "REAL",
+                "REAL (KIND=8)",
+                "REAL (8)",
+                "DOUBLE PRECISION",
+                "COMPLEX",
+                "COMPLEX (KIND=8)",
+                "COMPLEX (8)",
+                "CHARACTER",
+                "CHARACTER (LEN=42)",
+                "CHARACTER (42)",
+                // TODO more on character
+                "LOGICAL",
+                "LOGICAL (KIND=8)",
+                "LOGICAL (8)",
+                "TYPE (INTEGER)",
+                "TYPE (INTEGER (KIND=8))",
+                "TYPE (INTEGER (8))",
+                "TYPE (REAL)",
+                "TYPE (REAL (KIND=8))",
+                "TYPE (REAL (8))",
+                "TYPE (DOUBLE PRECISION)",
+                "TYPE (COMPLEX)",
+                "TYPE (COMPLEX (KIND=8))",
+                "TYPE (COMPLEX (8))",
+                "TYPE (CHARACTER)",
+                "TYPE (CHARACTER (LEN=42))",
+                "TYPE (CHARACTER (42))",
+                // TODO more on character
+                "TYPE (LOGICAL)",
+                "TYPE (LOGICAL (KIND=8))",
+                "TYPE (LOGICAL (8))",
+                "TYPE (SOMETHING_DERIVED)",
+                "TYPE (SOMETHING_DERIVED (KIND=8))",
+                "CLASS (SOMETHING_DERIVED)",
+                "CLASS (SOMETHING_DERIVED (KIND=8))",
+                "CLASS (*)",
+                "TYPE (*)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        derived_type_stmt(F18V007r1 727) {
+            examples(|s| derived_type_stmt(s), [
+                "TYPE foo",
+                "TYPE :: foo",
+                "TYPE, ABSTRACT :: foo",
+                "TYPE, ABSTRACT, :: foo",
+                "TYPE, ABSTRACT, BIND (C), eXtenDs (bar), PUBLIC, private :: foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_attr_spec(F18V007r1 728) {
+            examples(|s| type_attr_spec(s), [
+                "ABSTRACT",
+                "PUBLIC",
+                "PRIVATE",
+                "BIND (C)",
+                "EXTENDS (bar)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_param_attr_spec(F18V007r1 734) {
+            examples(|s| type_param_attr_spec(s), [
+                "KIND",
+                "LEN",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_param_decl(F18V007r1 733) {
+            examples(|s| type_param_decl(s), [
+                "foo",
+                "foo = 42",
+                "foo = 42 - (7 +2) ** 3  .ne. 0",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_param_def_stmt(F18V007r1 732) {
+            examples(|s| type_param_def_stmt(s), [
+                "INTEGER, KIND :: foo",
+                "INTEGER, KIND :: foo = 42",
+                "INTEGER, KIND :: foo = 42 - (7 +2) ** 3  .ne. 0",
+                "INTEGER (42), KIND :: foo = 42 - (7 +2) ** 3  .ne. 0",
+                "INTEGER (KIND= 42), KIND :: foo = 42 - (7 +2) ** 3  .ne. 0",
+            ]);
+        }
+    }
+
+    rule_test! {
+        component_array_spec(F18V007r1 740) {
+            examples(|s| component_array_spec(s), [
+                "1",
+                "1:1",
+                ":",
+            ]);
+        }
+    }
+
+    rule_test! {
+        component_decl(F18V007r1 739) {
+            examples(|s| component_decl(s), [
+                "foo",
+                "foo ( : )",
+                "foo ( 1 )",
+                "foo ( 1:1 )",
+                "foo ( : )",
+                "foo (:)",
+                "foo [ : ]",
+                "foo (:) [ : ]",
+                "foo (:) [*]",
+                "foo (:) [ 1 : * ]",
+                "foo (:) [ lower_cobound : * ]",
+                "foo (:) [ upper_cobound, lower_cobound : * ]",
+                "foo (:) [ lower_cobound:upper_cobound, lower_cobound : * ]",
+                "foo (:) [ lower_cobound:upper_cobound, upper_cobound, lower_cobound:upper_cobound, lower_cobound : * ]",
+                "foo (:) [ lower_cobound:upper_cobound, upper_cobound, lower_cobound:upper_cobound, lower_cobound : * ] * 42",
+                "foo *32"
+            ]);
+        }
+    }
+
+    rule_test! {
+        initial_data_target(F18V007r1 744) {
+            examples(|s| initial_data_target(s), [
+                "foo",
+                // TODO ...
+            ]);
+        }
+    }
+
+    rule_test! {
+        component_attr_spec(F18V007r1 738) {
+            examples(|s| component_attr_spec(s), [
+                "PUBLIC",
+                "PRIVATE",
+                "ALLOCATABLE",
+                "CODIMENSION [:]",
+                "CODIMENSION [*]",
+                "CODIMENSION [1:*]",
+                "CONTIGUOUS",
+                "DIMENSION (1)",
+                "DIMENSION (1:10)",
+                "POINTER",
+            ]);
+        }
+    }
+
+    rule_test! {
+        data_component_def_stmt(F18V007r1 737) {
+            examples(|s| data_component_def_stmt(s), [
+                "INTEGER foo",
+                "INTEGER :: foo",
+                "INTEGER, PUBLIC :: foo",
+                "INTEGER, PRIVATE :: foo",
+                "INTEGER, ALLOCATABLE :: foo",
+                "INTEGER, CODIMENSION [:] :: foo",
+                "INTEGER, CODIMENSION [*] :: foo",
+                "INTEGER, CODIMENSION [1:*] :: foo",
+                "INTEGER, CONTIGUOUS :: foo",
+                "INTEGER, DIMENSION (1) :: foo",
+                "INTEGER, DIMENSION (1:10) :: foo",
+                "INTEGER, POINTER :: foo",
+                "INTEGER, POINTER, PUBLIC, PRIVATE, ALLOCATABLE, CODIMENSION [:], CONTIGUOUS, DIMENSION (1), POINTER :: foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        proc_component_def_stmt(F18V007r1 741) {
+            examples(|s| proc_component_def_stmt(s), [
+                "PROCEDURE(), POINTER :: foo",
+                "PROCEDURE(interface), POINTER :: foo",
+                "PROCEDURE(interface), PUBLIC, POINTER :: foo",
+                "PROCEDURE(interface), PRIVATE, POINTER :: foo",
+                "PROCEDURE(interface), NOPASS, POINTER :: foo",
+                "PROCEDURE(interface), PASS(arg), POINTER :: foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        proc_component_attr_spec(F18V007r1 742) {
+            examples(|s| proc_component_attr_spec(s), [
+                "PUBLIC",
+                "PRIVATE",
+                "NOPASS",
+                "PASS(arg)",
+                "POINTER",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_bound_proc_binding(F18V007r1 748) {
+            examples(|s| type_bound_proc_binding(s), [
+                "PROCEDURE :: foo",
+                "PROCEDURE, PUBLIC :: foo",
+                "PROCEDURE(interface), PUBLIC :: foo",
+                "GENERIC :: foo => bar",
+                "FINAL :: foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_bound_procedure_stmt(F18V007r1 749) {
+            examples(|s| type_bound_procedure_stmt(s), [
+                "PROCEDURE :: foo",
+                "PROCEDURE, PUBLIC :: foo",
+                "PROCEDURE(interface), PUBLIC :: foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        binding_attr(F18V007r1 752) {
+            examples(|s| binding_attr(s), [
+                "PUBLIC",
+                "PRIVATE",
+                "DEFERRED",
+                "NON_OVERRIDABLE",
+                "NOPASS",
+                "PASS(arg)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        final_procedure_stmt(F18V007r1 753) {
+            examples(|s| final_procedure_stmt(s), [
+                "FINAL :: foo",
+                "FINAL :: foo, bar",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_bound_proc_decl(F18V007r1 750) {
+            examples(|s| type_bound_proc_decl(s), [
+                "foo",
+                "foo => bar",
+            ]);
+        }
+    }
+
+    rule_test! {
+        end_type_stmt(F18V007r1 730) {
+            examples(|s| end_type_stmt(s), [
+                "END TYPE",
+                "ENDTYPE foo",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_bound_generic_stmt(F18V007r1 751) {
+            examples(|s| type_bound_generic_stmt(s), [
+                "GENERIC :: foo => bar",
+                "GENERIC, PUBLIC :: foo => bar",
+                "GENERIC, PRIVATE :: foo => bar",
+            ]);
+        }
+    }
+
+    rule_test! {
+        derived_type_spec(F18V007r1 754) {
+            examples(|s| derived_type_spec(s), [
+                "foo",
+                "foo(bar)",
+                "foo(bar, baz)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        type_param_spec(F18V007r1 755) {
+            examples(|s| type_param_spec(s), [
+                "foo",
+                "foo = bar",
+            ]);
+        }
+    }
+
+    rule_test! {
+        structure_constructor(F18V007r1 756) {
+            examples(|s| structure_constructor(s), [
+                "foo()",
+                "foo(bar)",
+                "foo(bar, baz)",
+            ]);
+        }
+    }
+
+    rule_test! {
+        component_spec(F18V007r1 757) {
+            examples(|s| component_spec(s), [
+                "foo",
+                "foo = bar",
+            ]);
+        }
+    }
+
+    rule_test! {
+        component_data_source(F18V007r1 758) {
+            examples(|s| component_data_source(s), [
+                "foo",
+                "bar",
+                // TODO ...
+            ]);
+        }
+    }
 }
