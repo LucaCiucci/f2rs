@@ -8,9 +8,12 @@ members = [
     #"f2rs-parse/f2rs-parse-derive",
     #"example-project",
     #"xtask",
-    "f2rs-parse2", "f2rs",
+    #"f2rs-parse2",
+    #"f2rs",
+    "f2rs-parser",
 ]
 default-members = [
-    "f2rs",
+    #"f2rs",
     #"f2rs-parse2",
+    "f2rs-parser",
 ]

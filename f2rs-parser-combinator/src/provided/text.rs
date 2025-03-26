@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt::Display, ops::Range};
 
 use crate::tokenization::{Parser, Source, TokenTree, TextSource};
 
@@ -6,18 +6,28 @@ mod exact_match; pub use exact_match::*;
 mod space; pub use space::*;
 
 #[derive(Debug, Clone)]
-pub struct Chars<'a> {
+pub struct CharSource<'a> {
     chars: &'a[char],
     offset: usize,
 }
 
-impl<'a> Chars<'a> {
+impl<'a> CharSource<'a> {
     pub fn new(chars: &'a[char], offset: usize) -> Self {
-        Chars { chars, offset }
+        CharSource { chars, offset }
+    }
+
+    pub fn chars(&self) -> &'a[char] {
+        self.chars
     }
 }
 
-impl<'a> Source for Chars<'a> {
+impl Display for CharSource<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.chars.iter().collect::<String>())
+    }
+}
+
+impl<'a> Source for CharSource<'a> {
     type Element = char;
     type Index = usize;
     type Span = Range<usize>;
@@ -36,7 +46,7 @@ impl<'a> Source for Chars<'a> {
     }
 
     fn tail(self, end: Self::Index) -> Self {
-        Chars {
+        CharSource {
             chars: &self.chars[end..],
             offset: self.offset + end,
         }
@@ -47,7 +57,7 @@ impl<'a> Source for Chars<'a> {
     }
 }
 
-impl<'a> TextSource for Chars<'a> {
+impl<'a> TextSource for CharSource<'a> {
 }
 
 impl Source for &str {

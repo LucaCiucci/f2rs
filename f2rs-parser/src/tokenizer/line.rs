@@ -123,7 +123,7 @@ pub struct TokenizedFreeLine<Span> {
 impl TokenizedFreeLine<Range<usize>> {
     pub fn parse_chars(chars: &[char]) -> Option<Self> {
         let (content, _) = tokenized_free_line()
-            .parse(Chars::new(chars, 0))?;
+            .parse(CharSource::new(chars, 0))?;
         Some(content)
     }
 
@@ -233,7 +233,7 @@ impl<Span> TokenizedFreeLine<Span> {
 //)]
 pub fn tokenized_free_line<'a, S: TextSource + 'a>() -> impl Parser<S, Token = TokenizedFreeLine<S::Span>> {
     use f2rs_parser_combinator::prelude::*;
-    use crate::tokens::rules::*;
+    use crate::tokenizer::rules::*;
 
     (
         space(0),

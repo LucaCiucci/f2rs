@@ -1,0 +1,12 @@
+[package]
+name = "f2rs-lexer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+colored = "2.1.0"
+enum-as-inner = "0.6.0"
+enum-iterator = "1.4.1"
+log = "0.4.21"
+f2rs-parser-combinator = { version = "0.1.0", path = "../f2rs-parser-combinator" }
+paste = "1.0.14"

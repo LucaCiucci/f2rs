@@ -7,7 +7,7 @@ mod cfg; use std::{char, ops::Range};
 
 pub use cfg::*;
 use colored::Color;
-use f2rs_parser_combinator::{provided::text::Chars, tokenization::{Parser, ParserCore, Source, SourceSpan, Spanned, TextSource}};
+use f2rs_parser_combinator::{provided::text::CharSource, tokenization::{Parser, ParserCore, Source, SourceSpan, Spanned, TextSource}};
 use statement::MultilineSpan;
 use tokens::{rules::{Label, LineComment, SpecialCharacterMatch}, LexicalToken};
 
@@ -87,21 +87,6 @@ impl<'a> Source for LexSource<'a> {
         }
     }
 }
-
-macro_rules! rule_test {
-    ($name: ident ($(
-        $rule_name:ident $rule_number:literal
-    ),*) { $($code:tt)* }) => {
-        paste::paste! {
-            #[test]
-            #[allow(non_snake_case)]
-            fn [<test_ $name $(_ $rule_name _ $rule_number)*>]() {
-                $($code)*
-            }
-        }
-    };
-}
-pub(crate) use rule_test;
 
 #[cfg(test)]
 mod tests {

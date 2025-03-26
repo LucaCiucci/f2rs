@@ -402,7 +402,7 @@ fn tokenize(source: &str) -> Vec<LexicalToken<MultilineSpan>> {
         0..,
     )
         .map(|t| t.map_span(&|s| MultilineSpan::from_line_span(0, s)))
-        .parse(Chars::new(&chars, 0))
+        .parse(CharSource::new(&chars, 0))
         .unwrap();
 
     // TODO check if we parsed all the source?
