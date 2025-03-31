@@ -1,8 +1,16 @@
+/*!
+Tokenizer for the Fortran source code.
+
+This module contains facilities to take a sequence of [`char`]s and produce a
+sequence of [`LexicalToken`]s.
+*/
 #[cfg(test)]
 use f2rs_parser_combinator::prelude::*;
 
 pub mod rules;
-pub mod line;
+mod line;
+
+pub use line::*;
 
 #[macro_export] // TODO in f2rs-parser-common
 macro_rules! rule_test {

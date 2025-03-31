@@ -18,10 +18,8 @@ mod execution_control; pub use execution_control::*;
 mod concepts; pub use concepts::*;
 mod input_output_editing; pub use input_output_editing::*;
 mod statements; pub use statements::*;
-use crate::{s_rule, tokens::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, Equals, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, MultOp, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}};
+use crate::{s_rule, tokenizer::rules::{AddOp, AndOp, Arrow, CharLiteralConstant, Colon, Comma, ConcatOp, DefinedOperator, DefinedUnaryOrBinaryOp, Dot, DotDot, DoubleColon, Equals, EquivOp, IntLiteralConstant, IntrinsicOperator, Label, MultOp, Name, NonComplexLiteralConstant, NotOp, OrOp, Percent, PowerOp, RelOp, SpecialCharacter, SpecialCharacterMatch}};
 use std::ops::RangeBounds;
-
-use crate::tokens::rules::{Colon, Comma, DoubleColon, Name};
 
 use super::*;
 
@@ -392,7 +390,7 @@ pub fn letter<S: Lexed>() -> impl Parser<S, Token = Char<MultilineSpan>> {
 
 #[cfg(test)]
 fn tokenize(source: &str) -> Vec<LexicalToken<MultilineSpan>> {
-    use crate::tokens::rules::{lexical_token, space};
+    use crate::tokenizer::rules::{lexical_token, space};
 
     let chars = source.chars().collect::<Vec<_>>();
 
@@ -411,22 +409,26 @@ fn tokenize(source: &str) -> Vec<LexicalToken<MultilineSpan>> {
 }
 
 #[cfg(test)]
-fn example<T>(
+fn example<T: std::fmt::Debug>(
     rule: for<'a> fn(&'a [LexicalToken<MultilineSpan>]) -> PResult<T, &'a [LexicalToken<MultilineSpan>]>,
     example: &'static str,
 ) -> T {
+    use std::fmt::Debug;
+
     eprintln!("Testing match with: \"{example}\"");
     let (tokens, tail) = tokenize(example).split_at(tokenize(example).len() - 1);
     let tokens = tokenize(example);
     //let parsed = &example[0..example.len() - tail.len()];
     //assert!(tail.is_empty(), "TOKENS did not parse all the source: \"{parsed}\" --- \"{tail}\"");
+    eprintln!("Tokens: {tokens:#?}");
     let (token, tail) = rule.parse(&tokens).expect("Rule did not parse");
-    assert!(tail.is_empty(), "Rule did not parse all the tokens, left: {} tokens", tail.len());
+    eprintln!("Parsed: {token:#?}");
+    assert!(tail.is_empty(), "Rule did not parse all the tokens, left: {} tokens, resulted in: {token:#?}", tail.len());
     token
 }
 
 #[cfg(test)]
-fn examples<const N: usize, T>(
+fn examples<const N: usize, T: std::fmt::Debug>(
     rule: for<'a> fn(&'a [LexicalToken<MultilineSpan>]) -> PResult<T, &'a [LexicalToken<MultilineSpan>]>,
     examples: [&'static str; N],
 ) {

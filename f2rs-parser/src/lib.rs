@@ -1,5 +1,6 @@
 
 pub mod tokenizer;
+pub mod parser;
 
 #[macro_export] // TODO in f2rs-parser-common
 macro_rules! s_rule {

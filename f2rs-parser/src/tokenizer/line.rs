@@ -104,6 +104,29 @@ pub struct Line {
     pub content: TokenizedFreeLine<Range<usize>>,
 }
 
+/// A tokenized free line
+///
+/// A free line is a line that may be part of a statement.
+///
+/// As an example, the following line is a free line:
+/// ```plain
+///  20  &  1 + 2  & ! comment
+/// ---/--/------/---/--------
+///  a  b    c     d     e
+/// ```
+/// where:
+/// * `a` is the label
+/// * `b` is the start continuation sign
+/// * `c` is the list of tokens
+/// * `d` is the end continuation sign
+/// * `e` is the comment
+///
+/// Multiple free lines can be part of a statement:
+/// ```fortran
+/// 20      z = 2 &    ! comment
+///           & + 2 &
+///           & + 2
+/// ```
 #[derive(Debug, Clone)]
 pub struct TokenizedFreeLine<Span> {
     /// "20"
@@ -199,15 +222,22 @@ impl TokenizedFreeLine<Range<usize>> {
 }
 
 impl<Span> TokenizedFreeLine<Span> {
+    /// A line is "empty" if it has no tokens and no label
+    ///
+    /// # Remarks
+    /// * A line containing just a comment is considered empty
     pub fn is_empty_line(&self) -> bool {
-        self.tokens.is_empty() && self.label.is_none() // Note: comment is not considered
+        self.tokens.is_empty()
+            && self.label.is_none()
+            && self.start_continuation_sign.is_none()
+            && self.end_continuation_sign.is_none()
     }
 
     /// Tries to group the lines into a group
     ///
     /// A group is a sequence of lines that are connected by an "end_continuation_sign"
     /// and possibly separated by empty lines. Returns the number of lines in the group.
-    pub fn group<'a>(lines: impl IntoIterator<Item = &'a Self>) -> usize
+    pub fn group_stmt_lines<'a>(lines: impl IntoIterator<Item = &'a Self>) -> usize
     where
         Span: 'a,
     {
@@ -267,4 +297,25 @@ pub fn tokenized_free_line<'a, S: TextSource + 'a>() -> impl Parser<S, Token = T
             comment,
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::rule_test;
+
+    rule_test! {
+        tokenized_free_line() {
+            let example = "20  &  1 + 2  & ! comment";
+            let chars = example.chars().collect::<Vec<_>>();
+            let line = TokenizedFreeLine::parse_chars(&chars).unwrap();
+            assert!(line.label.is_some());
+            assert_eq!(line.label.unwrap().0.digits.value, "20");
+            assert!(line.start_continuation_sign.is_some());
+            assert_eq!(line.tokens.len(), 3);
+            assert!(line.end_continuation_sign.is_some());
+            assert!(line.comment.is_some());
+        }
+    }
 }

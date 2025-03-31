@@ -1,4 +1,4 @@
-use crate::tokens::rules::IntLiteralConstant;
+use crate::tokenizer::rules::IntLiteralConstant;
 
 use super::*;
 

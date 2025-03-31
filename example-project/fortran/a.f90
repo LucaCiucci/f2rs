@@ -1,6 +1,7 @@
 ! comment
 program my_program
-    DO 2 k=1,5 
+    DO 2 &
+    k=1,5 
         a=a+kmul(i,k)*arg(i) 
     2 print *,a
 end program my_program

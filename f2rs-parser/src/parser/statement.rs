@@ -6,7 +6,7 @@ use rules::{action_stmt, implicit_part_stmt_2, import_stmt, kw, other_specificat
 
 use f2rs_parser_combinator::prelude::*;
 
-use crate::tokens::LexicalToken;
+use crate::tokenizer::LexicalToken;
 
 pub mod rules;
 
