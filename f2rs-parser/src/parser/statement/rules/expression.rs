@@ -130,7 +130,7 @@ pub enum Primary<Span> {
     ArrayConstructor(ArrayConstructor<Span>),
     StructureConstructor(StructureConstructor<Span>),
     FunctionReference(FunctionReference<Span>),
-    TypeParamInquiry(TypeParamInquiry<Span>),
+    //TypeParamInquiry(TypeParamInquiry<Span>),
     TypeParamName(Name<Span>),
     ParenthesizedExpr(Box<Expr<Span>>),
 }
@@ -147,6 +147,9 @@ pub enum Primary<Span> {
     "or ( expr )",
 )]
 pub fn primary<S: Lexed>(source: S) -> PResult<Primary<MultilineSpan>, S> {
+    // NOTE: type-param-inquiry is syntactically equivalent to a designator (specifically,
+    // anything that leads to a structure component, i.e. 
+
     alt! {
         for S =>
         (
@@ -154,7 +157,7 @@ pub fn primary<S: Lexed>(source: S) -> PResult<Primary<MultilineSpan>, S> {
             expr,
             delim(')'),
         ).map(|(_, expr, _)| Primary::ParenthesizedExpr(Box::new(expr))),
-        type_param_inquiry.map(Primary::TypeParamInquiry),
+        //type_param_inquiry.map(Primary::TypeParamInquiry),
         structure_constructor.map(Primary::StructureConstructor),
         designator(false).map(Primary::Designator),
         function_reference.map(Primary::FunctionReference),
@@ -738,23 +741,23 @@ pub fn complex_part_designator<S: Lexed>(
     .parse(source)
 }
 
-#[derive(Debug, Clone)]
-pub struct TypeParamInquiry<Span> {
-    pub designator: Designator<Span>,
-    pub type_param_name: Name<Span>,
-}
+//#[derive(Debug, Clone)]
+//pub struct TypeParamInquiry<Span> {
+//    pub designator: Designator<Span>,
+//    pub type_param_name: Name<Span>,
+//}
 
-#[doc = s_rule!(
-    F18V007r1 rule "type-param-inquiry" #916 : "is designator % type-param-name",
-)]
-pub fn type_param_inquiry<S: Lexed>(source: S) -> PResult<TypeParamInquiry<MultilineSpan>, S> {
-    (designator(true), percent(), name())
-        .map(|(designator, _, type_param_name)| TypeParamInquiry {
-            designator,
-            type_param_name,
-        })
-        .parse(source)
-}
+//#[doc = s_rule!(
+//    F18V007r1 rule "type-param-inquiry" #916 : "is designator % type-param-name",
+//)]
+//pub fn type_param_inquiry<S: Lexed>(source: S) -> PResult<TypeParamInquiry<MultilineSpan>, S> {
+//    (designator(true), percent(), name())
+//        .map(|(designator, _, type_param_name)| TypeParamInquiry {
+//            designator,
+//            type_param_name,
+//        })
+//        .parse(source)
+//}
 
 #[derive(Debug, Clone)]
 pub struct ArrayElement<Span>(pub DataRef<Span>);
