@@ -15,15 +15,15 @@ macro_rules! just_wraps {
                 self.0.span()
             }
         }
-    
+
         impl<Span> MapSpan<Span> for $name<Span> {
             type Spanned<T> = $name<T>;
-    
+
             fn map_span<S>(self, f: &impl Fn(Span) -> S) -> Self::Spanned<S> {
                 $name(self.0.map_span(f))
             }
         }
-    
+
         impl<Span> TokenTree<Span> for $name<Span> {
         }
     };
