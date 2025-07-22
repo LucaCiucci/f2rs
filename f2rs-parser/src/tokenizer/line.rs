@@ -132,7 +132,7 @@ pub struct TokenizedFreeLine<Span> {
     /// "20"
     pub label: Option<Label<Span>>,
     /// "&"
-    pub start_continuation_sign: Option<SpecialCharacterMatch<Span>>,
+    pub continuation_start_sign: Option<SpecialCharacterMatch<Span>>,
 
     pub tokens: Vec<LexicalToken<Span>>,
 
@@ -183,7 +183,7 @@ impl TokenizedFreeLine<Range<usize>> {
             colorize(l.span(), continuation_color, false);
         }
 
-        if let Some(c) = &self.start_continuation_sign {
+        if let Some(c) = &self.continuation_start_sign {
             colorize(c.span(), continuation_color, false);
         }
 
@@ -229,7 +229,7 @@ impl<Span> TokenizedFreeLine<Span> {
     pub fn is_empty_line(&self) -> bool {
         self.tokens.is_empty()
             && self.label.is_none()
-            && self.start_continuation_sign.is_none()
+            && self.continuation_start_sign.is_none()
             && self.end_continuation_sign.is_none()
     }
 
@@ -257,41 +257,54 @@ impl<Span> TokenizedFreeLine<Span> {
     }
 }
 
+macro_rules! parser_seq {
+    (
+        ( $($capture:tt : $parser:expr),+$(,)? ) =>  $body:expr ) => {
+        move |source| {
+            $(
+                let ($capture, source) = $parser.parse(source)?;
+            )*
+            let r = $body;
+            Some((r, source))
+        }
+    };
+}
+
 // TODO where is this defined?
 //#[syntax_rule(
 //    F18V007r1 rule 
 //)]
-pub fn tokenized_free_line<'a, S: TextSource + 'a>() -> impl Parser<S, Token = TokenizedFreeLine<S::Span>> {
+pub fn tokenized_free_line<S: TextSource>() -> impl Parser<S, Token = TokenizedFreeLine<S::Span>> {
     use f2rs_parser_combinator::prelude::*;
     use crate::tokenizer::rules::*;
 
-    (
-        space(0),
-        label.optional(),
-        space(0),
-        special_character.condition(|c, _| c.character.is_ampersand()).optional(), // TODO use SpecialCharacter::Ampersand.optional(),
-        space(0),
-        many_until(
-            (lexical_token, space(0)).map(|(t, _)| t),
-            (
-                (
-                    SpecialCharacter::Ampersand,
-                    space(0),
-                ).map(|(c, _)| c).optional(),
-                line_comment.optional(),
-                eol,
-            ),
-            0..,
-        )
-    ).map(|(_, label, _, start_continuation_sign, _, (tokens, tail))| {
+    let continuation_start = || special_character
+        .condition(|c, _| c.character.is_ampersand());
+
+    let line_token = || (lexical_token, space(0)).map(|(t, _)| t);
+    let continuation = || parser_seq!((c: SpecialCharacter::Ampersand, _: space(0)) => c);
+    let tail = move || parser_seq!((
+        continuation: continuation().optional(),
+        comment: line_comment.optional(),
+        _: eol,
+    ) => (continuation, comment));
+
+    parser_seq!((
+        _: space(0),
+        label: label.optional(),
+        _: space(0),
+        continuation_start_sign: continuation_start().optional(),
+        _: space(0),
+        (tokens, tail): many_until(line_token(), tail(), 0..),
+    ) => {
         let (end_continuation_sign, comment) = match tail {
-            Some((c, comment, _)) => (c, comment),
+            Some((c, comment)) => (c, comment),
             None => (None, None),
         };
-
+        
         TokenizedFreeLine {
             label,
-            start_continuation_sign,
+            continuation_start_sign,
             tokens,
             end_continuation_sign,
             comment,
@@ -312,7 +325,7 @@ mod tests {
             let line = TokenizedFreeLine::parse_chars(&chars).unwrap();
             assert!(line.label.is_some());
             assert_eq!(line.label.unwrap().0.digits.value, "20");
-            assert!(line.start_continuation_sign.is_some());
+            assert!(line.continuation_start_sign.is_some());
             assert_eq!(line.tokens.len(), 3);
             assert!(line.end_continuation_sign.is_some());
             assert!(line.comment.is_some());

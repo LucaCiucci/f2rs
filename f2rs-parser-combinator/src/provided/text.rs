@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Range};
+use std::{borrow::Borrow, fmt::Display, ops::Range};
 
 use crate::tokenization::{Parser, Source, TokenTree, TextSource};
 
@@ -32,8 +32,8 @@ impl<'a> Source for CharSource<'a> {
     type Index = usize;
     type Span = Range<usize>;
 
-    fn get_at<'s>(&'s self, index: &Self::Index) -> Option<Self::Element> {
-        self.chars.get(*index).cloned()
+    fn get_at(&self, index: impl Borrow<Self::Index>) -> Option<Self::Element> {
+        self.chars.get(*index.borrow()).cloned()
     }
     fn start(&self) -> Self::Index {
         0
@@ -65,8 +65,8 @@ impl Source for &str {
     type Index = usize;
     type Span = ();
 
-    fn get_at<'s>(&'s self, index: &Self::Index) -> Option<Self::Element> {
-        let s = &self[*index..];
+    fn get_at(&self, index: impl Borrow<Self::Index>) -> Option<Self::Element> {
+        let s = &self[*index.borrow()..];
         s.chars().next()
     }
 

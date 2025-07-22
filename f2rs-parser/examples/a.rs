@@ -1,4 +1,4 @@
-use f2rs_lexer::tokenizer::TokenizedFreeLine;
+use f2rs_parser::tokenizer::TokenizedFreeLine;
 
 
 fn main() {

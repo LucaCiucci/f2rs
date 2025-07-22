@@ -1,5 +1,5 @@
 
-use std::ops::{Range, RangeBounds, RangeFull};
+use std::{borrow::Borrow, ops::{Range, RangeBounds, RangeFull}};
 
 use crate::{provided::common::{Mapped, Then, Or, Optional, MappedIf, Where_}, prelude::{DoNotConsume, Named, If_, Condition}};
 
@@ -69,6 +69,14 @@ where
 pub trait Parser<S: Source>: ParserCore<S> + Clone {
     fn parses(&self, source: S) -> bool {
         self.parse(source).is_some()
+    }
+
+    fn parse_opt(&self, source: S) -> (Option<Self::Token>, S) {
+        if let Some((token, source)) = self.parse(source.clone()) {
+            (Some(token), source)
+        } else {
+            (None, source)
+        }
     }
 
     fn named(self, name: &'static str) -> Named<Self>
@@ -207,7 +215,7 @@ pub trait Source: Clone {
     type Index: Clone;
     type Span: SourceSpan;
 
-    fn get_at<'s>(&'s self, index: &Self::Index) -> Option<Self::Element>; // TODO make it possible to return a reference
+    fn get_at(&self, index: impl Borrow<Self::Index>) -> Option<Self::Element>; // TODO make it possible to return a reference
     fn start(&self) -> Self::Index;
     fn next(&self, index: Self::Index, count: usize) -> Self::Index;
     fn empty(&self) -> bool {
@@ -243,8 +251,8 @@ impl<T: Clone> Source for &[T] {
     type Index = usize;
     type Span = ();
 
-    fn get_at<'s>(&'s self, index: &Self::Index) -> Option<Self::Element> {
-        self.get(*index).cloned()
+    fn get_at<'s>(&'s self, index: impl Borrow<Self::Index>) -> Option<Self::Element> {
+        self.get(*index.borrow()).cloned()
     }
 
     fn start(&self) -> Self::Index {

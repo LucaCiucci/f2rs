@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "f2rs-lexer"
+name = "f2rs-parser"
 version = "0.1.0"
 dependencies = [
  "colored",

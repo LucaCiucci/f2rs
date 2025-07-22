@@ -29,6 +29,7 @@ macro_rules! just_wraps {
     };
 }
 
+// TODO remove
 pub fn blanks<S: TextSource>(range: impl RangeBounds<usize> + Clone + 'static) -> impl Parser<S, Token = ()> {
     fold_many(
         Parser::<S>::or(SpecialCharacter::Blank, SpecialCharacter::Tab), // NOTE: added Tab for convenience
@@ -38,6 +39,7 @@ pub fn blanks<S: TextSource>(range: impl RangeBounds<usize> + Clone + 'static) -
     )
 }
 
+// TODO remove
 pub fn space<'a, S: TextSource + 'a>(min: usize) -> impl Parser<S, Token = ()> {
     blanks(min..).map(|_| ())
 }
