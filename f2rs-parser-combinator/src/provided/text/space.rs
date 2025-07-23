@@ -1,7 +1,7 @@
 
 use std::ops::RangeBounds;
 
-use crate::provided::common::fold_many;
+use crate::{provided::common::fold_many, seq};
 
 use super::*;
 
@@ -15,11 +15,11 @@ pub fn white_space<S: TextSource>(range: impl RangeBounds<usize> + Clone) -> imp
 }
 
 pub fn white_spaced<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, Token = T::Token> {
-    (
-        white_space(0..),
-        parser,
-        white_space(0..),
-    ).map(|(_, token, _)| token)
+    seq!((
+        _: white_space(0..),
+        token: parser,
+        _: white_space(0..),
+    ) => token)
 }
 
 pub fn white_space_no_newline<S: TextSource>(range: impl RangeBounds<usize> + Clone) -> impl Parser<S, Token = ()> {
@@ -32,11 +32,11 @@ pub fn white_space_no_newline<S: TextSource>(range: impl RangeBounds<usize> + Cl
 }
 
 pub fn white_spaced_no_newline<S: TextSource, T: Parser<S>>(parser: T) -> impl Parser<S, Token = T::Token> {
-    (
-        white_space_no_newline(0..),
-        parser,
-        white_space_no_newline(0..),
-    ).map(|(_, token, _)| token)
+    seq!((
+        _: white_space_no_newline(0..),
+        token: parser,
+        _: white_space_no_newline(0..),
+    ) => token)
 }
 
 pub fn eof<S: Source>() -> impl Parser<S, Token = ()> {

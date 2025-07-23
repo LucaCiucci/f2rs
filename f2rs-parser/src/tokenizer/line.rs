@@ -268,7 +268,7 @@ pub fn tokenized_free_line<S: TextSource>() -> impl Parser<S, Token = TokenizedF
     let continuation_start = || special_character
         .condition(|c, _| c.character.is_ampersand());
 
-    let line_token = || (lexical_token, space(0)).map(|(t, _)| t);
+    let line_token = || seq!((t: lexical_token, _: space(0)) => t);
     let continuation = || seq!((c: SpecialCharacter::Ampersand, _: space(0)) => c);
     let tail = move || seq!((
         continuation: continuation().opt(),

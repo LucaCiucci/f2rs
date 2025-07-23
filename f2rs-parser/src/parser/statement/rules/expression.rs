@@ -1,3 +1,4 @@
+use f2rs_parser_combinator::seq;
 use crate::tokenizer::rules::{DefinedUnaryOrBinaryOp, PowerOp};
 
 use super::*;
@@ -17,7 +18,10 @@ pub fn expr<S: Lexed>(source: S) -> PResult<Expr<MultilineSpan>, S> {
     let bin_op = defined_unary_or_binary_op(); // TODO binary
     let right_part = {
         let e5 = e5.clone();
-        (bin_op, e5).map(|(op, expr)| (op, expr))
+        seq!((
+            op: bin_op,
+            expr: e5,
+        ) => (op, expr))
     };
 
     let (right, mut source) = e5.parse(source)?;
@@ -152,11 +156,11 @@ pub fn primary<S: Lexed>(source: S) -> PResult<Primary<MultilineSpan>, S> {
 
     alt! {
         for S =>
-        (
-            delim('('),
-            expr,
-            delim(')'),
-        ).map(|(_, expr, _)| Primary::ParenthesizedExpr(Box::new(expr))),
+        seq!((
+            _: delim('('),
+            expr: expr,
+            _: delim(')'),
+        ) => Primary::ParenthesizedExpr(Box::new(expr))),
         //type_param_inquiry.map(Primary::TypeParamInquiry),
         structure_constructor.map(Primary::StructureConstructor),
         designator(false).map(Primary::Designator),
@@ -178,15 +182,13 @@ pub struct Level1Expr<Span> {
     F18V007r1 rule "level-1-expr" #1002 : "is [ defined-unary-op ] primary",
 )]
 pub fn level_1_expr<S: Lexed>(source: S) -> PResult<Level1Expr<MultilineSpan>, S> {
-    (
-        defined_unary_or_binary_op().opt(), // TODO unary
-        primary,
-    )
-        .map(|(operator, primary)| Level1Expr {
-            operator,
-            primary: Box::new(primary),
-        })
-        .parse(source)
+    seq!((
+        operator: defined_unary_or_binary_op().opt(), // TODO unary
+        primary: primary,
+    ) => Level1Expr {
+        operator,
+        primary: Box::new(primary),
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -199,14 +201,13 @@ pub struct MultOperand<Span> {
     F18V007r1 rule "mult-operand" #1004 : "is level-1-expr [ power-op mult-operand ]",
 )]
 pub fn mult_operand<S: Lexed>(source: S) -> PResult<MultOperand<MultilineSpan>, S> {
-    (
-        level_1_expr,
-        (power_op(), mult_operand)
-            .map(|(power_op, mult_operand)| (power_op, Box::new(mult_operand)))
-            .opt(),
-    )
-        .map(|(expr, exp)| MultOperand { expr, exp })
-        .parse(source)
+    seq!((
+        expr: level_1_expr,
+        exp: seq!((
+            power_op: power_op(),
+            mult_operand: mult_operand
+        ) => (power_op, Box::new(mult_operand))).opt(),
+    ) => MultOperand { expr, exp }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -223,7 +224,10 @@ pub fn add_operand<S: Lexed>(source: S) -> PResult<AddOperand<MultilineSpan>, S>
     let add_op = mult_op();
     let right_part = {
         let mult_operand = mult_operand.clone();
-        (add_op, mult_operand).map(|(op, expr)| (op, expr))
+        seq!((
+            op: add_op,
+            expr: mult_operand,
+        ) => (op, expr))
     };
 
     let (right, mut source) = mult_operand.parse(source)?;
@@ -259,7 +263,10 @@ pub fn level_2_expr<S: Lexed>(source: S) -> PResult<Level2Expr<MultilineSpan>, S
     let right_part = {
         let add_op = add_op.clone();
         let add_operand = add_operand.clone();
-        (add_op, add_operand).map(|(op, expr)| (op, expr))
+        seq!((
+            op: add_op,
+            expr: add_operand,
+        ) => (op, expr))
     };
 
     let (lop, source) = match add_op.parse(source.clone()) {
@@ -301,7 +308,10 @@ pub fn level_3_expr<S: Lexed>(source: S) -> PResult<Level3Expr<MultilineSpan>, S
     let concat_op = concat_op();
     let right_part = {
         let level_2_expr = level_2_expr.clone();
-        (concat_op, level_2_expr).map(|(op, expr)| (op, expr))
+        seq!((
+            op: concat_op,
+            expr: level_2_expr,
+        ) => (op, expr))
     };
 
     let (right, mut source) = level_2_expr.parse(source)?;
@@ -336,7 +346,10 @@ pub fn level_4_expr<S: Lexed>(source: S) -> PResult<Level4Expr<MultilineSpan>, S
     let rel_op = rel_op();
     let right_part = {
         let level_3_expr = level_3_expr.clone();
-        (rel_op, level_3_expr).map(|(op, expr)| (op, expr))
+        seq!((
+            op: rel_op,
+            expr: level_3_expr,
+        ) => (op, expr))
     };
 
     let (right, mut source) = level_3_expr.parse(source)?;
@@ -367,9 +380,10 @@ pub struct AndOperand<Span> {
     F18V007r1 rule "and-operand" #1014 : "is [ not-op ] level-4-expr",
 )]
 pub fn and_operand<S: Lexed>(source: S) -> PResult<AndOperand<MultilineSpan>, S> {
-    (not_op().opt(), level_4_expr)
-        .map(|(operator, expr)| AndOperand { operator, expr })
-        .parse(source)
+    seq!((
+        operator: not_op().opt(),
+        expr: level_4_expr,
+    ) => AndOperand { operator, expr }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -386,7 +400,10 @@ pub fn or_operand<S: Lexed>(source: S) -> PResult<OrOperand<MultilineSpan>, S> {
     let and_op = and_op();
     let right_part = {
         let and_operand = and_operand.clone();
-        (and_op, and_operand).map(|(op, expr)| (op, expr))
+        seq!((
+            op: and_op,
+            expr: and_operand,
+        ) => (op, expr))
     };
 
     let (right, mut source) = and_operand.parse(source)?;
@@ -421,7 +438,10 @@ pub fn equiv_operand<S: Lexed>(source: S) -> PResult<EquivOperand<MultilineSpan>
     let or_op = or_op();
     let right_part = {
         let or_operand = or_operand.clone();
-        (or_op, or_operand).map(|(op, expr)| (op, expr))
+        seq!((
+            op: or_op,
+            expr: or_operand,
+        ) => (op, expr))
     };
 
     let (right, mut source) = or_operand.parse(source)?;
@@ -456,7 +476,10 @@ pub fn level_5_expr<S: Lexed>(source: S) -> PResult<Level5Expr<MultilineSpan>, S
     let equiv_op = equiv_op();
     let right_part = {
         let equiv_operand = equiv_operand.clone();
-        (equiv_op, equiv_operand).map(|(op, expr)| (op, expr))
+        seq!((
+            op: equiv_op,
+            expr: equiv_operand,
+        ) => (op, expr))
     };
 
     let (right, mut source) = equiv_operand.parse(source)?;
@@ -602,9 +625,12 @@ pub struct Substring<Span> {
     F18V007r1 rule "substring" #908 : "is parent-string ( substring-range )",
 )]
 pub fn substring<S: Lexed>(source: S) -> PResult<Substring<MultilineSpan>, S> {
-    (parent_string, delim('('), substring_range, delim(')'))
-        .map(|(parent, _, range, _)| Substring { parent, range })
-        .parse(source)
+    seq!((
+        parent: parent_string,
+        _: delim('('),
+        range: substring_range,
+        _: delim(')'),
+    ) => Substring { parent, range }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -646,9 +672,11 @@ pub struct SubstringRange<Span> {
     F18V007r1 rule "substring-range" #910 : "is [ scalar-int-expr ] : [ scalar-int-expr ]",
 )]
 pub fn substring_range<S: Lexed>(source: S) -> PResult<SubstringRange<MultilineSpan>, S> {
-    (int_expr.opt(), colon(), int_expr.opt())
-        .map(|(left, _, right)| SubstringRange { left, right })
-        .parse(source)
+    seq!((
+        left: int_expr.opt(),
+        _: colon(),
+        right: int_expr.opt(),
+    ) => SubstringRange { left, right }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -661,12 +689,13 @@ pub struct DataRef<Span> {
     F18V007r1 rule "data-ref" #911 : "is part-ref [ % part-ref ] ...",
 )]
 pub fn data_ref<S: Lexed>(source: S) -> PResult<DataRef<MultilineSpan>, S> {
-    (
-        part_ref,
-        list((percent(), part_ref).map(|(_, part_ref)| part_ref), 0..),
-    )
-        .map(|(part, selectors)| DataRef { part, selectors })
-        .parse(source)
+    seq!((
+        part: part_ref,
+        selectors: list(seq!((
+            _: percent(),
+            part_ref: part_ref,
+        ) => part_ref), 0..),
+    ) => DataRef { part, selectors }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -680,20 +709,15 @@ pub struct PartRef<Span> {
     F18V007r1 rule "part-ref" #912 : "is part-name [ ( section-subscript-list ) ] [ image-selector ]",
 )]
 pub fn part_ref<S: Lexed>(source: S) -> PResult<PartRef<MultilineSpan>, S> {
-    (
-        name(),
-        (delim('('), list(subscript, 0..), delim(')'))
-            .map(|(_, list, _)| list)
-            .opt(),
-        image_selector.opt(),
-    )
-        .map(
-            |(part_name, section_subscript_list, image_selector)| PartRef {
+    seq!((
+        part_name: name(),
+        section_subscript_list: seq!((_: delim('('), list: list(subscript, 0..), _: delim(')')) => list).opt(),
+        image_selector: image_selector.opt()
+    ) => PartRef {
                 part_name,
                 section_subscript_list,
                 image_selector,
-            },
-        )
+            })
         .parse(source)
 }
 
@@ -735,8 +759,12 @@ pub fn complex_part_designator<S: Lexed>(
 ) -> PResult<ComplexPartDesignator<MultilineSpan>, S> {
     alt!(
         for S =>
-        (designator(true), percent(), kw!(re)).map(|(designator, _, _)| ComplexPartDesignator::Re(Box::new(designator))),
-        (designator(true), percent(), kw!(im)).map(|(designator, _, _)| ComplexPartDesignator::Im(Box::new(designator))),
+        seq!(
+            (designator: designator(true), _: percent(), _: kw!(re)) => ComplexPartDesignator::Re(Box::new(designator))
+        ),
+        seq!(
+            (designator: designator(true), _: percent(), _: kw!(im)) => ComplexPartDesignator::Im(Box::new(designator))
+        ),
     )
     .parse(source)
 }
@@ -785,14 +813,13 @@ pub fn array_section<S: Lexed>(
 ) -> impl Parser<S, Token = ArraySection<MultilineSpan>> {
     alt!(
         for S =>
-        (
-            data_ref,
-            (
-                delim('('),
-                substring_range,
-                delim(')'),
-            ).map(|(_, range, _)| range).opt(),
-        ).map(|(data_ref, range)| ArraySection::Data(data_ref, range)),
+        seq!(
+            (data_ref: data_ref, 
+             range: seq!(
+                (_: delim('('), range: substring_range, _: delim(')')) => range
+            ).opt()) 
+            => ArraySection::Data(data_ref, range)
+        ),
         complex_part_designator.map(ArraySection::ComplexPartDesignator).if_(!not_complex_part_designator),
     )
 }
@@ -841,17 +868,17 @@ pub struct SubscriptTriplet<Span> {
     F18V007r1 rule "subscript-triplet" #921 : "is [ subscript ] : [ subscript ] [ : stride ]",
 )]
 pub fn subscript_triplet<S: Lexed>(source: S) -> PResult<SubscriptTriplet<MultilineSpan>, S> {
-    (
-        subscript.opt(),
-        colon(),
-        subscript.opt(),
-        (colon(), stride).map(|(_, subscript)| subscript).opt(),
-    )
-        .map(|(lower, _, upper, stride)| SubscriptTriplet {
+    seq!(
+        (lower: subscript.opt(),
+         _: colon(),
+         upper: subscript.opt(),
+         stride: seq!((_: colon(), subscript: stride) => subscript).opt())
+        => SubscriptTriplet {
             lower,
             upper,
             stride,
-        })
+        }
+    )
         .parse(source)
 }
 
@@ -885,19 +912,18 @@ pub struct ImageSelector<Span> {
     F18V007r1 rule "image-selector" #924 : "is lbracket cosubscript-list [ , image-selector-spec-list ] rbracket",
 )]
 pub fn image_selector<S: Lexed>(source: S) -> PResult<ImageSelector<MultilineSpan>, S> {
-    (
-        delim('['),
-        list(cosubscript, 0..),
-        (comma(), list(image_selector_spec, 0..))
-            .map(|(_, image_selector_spec_list)| image_selector_spec_list),
-        delim(']'),
+    seq!(
+        (_: delim('['),
+         cosubscript_list: list(cosubscript, 0..),
+         image_selector_spec_list: seq!(
+            (_: comma(), image_selector_spec_list: list(image_selector_spec, 0..)) => image_selector_spec_list
+         ),
+         _: delim(']'))
+        => ImageSelector {
+            cosubscript_list,
+            image_selector_spec_list,
+        }
     )
-        .map(
-            |(_, cosubscript_list, image_selector_spec_list, _)| ImageSelector {
-                cosubscript_list,
-                image_selector_spec_list,
-            },
-        )
         .parse(source)
 }
 
@@ -927,9 +953,9 @@ pub enum ImageSelectorSpec<Span> {
 pub fn image_selector_spec<S: Lexed>(source: S) -> PResult<ImageSelectorSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(stat), equals(), stat_variable).map(|(_, _, stat_variable)| ImageSelectorSpec::Stat(stat_variable)),
-        (kw!(team), equals(), team_value).map(|(_, _, team_value)| ImageSelectorSpec::Team(team_value)),
-        (kw!(team_number), equals(), int_expr).map(|(_, _, int_texpr)| ImageSelectorSpec::TeamNumber(int_texpr)),
+        seq!((_: kw!(stat), _: equals(), stat_variable: stat_variable) => ImageSelectorSpec::Stat(stat_variable)),
+        seq!((_: kw!(team), _: equals(), team_value: team_value) => ImageSelectorSpec::Team(team_value)),
+        seq!((_: kw!(team_number), _: equals(), int_expr: int_expr) => ImageSelectorSpec::TeamNumber(int_expr)),
     ).parse(source)
 }
 
@@ -955,25 +981,19 @@ pub struct AllocateStmt<Span> {
     "is ALLOCATE ( [ type-spec :: ] allocation-list [ , alloc-opt-list ] )",
 )]
 pub fn allocate_stmt_2<S: Lexed>(source: S) -> PResult<AllocateStmt<MultilineSpan>, S> {
-    (
-        (kw!(allocate)),
-        delim('('),
-        (type_spec, double_colon())
-            .map(|(type_spec, _)| type_spec)
-            .opt(),
-        list(allocation, 1..),
-        (comma(), list(alloc_opt, 0..))
-            .map(|(_, alloc_opt_list)| alloc_opt_list)
-            .opt(),
-        delim(')'),
+    seq!(
+        (_: kw!(allocate),
+         _: delim('('),
+         type_spec: seq!((type_spec: type_spec, _: double_colon()) => type_spec).opt(),
+         allocation_list: list(allocation, 1..),
+         alloc_opt_list: seq!((_: comma(), alloc_opt_list: list(alloc_opt, 0..)) => alloc_opt_list).opt(),
+         _: delim(')'))
+        => AllocateStmt {
+            type_spec,
+            allocation_list,
+            alloc_opt_list,
+        }
     )
-        .map(
-            |(_, _, type_spec, allocation_list, alloc_opt_list, _)| AllocateStmt {
-                type_spec,
-                allocation_list,
-                alloc_opt_list,
-            },
-        )
         .parse(source)
 }
 
@@ -995,10 +1015,10 @@ pub enum AllocOpt<Span> {
 pub fn alloc_opt<S: Lexed>(source: S) -> PResult<AllocOpt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(ERRMSG), equals(), errmsg_variable).map(|(_, _, errmsg_variable)| AllocOpt::Errmsg(errmsg_variable)),
-        (kw!(MOLD), equals(), source_expr).map(|(_, _,  source_expr)| AllocOpt::Mold(source_expr)),
-        (kw!(SOURCE), equals(), source_expr).map(|(_, _, source_expr)| AllocOpt::Source(source_expr)),
-        (kw!(STAT), equals(), stat_variable).map(|(_, _, stat_variable)| AllocOpt::Stat(stat_variable)),
+        seq!((_: kw!(ERRMSG), _: equals(), errmsg_variable: errmsg_variable) => AllocOpt::Errmsg(errmsg_variable)),
+        seq!((_: kw!(MOLD), _: equals(), source_expr: source_expr) => AllocOpt::Mold(source_expr)),
+        seq!((_: kw!(SOURCE), _: equals(), source_expr: source_expr) => AllocOpt::Source(source_expr)),
+        seq!((_: kw!(STAT), _: equals(), stat_variable: stat_variable) => AllocOpt::Stat(stat_variable)),
     ).parse(source)
 }
 
@@ -1036,22 +1056,20 @@ pub struct Allocation<Span> {
     "is allocate-object [ ( allocate-shape-spec-list ) ] [ lbracket allocate-coarray-spec rbracket ]",
 )]
 pub fn allocation<S: Lexed>(source: S) -> PResult<Allocation<MultilineSpan>, S> {
-    (
-        allocate_object,
-        (delim('('), list(allocate_shape_spec, 0..), delim(')'))
-            .map(|(_, allocate_shape_spec_list, _)| allocate_shape_spec_list)
-            .opt(),
-        (delim('['), allocate_coarray_spec, delim(']'))
-            .map(|(_, allocate_coarray_spec, _)| allocate_coarray_spec)
-            .opt(),
+    seq!(
+        (object: allocate_object,
+         allocate_shape_spec_list: seq!(
+            (_: delim('('), allocate_shape_spec_list: list(allocate_shape_spec, 0..), _: delim(')')) => allocate_shape_spec_list
+         ).opt(),
+         allocate_coarray_spec: seq!(
+            (_: delim('['), allocate_coarray_spec: allocate_coarray_spec, _: delim(']')) => allocate_coarray_spec
+         ).opt())
+        => Allocation {
+            object,
+            allocate_shape_spec_list,
+            allocate_coarray_spec,
+        }
     )
-        .map(
-            |(object, allocate_shape_spec_list, allocate_coarray_spec)| Allocation {
-                object,
-                allocate_shape_spec_list,
-                allocate_coarray_spec,
-            },
-        )
         .parse(source)
 }
 
@@ -1085,16 +1103,14 @@ pub struct AllocateShapeSpec<Span> {
     F18V007r1 rule "allocate-shape-spec" #933 : "is [ lower-bound-expr : ] upper-bound-expr",
 )]
 pub fn allocate_shape_spec<S: Lexed>(source: S) -> PResult<AllocateShapeSpec<MultilineSpan>, S> {
-    (
-        (lower_bound_expr, colon())
-            .map(|(lower_bound, _)| lower_bound)
-            .opt(),
-        upper_bound_expr,
-    )
-        .map(|(lower_bound, upper_bound)| AllocateShapeSpec {
+    seq!(
+        (lower_bound: seq!((lower_bound: lower_bound_expr, _: colon()) => lower_bound).opt(),
+         upper_bound: upper_bound_expr)
+        => AllocateShapeSpec {
             lower_bound,
             upper_bound,
-        })
+        }
+    )
         .parse(source)
 }
 
@@ -1130,21 +1146,14 @@ pub struct AllocateCoarraySpec<Span> {
 pub fn allocate_coarray_spec<S: Lexed>(
     source: S,
 ) -> PResult<AllocateCoarraySpec<MultilineSpan>, S> {
-    (
-        (list(allocate_coshape_spec, 0..), comma())
-            .map(|(allocate_coshape_spec_list, _)| allocate_coshape_spec_list)
-            .opt(),
-        (lower_bound_expr, colon())
-            .map(|(lower_bound, _)| lower_bound)
-            .opt(),
-        asterisk(),
-    )
-        .map(
-            |(allocate_coshape_spec_list, lower_bound, _)| AllocateCoarraySpec {
+    seq!((
+        allocate_coshape_spec_list: seq!((list: list(allocate_coshape_spec, 0..), _: comma()) => list).opt(),
+        lower_bound: seq!((lower_bound: lower_bound_expr, _: colon()) => lower_bound).opt(),
+        _: asterisk()
+    ) => AllocateCoarraySpec {
                 allocate_coshape_spec_list: allocate_coshape_spec_list.unwrap_or_default(),
                 lower_bound,
-            },
-        )
+            })
         .parse(source)
 }
 
@@ -1160,13 +1169,10 @@ pub struct AllocateCoshapeSpec<Span> {
 pub fn allocate_coshape_spec<S: Lexed>(
     source: S,
 ) -> PResult<AllocateCoshapeSpec<MultilineSpan>, S> {
-    (
-        (lower_bound_expr, colon())
-            .map(|(lower_bound, _)| lower_bound)
-            .opt(),
-        upper_bound_expr,
-    )
-        .map(|(lower_bound, upper_bound)| AllocateCoshapeSpec {
+    seq!((
+        lower_bound: seq!((lower_bound: lower_bound_expr, _: colon()) => lower_bound).opt(),
+        upper_bound: upper_bound_expr
+    ) => AllocateCoshapeSpec {
             lower_bound,
             upper_bound,
         })
@@ -1223,8 +1229,7 @@ pub struct AssignmentStmt<Span> {
     F18V007r1 rule "assignment-stmt" #1032 : "is variable = expr",
 )]
 pub fn assignment_stmt_2<S: Lexed>(source: S) -> PResult<AssignmentStmt<MultilineSpan>, S> {
-    (variable(true), (equals()), expr)
-        .map(|(variable, _, expr)| AssignmentStmt { variable, expr })
+    seq!((variable: variable(true), _: equals(), expr: expr) => AssignmentStmt { variable, expr })
         .parse(source)
 }
 
@@ -1257,37 +1262,37 @@ pub fn pointer_assignment_stmt<S: Lexed>(
 ) -> PResult<PointerAssignmentStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            data_pointer_object,
-            (
-                delim('('),
-                list(bounds_spec, 0..),
-                delim(')'),
-            ).map(|(_, bounds_spec_list, _)| bounds_spec_list).opt(),
-            arrow(),
-            data_target,
-        ).map(|(data_pointer_object, bounds_spec_list, _, data_target)| PointerAssignmentStmt::Form1 {
+        seq!((
+            data_pointer_object: data_pointer_object,
+            bounds_spec_list: seq!((
+                _: delim('('),
+                bounds_spec_list: list(bounds_spec, 0..),
+                _: delim(')'),
+            ) => bounds_spec_list).opt(),
+            _: arrow(),
+            data_target: data_target,
+        ) => PointerAssignmentStmt::Form1 {
             data_pointer_object,
             bounds_spec_list,
             data_target,
         }),
-        (
-            data_pointer_object,
-            delim('('),
-            list(bounds_remapping, 0..),
-            delim(')'),
-            arrow(),
-            data_target,
-        ).map(|(data_pointer_object, _, bounds_remapping_list, _, _, data_target)| PointerAssignmentStmt::Form2 {
+        seq!((
+            data_pointer_object: data_pointer_object,
+            _: delim('('),
+            bounds_remapping_list: list(bounds_remapping, 0..),
+            _: delim(')'),
+            _: arrow(),
+            data_target: data_target,
+        ) => PointerAssignmentStmt::Form2 {
             data_pointer_object,
             bounds_remapping_list,
             data_target,
         }),
-        (
-            proc_pointer_object,
-            arrow(),
-            proc_target,
-        ).map(|(proc_pointer_object, _, proc_target)| PointerAssignmentStmt::Form3 {
+        seq!((
+            proc_pointer_object: proc_pointer_object,
+            _: arrow(),
+            proc_target: proc_target,
+        ) => PointerAssignmentStmt::Form3 {
             proc_pointer_object,
             proc_target,
         }),
@@ -1312,11 +1317,11 @@ pub fn data_pointer_object<S: Lexed>(source: S) -> PResult<DataPointerObject<Mul
     alt!(
         for S =>
         variable_name.map(DataPointerObject::VariableName),
-        (
-            variable(true),
-            percent(),
-            name(),
-        ).map(|(scalar_variable, _, data_pointer_component_name)| DataPointerObject::Component {
+        seq!((
+            scalar_variable: variable(true),
+            _: percent(),
+            data_pointer_component_name: name(),
+        ) => DataPointerObject::Component {
             scalar_variable,
             data_pointer_component_name,
         }),
@@ -1333,8 +1338,7 @@ pub struct BoundsSpec<Span> {
     F18V007r1 rule "bounds-spec" #1035 : "is lower-bound-expr :",
 )]
 pub fn bounds_spec<S: Lexed>(source: S) -> PResult<BoundsSpec<MultilineSpan>, S> {
-    (lower_bound_expr, colon())
-        .map(|(lower_bound, _)| BoundsSpec { lower_bound })
+    seq!((lower_bound: lower_bound_expr, _: colon()) => BoundsSpec { lower_bound })
         .parse(source)
 }
 
@@ -1348,12 +1352,11 @@ pub struct BoundsRemapping<Span> {
     F18V007r1 rule "bounds-remapping" #1036 : "is lower-bound-expr : upper-bound-expr",
 )]
 pub fn bounds_remapping<S: Lexed>(source: S) -> PResult<BoundsRemapping<MultilineSpan>, S> {
-    (lower_bound_expr, colon(), upper_bound_expr)
-        .map(|(lower_bound_expr, _, upper_bound_expr)| BoundsRemapping {
-            lower_bound_expr,
-            upper_bound_expr,
-        })
-        .parse(source)
+    seq!((lower_bound_expr: lower_bound_expr, _: colon(), upper_bound_expr: upper_bound_expr) => BoundsRemapping {
+        lower_bound_expr,
+        upper_bound_expr,
+    })
+    .parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1376,17 +1379,16 @@ pub struct WhereStmt<Span> {
     F18V007r1 rule "where-stmt" #1041 : "is WHERE ( mask-expr ) where-assignment-stmt",
 )]
 pub fn where_stmt<S: Lexed>(source: S) -> PResult<WhereStmt<MultilineSpan>, S> {
-    (
-        (kw!(WHERE), delim('(')),
+    seq!((
+        _: kw!(WHERE),
+        _: delim('('),
+        mask_expr: mask_expr,
+        _: delim(')'),
+        where_assignment_stmt: where_assignment_stmt,
+    ) => WhereStmt {
         mask_expr,
-        delim(')'),
         where_assignment_stmt,
-    )
-        .map(|(_, mask_expr, _, where_assignment_stmt)| WhereStmt {
-            mask_expr,
-            where_assignment_stmt,
-        })
-        .parse(source)
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1399,19 +1401,16 @@ pub struct WhereConstructStmt<Span> {
     F18V007r1 rule "where-construct-stmt" #1043 : "is [where-construct-name:] WHERE ( mask-expr )",
 )]
 pub fn where_construct_stmt<S: Lexed>(source: S) -> PResult<WhereConstructStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        (kw!(WHERE), delim('(')),
+    seq!((
+        where_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: kw!(WHERE),
+        _: delim('('),
+        mask_expr: mask_expr,
+        _: delim(')'),
+    ) => WhereConstructStmt {
+        where_construct_name,
         mask_expr,
-        delim(')'),
-    )
-        .map(
-            |(where_construct_name, _, mask_expr, _)| WhereConstructStmt {
-                where_construct_name,
-                mask_expr,
-            },
-        )
-        .parse(source)
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1442,19 +1441,16 @@ pub struct MaskedElsewhereStmt<Span> {
 pub fn masked_elsewhere_stmt<S: Lexed>(
     source: S,
 ) -> PResult<MaskedElsewhereStmt<MultilineSpan>, S> {
-    (
-        (kw!(ELSEWHERE), delim('(')),
+    seq!((
+        _: kw!(ELSEWHERE),
+        _: delim('('),
+        mask_expr: mask_expr,
+        _: delim(')'),
+        where_construct_name: name().opt(),
+    ) => MaskedElsewhereStmt {
         mask_expr,
-        delim(')'),
-        name().opt(),
-    )
-        .map(
-            |(_, mask_expr, _, where_construct_name)| MaskedElsewhereStmt {
-                mask_expr,
-                where_construct_name,
-            },
-        )
-        .parse(source)
+        where_construct_name,
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1466,11 +1462,12 @@ pub struct ElsewhereStmt<Span> {
     F18V007r1 rule "elsewhere-stmt" #1048 : "is ELSEWHERE [where-construct-name]",
 )]
 pub fn elsewhere_stmt<S: Lexed>(source: S) -> PResult<ElsewhereStmt<MultilineSpan>, S> {
-    (kw!(ELSEWHERE), name().opt())
-        .map(|(_, where_construct_name)| ElsewhereStmt {
-            where_construct_name,
-        })
-        .parse(source)
+    seq!((
+        _: kw!(ELSEWHERE),
+        where_construct_name: name().opt(),
+    ) => ElsewhereStmt {
+        where_construct_name,
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1482,11 +1479,13 @@ pub struct EndWhereStmt<Span> {
     F18V007r1 rule "end-where-stmt" #1049 : "is END WHERE [where-construct-name]",
 )]
 pub fn end_where_stmt<S: Lexed>(source: S) -> PResult<EndWhereStmt<MultilineSpan>, S> {
-    (kw!(END), kw!(WHERE), name().opt())
-        .map(|(_, _, where_construct_name)| EndWhereStmt {
-            where_construct_name,
-        })
-        .parse(source)
+    seq!((
+        _: kw!(END),
+        _: kw!(WHERE),
+        where_construct_name: name().opt(),
+    ) => EndWhereStmt {
+        where_construct_name,
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -1501,18 +1500,14 @@ pub struct ForallConstructStmt<Span> {
 pub fn forall_construct_stmt<S: Lexed>(
     source: S,
 ) -> PResult<ForallConstructStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        kw!(forall),
+    seq!((
+        forall_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: kw!(forall),
+        concurrent_header: concurrent_header,
+    ) => ForallConstructStmt {
+        forall_construct_name,
         concurrent_header,
-    )
-        .map(
-            |(forall_construct_name, _, concurrent_header)| ForallConstructStmt {
-                forall_construct_name,
-                concurrent_header,
-            },
-        )
-        .parse(source)
+    }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1569,9 +1564,14 @@ pub struct OpenStmt<Span> {
     F18V007r1 rule "open-stmt" #1204 : "is OPEN ( connect-spec-list )",
 )]
 pub fn open_stmt<S: Lexed>(source: S) -> PResult<OpenStmt<MultilineSpan>, S> {
-    ((kw!(open), delim('(')), list(connect_spec, 1..), delim(')'))
-        .map(|(_, connect_spec_list, _)| OpenStmt { connect_spec_list })
-        .parse(source)
+    seq!((
+        _: kw!(open),
+        _: delim('('),
+        connect_spec_list: list(connect_spec, 1..),
+        _: delim(')'),
+    ) => OpenStmt {
+        connect_spec_list
+    }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]
@@ -1624,29 +1624,30 @@ pub enum ConnectSpec<Span> {
 pub fn connect_spec<S: Lexed>(source: S) -> PResult<ConnectSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(unit), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| ConnectSpec::FileUnitNumber(file_unit_number)),
-        (kw!(access), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Access(scalar_default_char_expr)),
-        (kw!(action), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Action(scalar_default_char_expr)),
-        (kw!(asynchronous), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Asynchronous(scalar_default_char_expr)),
-        (kw!(blank), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Blank(scalar_default_char_expr)),
-        (kw!(decimal), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Decimal(scalar_default_char_expr)),
-        (kw!(delim), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Delim(scalar_default_char_expr)),
-        (kw!(encoding), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Encoding(scalar_default_char_expr)),
-        (kw!(err), equals(), label()).map(|(_, _, label)| ConnectSpec::Err(label)),
-        (kw!(file), equals(), file_name_expr).map(|(_, _, file_name_expr)| ConnectSpec::File(file_name_expr)),
-        (kw!(form), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Form(scalar_default_char_expr)),
-        (kw!(iomsg), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| ConnectSpec::Iomsg(iomsg_variable)),
-        (kw!(iostat), equals(), stat_variable).map(|(_, _, stat_variable)| ConnectSpec::Iostat(stat_variable)),
-        (kw!(newunit), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| ConnectSpec::Newunit(scalar_int_variable)), // TODO false???
-        (kw!(pad), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Pad(scalar_default_char_expr)),
-        (kw!(position), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Position(scalar_default_char_expr)),
-        (kw!(recl), equals(), int_expr).map(|(_, _, scalar_int_expr)| ConnectSpec::Recl(scalar_int_expr)),
-        (kw!(round), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Round(scalar_default_char_expr)),
-        (kw!(sign), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Sign(scalar_default_char_expr)),
-        (kw!(status), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Status(scalar_default_char_expr)),
+        seq!(
+            (_: seq!((_: kw!(unit), _: equals()) => ()).opt(),
+             file_unit_number: file_unit_number)
+            => ConnectSpec::FileUnitNumber(file_unit_number)
+        ),
+        seq!((_: kw!(access), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Access(scalar_default_char_expr)),
+        seq!((_: kw!(action), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Action(scalar_default_char_expr)),
+        seq!((_: kw!(asynchronous), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Asynchronous(scalar_default_char_expr)),
+        seq!((_: kw!(blank), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Blank(scalar_default_char_expr)),
+        seq!((_: kw!(decimal), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Decimal(scalar_default_char_expr)),
+        seq!((_: kw!(delim), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Delim(scalar_default_char_expr)),
+        seq!((_: kw!(encoding), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Encoding(scalar_default_char_expr)),
+        seq!((_: kw!(err), _: equals(), label: label()) => ConnectSpec::Err(label)),
+        seq!((_: kw!(file), _: equals(), file_name_expr: file_name_expr) => ConnectSpec::File(file_name_expr)),
+        seq!((_: kw!(form), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Form(scalar_default_char_expr)),
+        seq!((_: kw!(iomsg), _: equals(), iomsg_variable: iomsg_variable) => ConnectSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(iostat), _: equals(), stat_variable: stat_variable) => ConnectSpec::Iostat(stat_variable)),
+        seq!((_: kw!(newunit), _: equals(), scalar_int_variable: int_variable(false)) => ConnectSpec::Newunit(scalar_int_variable)), // TODO false???
+        seq!((_: kw!(pad), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Pad(scalar_default_char_expr)),
+        seq!((_: kw!(position), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Position(scalar_default_char_expr)),
+        seq!((_: kw!(recl), _: equals(), scalar_int_expr: int_expr) => ConnectSpec::Recl(scalar_int_expr)),
+        seq!((_: kw!(round), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Round(scalar_default_char_expr)),
+        seq!((_: kw!(sign), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Sign(scalar_default_char_expr)),
+        seq!((_: kw!(status), _: equals(), scalar_default_char_expr: default_char_expr) => ConnectSpec::Status(scalar_default_char_expr)),
     ).parse(source)
 }
 
@@ -1681,8 +1682,12 @@ pub struct CloseStmt<Span> {
     F18V007r1 rule "close-stmt" #1208 : "is CLOSE ( close-spec-list )",
 )]
 pub fn close_stmt<S: Lexed>(source: S) -> PResult<CloseStmt<MultilineSpan>, S> {
-    ((kw!(close), delim('(')), list(close_spec, 1..), delim(')'))
-        .map(|(_, close_spec_list, _)| CloseStmt { close_spec_list })
+    seq!((
+        _: kw!(close),
+        _: delim('('),
+        close_spec_list: list(close_spec, 1..),
+        _: delim(')')
+    ) => CloseStmt { close_spec_list })
         .parse(source)
 }
 
@@ -1706,14 +1711,11 @@ pub enum CloseSpec<Span> {
 pub fn close_spec<S: Lexed>(source: S) -> PResult<CloseSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(unit), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| CloseSpec::FileUnitNumber(file_unit_number)),
-        (kw!(iostat), equals(), stat_variable).map(|(_, _, stat_variable)| CloseSpec::Iostat(stat_variable)),
-        (kw!(iomsg), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| CloseSpec::Iomsg(iomsg_variable)),
-        (kw!(err), equals(), label()).map(|(_, _, label)| CloseSpec::Err(label)),
-        (kw!(status), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| CloseSpec::Status(scalar_default_char_expr)),
+        seq!((_: seq!((_: kw!(unit), _: equals()) => ()).opt(), file_unit_number: file_unit_number) => CloseSpec::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(iostat), _: equals(), stat_variable: stat_variable) => CloseSpec::Iostat(stat_variable)),
+        seq!((_: kw!(iomsg), _: equals(), iomsg_variable: iomsg_variable) => CloseSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(err), _: equals(), label: label()) => CloseSpec::Err(label)),
+        seq!((_: kw!(status), _: equals(), scalar_default_char_expr: default_char_expr) => CloseSpec::Status(scalar_default_char_expr)),
     ).parse(source)
 }
 
@@ -1731,20 +1733,8 @@ pub enum ReadStmt<Span> {
 pub fn read_stmt<S: Lexed>(source: S) -> PResult<ReadStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(read), delim('(')),
-            list(io_control_spec, 1..),
-            delim(')'),
-            list(input_item, 0..).map(Some),
-        ).map(|(_, io_control_spec_list, _, input_item_list)| ReadStmt::IoControlSpecList(io_control_spec_list, input_item_list.unwrap_or_default())),
-        (
-            kw!(read),
-            format,
-            (
-                comma(),
-                list(input_item, 0..),
-            ).map(|(_, input_item_list)| input_item_list).opt(),
-        ).map(|(_, format, input_item_list)| ReadStmt::Format(format, input_item_list)),
+        seq!((_: (kw!(read), delim('(')), io_control_spec_list: list(io_control_spec, 1..), _: delim(')'), input_item_list: list(input_item, 0..).map(Some)) => ReadStmt::IoControlSpecList(io_control_spec_list, input_item_list.unwrap_or_default())),
+        seq!((_: kw!(read), format: format, input_item_list: seq!((_: comma(), input_item_list: list(input_item, 0..)) => input_item_list).opt()) => ReadStmt::Format(format, input_item_list)),
     ).parse(source)
 }
 
@@ -1758,16 +1748,10 @@ pub struct WriteStmt<Span> {
     F18V007r1 rule "write-stmt" #1211 : "is WRITE ( io-control-spec-list ) [ output-item-list ]",
 )]
 pub fn write_stmt<S: Lexed>(source: S) -> PResult<WriteStmt<MultilineSpan>, S> {
-    (
-        (kw!(write), delim('(')),
-        list(io_control_spec, 1..),
-        delim(')'),
-        list(output_item, 1..).opt(),
-    )
-        .map(|(_, io_control_spec_list, _, output_item_list)| WriteStmt {
-            io_control_spec_list,
-            output_item_list,
-        })
+    seq!((_: (kw!(write), delim('(')), io_control_spec_list: list(io_control_spec, 1..), _: delim(')'), output_item_list: list(output_item, 1..).opt()) => WriteStmt {
+        io_control_spec_list,
+        output_item_list,
+    })
         .parse(source)
 }
 
@@ -1781,17 +1765,10 @@ pub struct PrintStmt<Span> {
     F18V007r1 rule "print-stmt" #1212 : "is PRINT format [ , output-item-list ]",
 )]
 pub fn print_stmt<S: Lexed>(source: S) -> PResult<PrintStmt<MultilineSpan>, S> {
-    (
-        kw!(print),
+    seq!((_: kw!(print), format: format, output_item_list: seq!((_: comma(), output_item_list: list(output_item, 1..)) => output_item_list).opt()) => PrintStmt {
         format,
-        (comma(), list(output_item, 1..))
-            .map(|(_, output_item_list)| output_item_list)
-            .opt(),
-    )
-        .map(|(_, format, output_item_list)| PrintStmt {
-            format,
-            output_item_list,
-        })
+        output_item_list,
+    })
         .parse(source)
 }
 
@@ -1845,35 +1822,26 @@ pub enum IoControlSpec<Span> {
 pub fn io_control_spec<S: Lexed>(source: S) -> PResult<IoControlSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(UNIT), equals()).opt(),
-            io_unit,
-        ).map(|(_, io_unit)| IoControlSpec::Unit(io_unit)),
-        (
-            (kw!(FMT), equals()).opt(),
-            format,
-        ).map(|(_, format)| IoControlSpec::Fmt(format)),
-        (
-            (kw!(NML), equals()).opt(),
-            name(),
-        ).map(|(_, namelist_group_name)| IoControlSpec::Nml(namelist_group_name)),
-        (kw!(ADVANCE), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Advance(scalar_default_char_expr)),
-        (kw!(ASYNCHRONOUS), equals(), default_char_constant_expr).map(|(_, _, scalar_default_char_constant_expr)| IoControlSpec::Asynchronous(scalar_default_char_constant_expr)),
-        (kw!(BLANK), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Blank(scalar_default_char_expr)),
-        (kw!(DECIMAL), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Decimal(scalar_default_char_expr)),
-        (kw!(DELIM), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Delim(scalar_default_char_expr)),
-        (kw!(END), equals(), label()).map(|(_, _, label)| IoControlSpec::End(label)),
-        (kw!(EOR), equals(), label()).map(|(_, _, label)| IoControlSpec::Eor(label)),
-        (kw!(ERR), equals(), label()).map(|(_, _, label)| IoControlSpec::Err(label)),
-        (kw!(ID), equals(), id_variable).map(|(_, _, id_variable)| IoControlSpec::Id(id_variable)),
-        (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| IoControlSpec::Iomsg(iomsg_variable)),
-        (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| IoControlSpec::Iostat(stat_variable)),
-        (kw!(PAD), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Pad(scalar_default_char_expr)),
-        (kw!(POS), equals(), int_expr).map(|(_, _, scalar_int_expr)| IoControlSpec::Pos(scalar_int_expr)),
-        (kw!(REC), equals(), int_expr).map(|(_, _, scalar_int_expr)| IoControlSpec::Rec(scalar_int_expr)),
-        (kw!(ROUND), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Round(scalar_default_char_expr)),
-        (kw!(SIGN), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Sign(scalar_default_char_expr)),
-        (kw!(SIZE), equals(), int_variable(true)).map(|(_, _, scalar_int_variable)| IoControlSpec::Size(scalar_int_variable)), // TODO true???
+        seq!((_: seq!((_: kw!(UNIT), _: equals()) => ()).opt(), io_unit: io_unit) => IoControlSpec::Unit(io_unit)),
+        seq!((_: seq!((_: kw!(FMT), _: equals()) => ()).opt(), format: format) => IoControlSpec::Fmt(format)),
+        seq!((_: seq!((_: kw!(NML), _: equals()) => ()).opt(), namelist_group_name: name()) => IoControlSpec::Nml(namelist_group_name)),
+        seq!((_: kw!(ADVANCE), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Advance(scalar_default_char_expr)),
+        seq!((_: kw!(ASYNCHRONOUS), _: equals(), scalar_default_char_constant_expr: default_char_constant_expr) => IoControlSpec::Asynchronous(scalar_default_char_constant_expr)),
+        seq!((_: kw!(BLANK), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Blank(scalar_default_char_expr)),
+        seq!((_: kw!(DECIMAL), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Decimal(scalar_default_char_expr)),
+        seq!((_: kw!(DELIM), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Delim(scalar_default_char_expr)),
+        seq!((_: kw!(END), _: equals(), label: label()) => IoControlSpec::End(label)),
+        seq!((_: kw!(EOR), _: equals(), label: label()) => IoControlSpec::Eor(label)),
+        seq!((_: kw!(ERR), _: equals(), label: label()) => IoControlSpec::Err(label)),
+        seq!((_: kw!(ID), _: equals(), id_variable: id_variable) => IoControlSpec::Id(id_variable)),
+        seq!((_: kw!(IOMSG), _: equals(), iomsg_variable: iomsg_variable) => IoControlSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(IOSTAT), _: equals(), stat_variable: stat_variable) => IoControlSpec::Iostat(stat_variable)),
+        seq!((_: kw!(PAD), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Pad(scalar_default_char_expr)),
+        seq!((_: kw!(POS), _: equals(), scalar_int_expr: int_expr) => IoControlSpec::Pos(scalar_int_expr)),
+        seq!((_: kw!(REC), _: equals(), scalar_int_expr: int_expr) => IoControlSpec::Rec(scalar_int_expr)),
+        seq!((_: kw!(ROUND), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Round(scalar_default_char_expr)),
+        seq!((_: kw!(SIGN), _: equals(), scalar_default_char_expr: default_char_expr) => IoControlSpec::Sign(scalar_default_char_expr)),
+        seq!((_: kw!(SIZE), _: equals(), scalar_int_variable: int_variable(true)) => IoControlSpec::Size(scalar_int_variable)), // TODO true???
     ).parse(source)
 }
 
@@ -1960,19 +1928,10 @@ pub struct IoImpliedDo<Span> {
     F18V007r1 rule "io-implied-do" #1218 : "is ( io-implied-do-object-list , io-implied-do-control )",
 )]
 pub fn io_implied_do<S: Lexed>(source: S) -> PResult<IoImpliedDo<MultilineSpan>, S> {
-    (
-        delim('('),
-        list(io_implied_do_object, 1..),
-        comma(),
+    seq!((_: delim('('), io_implied_do_object_list: list(io_implied_do_object, 1..), _: comma(), io_implied_do_control: io_implied_do_control, _: delim(')')) => IoImpliedDo {
+        io_implied_do_object_list,
         io_implied_do_control,
-        delim(')'),
-    )
-        .map(
-            |(_, io_implied_do_object_list, _, io_implied_do_control, _)| IoImpliedDo {
-                io_implied_do_object_list,
-                io_implied_do_control,
-            },
-        )
+    })
         .parse(source)
 }
 
@@ -2008,13 +1967,10 @@ pub struct IoImpliedDoControl<Span> {
     "    scalar-int-expr [ , scalar-int-expr ]",
 )]
 pub fn io_implied_do_control<S: Lexed>(source: S) -> PResult<IoImpliedDoControl<MultilineSpan>, S> {
-    (variable(true), (equals()), list(int_expr, 2..))
-        .map(
-            |(do_variable, _, scalar_int_expr_list)| IoImpliedDoControl {
-                do_variable,
-                scalar_int_expr_list,
-            },
-        )
+    seq!((do_variable: variable(true), _: equals(), scalar_int_expr_list: list(int_expr, 2..)) => IoImpliedDoControl {
+        do_variable,
+        scalar_int_expr_list,
+    })
         .parse(source)
 }
 
@@ -2032,8 +1988,8 @@ pub enum DtvTypeSpec<Span> {
 pub fn dtv_type_spec<S: Lexed>(source: S) -> PResult<DtvTypeSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(TYPE), delim('('), derived_type_spec, delim(')')).map(|(_, _, derived_type_spec, _)| DtvTypeSpec::Type(derived_type_spec)),
-        (kw!(CLASS), delim('('), derived_type_spec, delim(')')).map(|(_, _, derived_type_spec, _)| DtvTypeSpec::Class(derived_type_spec)),
+        seq!((_: kw!(TYPE), _: delim('('), derived_type_spec: derived_type_spec, _: delim(')')) => DtvTypeSpec::Type(derived_type_spec)),
+        seq!((_: kw!(CLASS), _: delim('('), derived_type_spec: derived_type_spec, _: delim(')')) => DtvTypeSpec::Class(derived_type_spec)),
     ).parse(source)
 }
 
@@ -2046,8 +2002,7 @@ pub struct WaitStmt<Span> {
     F18V007r1 rule "wait-stmt" #1222 : "is WAIT (wait-spec-list)",
 )]
 pub fn wait_stmt<S: Lexed>(source: S) -> PResult<WaitStmt<MultilineSpan>, S> {
-    ((kw!(wait), delim('(')), list(wait_spec, 1..), delim(')'))
-        .map(|(_, wait_spec_list, _)| WaitStmt { wait_spec_list })
+    seq!((_: (kw!(wait), delim('(')), wait_spec_list: list(wait_spec, 1..), _: delim(')')) => WaitStmt { wait_spec_list })
         .parse(source)
 }
 
@@ -2075,16 +2030,13 @@ pub enum WaitSpec<Span> {
 pub fn wait_spec<S: Lexed>(source: S) -> PResult<WaitSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(UNIT), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| WaitSpec::FileUnitNumber(file_unit_number)),
-        (kw!(END), equals(), label()).map(|(_, _, label)| WaitSpec::End(label)),
-        (kw!(EOR), equals(), label()).map(|(_, _, label)| WaitSpec::Eor(label)),
-        (kw!(ERR), equals(), label()).map(|(_, _, label)| WaitSpec::Err(label)),
-        (kw!(ID), equals(), int_expr).map(|(_, _, scalar_int_expr)| WaitSpec::Id(scalar_int_expr)),
-        (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| WaitSpec::Iomsg(iomsg_variable)),
-        (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| WaitSpec::Iostat(stat_variable)),
+        seq!((_: seq!((_: kw!(UNIT), _: equals()) => ()).opt(), file_unit_number: file_unit_number) => WaitSpec::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(END), _: equals(), label: label()) => WaitSpec::End(label)),
+        seq!((_: kw!(EOR), _: equals(), label: label()) => WaitSpec::Eor(label)),
+        seq!((_: kw!(ERR), _: equals(), label: label()) => WaitSpec::Err(label)),
+        seq!((_: kw!(ID), _: equals(), scalar_int_expr: int_expr) => WaitSpec::Id(scalar_int_expr)),
+        seq!((_: kw!(IOMSG), _: equals(), iomsg_variable: iomsg_variable) => WaitSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(IOSTAT), _: equals(), stat_variable: stat_variable) => WaitSpec::Iostat(stat_variable)),
     ).parse(source)
 }
 
@@ -2102,8 +2054,8 @@ pub enum EndfileStmt<Span> {
 pub fn endfile_stmt<S: Lexed>(source: S) -> PResult<EndfileStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(ENDFILE), file_unit_number).map(|(_, file_unit_number)| EndfileStmt::FileUnitNumber(file_unit_number)),
-        (kw!(ENDFILE), delim('('), list(position_spec, 1..), delim(')')).map(|(_, _, position_spec_list, _)| EndfileStmt::PositionSpecList(position_spec_list)),
+        seq!((_: kw!(ENDFILE), file_unit_number: file_unit_number) => EndfileStmt::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(ENDFILE), _: delim('('), position_spec_list: list(position_spec, 1..), _: delim(')')) => EndfileStmt::PositionSpecList(position_spec_list)),
     ).parse(source)
 }
 
@@ -2121,8 +2073,8 @@ pub enum RewindStmt<Span> {
 pub fn rewind_stmt<S: Lexed>(source: S) -> PResult<RewindStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(REWIND), file_unit_number).map(|(_, file_unit_number)| RewindStmt::FileUnitNumber(file_unit_number)),
-        (kw!(REWIND), delim('('), list(position_spec, 1..), delim(')')).map(|(_, _, position_spec_list, _)| RewindStmt::PositionSpecList(position_spec_list)),
+        seq!((_: kw!(REWIND), file_unit_number: file_unit_number) => RewindStmt::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(REWIND), _: delim('('), position_spec_list: list(position_spec, 1..), _: delim(')')) => RewindStmt::PositionSpecList(position_spec_list)),
     ).parse(source)
 }
 
@@ -2144,13 +2096,10 @@ pub enum PositionSpec<Span> {
 pub fn position_spec<S: Lexed>(source: S) -> PResult<PositionSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(UNIT), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| PositionSpec::FileUnitNumber(file_unit_number)),
-        (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| PositionSpec::Iomsg(iomsg_variable)),
-        (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| PositionSpec::Iostat(stat_variable)),
-        (kw!(ERR), equals(), label()).map(|(_, _, label)| PositionSpec::Err(label)),
+        seq!((_: seq!((_: kw!(UNIT), _: equals()) => ()).opt(), file_unit_number: file_unit_number) => PositionSpec::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(IOMSG), _: equals(), iomsg_variable: iomsg_variable) => PositionSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(IOSTAT), _: equals(), stat_variable: stat_variable) => PositionSpec::Iostat(stat_variable)),
+        seq!((_: kw!(ERR), _: equals(), label: label()) => PositionSpec::Err(label)),
     ).parse(source)
 }
 
@@ -2168,8 +2117,8 @@ pub enum FlushStmt<Span> {
 pub fn flush_stmt<S: Lexed>(source: S) -> PResult<FlushStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(FLUSH), file_unit_number).map(|(_, file_unit_number)| FlushStmt::FileUnitNumber(file_unit_number)),
-        (kw!(FLUSH), delim('('), list(flush_spec, 1..), delim(')')).map(|(_, _, flush_spec_list, _)| FlushStmt::FlushSpecList(flush_spec_list)),
+        seq!((_: kw!(FLUSH), file_unit_number: file_unit_number) => FlushStmt::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(FLUSH), _: delim('('), flush_spec_list: list(flush_spec, 1..), _: delim(')')) => FlushStmt::FlushSpecList(flush_spec_list)),
     ).parse(source)
 }
 
@@ -2191,13 +2140,10 @@ pub enum FlushSpec<Span> {
 pub fn flush_spec<S: Lexed>(source: S) -> PResult<FlushSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(UNIT), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| FlushSpec::FileUnitNumber(file_unit_number)),
-        (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| FlushSpec::Iostat(stat_variable)),
-        (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| FlushSpec::Iomsg(iomsg_variable)),
-        (kw!(ERR), equals(), label()).map(|(_, _, label)| FlushSpec::Err(label)),
+        seq!((_: seq!((_: kw!(UNIT), _: equals()) => ()).opt(), file_unit_number: file_unit_number) => FlushSpec::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(IOSTAT), _: equals(), stat_variable: stat_variable) => FlushSpec::Iostat(stat_variable)),
+        seq!((_: kw!(IOMSG), _: equals(), iomsg_variable: iomsg_variable) => FlushSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(ERR), _: equals(), label: label()) => FlushSpec::Err(label)),
     ).parse(source)
 }
 
@@ -2215,17 +2161,8 @@ pub enum InquireStmt<Span> {
 pub fn inquire_stmt<S: Lexed>(source: S) -> PResult<InquireStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(INQUIRE), delim('(')),
-            list(inquire_spec, 1..),
-            delim(')'),
-        ).map(|(_, inquire_spec_list, _)| InquireStmt::InquireSpecList(inquire_spec_list)),
-        (
-            (kw!(INQUIRE), delim('('), kw!(IOLENGTH), equals()),
-            int_variable(false), // TODO false???
-            delim(')'),
-            list(output_item, 0..),
-        ).map(|(_, scalar_int_variable, _, output_item_list)| InquireStmt::IoLength(scalar_int_variable, output_item_list)),
+        seq!((_: (kw!(INQUIRE), delim('(')), inquire_spec_list: list(inquire_spec, 1..), _: delim(')')) => InquireStmt::InquireSpecList(inquire_spec_list)),
+        seq!((kw_delim_kw_eq: (kw!(INQUIRE), delim('('), kw!(IOLENGTH), equals()), scalar_int_variable: int_variable(false), _: delim(')'), output_item_list: list(output_item, 0..)) => InquireStmt::IoLength(scalar_int_variable, output_item_list)),
     ).parse(source)
 }
 
@@ -2311,45 +2248,42 @@ pub enum InquireSpec<Span> {
 pub fn inquire_spec<S: Lexed>(source: S) -> PResult<InquireSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(unit), equals()).opt(),
-            file_unit_number,
-        ).map(|(_, file_unit_number)| InquireSpec::FileUnitNumber(file_unit_number)),
-        (kw!(FILE), equals(), file_name_expr).map(|(_, _, file_name_expr)| InquireSpec::File(file_name_expr)),
-        (kw!(ACCESS), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Access(scalar_default_char_variable)),
-        (kw!(ACTION), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Action(scalar_default_char_variable)),
-        (kw!(ASYNCHRONOUS), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Asynchronous(scalar_default_char_variable)),
-        (kw!(BLANK), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Blank(scalar_default_char_variable)),
-        (kw!(DECIMAL), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Decimal(scalar_default_char_variable)),
-        (kw!(DELIM), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Delim(scalar_default_char_variable)),
-        (kw!(DIRECT), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Direct(scalar_default_char_variable)),
-        (kw!(ENCODING), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Encoding(scalar_default_char_variable)),
-        (kw!(ERR), equals(), label()).map(|(_, _, label)| InquireSpec::Err(label)),
-        (kw!(EXIST), equals(), logical_variable(false)).map(|(_, _, scalar_logical_variable)| InquireSpec::Exist(scalar_logical_variable)), // TODO false???
-        (kw!(FORM), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Form(scalar_default_char_variable)),
-        (kw!(FORMATTED), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Formatted(scalar_default_char_variable)),
-        (kw!(ID), equals(), int_expr).map(|(_, _, scalar_int_expr)| InquireSpec::Id(scalar_int_expr)),
-        (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| InquireSpec::Iomsg(iomsg_variable)),
-        (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| InquireSpec::Iostat(stat_variable)),
-        (kw!(NAME), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Name(scalar_default_char_variable)),
-        (kw!(NAMED), equals(), logical_variable(false)).map(|(_, _, scalar_logical_variable)| InquireSpec::Named(scalar_logical_variable)),
-        (kw!(NEXTREC), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| InquireSpec::Nextrec(scalar_int_variable)),
-        (kw!(NUMBER), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| InquireSpec::Number(scalar_int_variable)),
-        (kw!(OPENED), equals(), logical_variable(false)).map(|(_, _, scalar_logical_variable)| InquireSpec::Opened(scalar_logical_variable)),
-        (kw!(PAD), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Pad(scalar_default_char_variable)),
-        (kw!(PENDING), equals(), logical_variable(false)).map(|(_, _, scalar_logical_variable)| InquireSpec::Pending(scalar_logical_variable)),
-        (kw!(POS), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| InquireSpec::Pos(scalar_int_variable)),
-        (kw!(POSITION), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Position(scalar_default_char_variable)),
-        (kw!(READ), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Read(scalar_default_char_variable)),
-        (kw!(READWRITE), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Readwrite(scalar_default_char_variable)),
-        (kw!(RECL), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| InquireSpec::Recl(scalar_int_variable)),
-        (kw!(ROUND), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Round(scalar_default_char_variable)),
-        (kw!(SEQUENTIAL), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Sequential(scalar_default_char_variable)),
-        (kw!(SIGN), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Sign(scalar_default_char_variable)),
-        (kw!(SIZE), equals(), int_variable(false)).map(|(_, _, scalar_int_variable)| InquireSpec::Size(scalar_int_variable)),
-        (kw!(STREAM), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Stream(scalar_default_char_variable)),
-        (kw!(UNFORMATTED), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Unformatted(scalar_default_char_variable)),
-        (kw!(WRITE), equals(), default_char_variable(false)).map(|(_, _, scalar_default_char_variable)| InquireSpec::Write(scalar_default_char_variable)),
+        seq!((_: seq!((_: kw!(unit), _: equals()) => ()).opt(), file_unit_number: file_unit_number) => InquireSpec::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(FILE), _: equals(), file_name_expr: file_name_expr) => InquireSpec::File(file_name_expr)),
+        seq!((_: kw!(ACCESS), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Access(scalar_default_char_variable)),
+        seq!((_: kw!(ACTION), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Action(scalar_default_char_variable)),
+        seq!((_: kw!(ASYNCHRONOUS), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Asynchronous(scalar_default_char_variable)),
+        seq!((_: kw!(BLANK), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Blank(scalar_default_char_variable)),
+        seq!((_: kw!(DECIMAL), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Decimal(scalar_default_char_variable)),
+        seq!((_: kw!(DELIM), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Delim(scalar_default_char_variable)),
+        seq!((_: kw!(DIRECT), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Direct(scalar_default_char_variable)),
+        seq!((_: kw!(ENCODING), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Encoding(scalar_default_char_variable)),
+        seq!((_: kw!(ERR), _: equals(), label: label()) => InquireSpec::Err(label)),
+        seq!((_: kw!(EXIST), _: equals(), scalar_logical_variable: logical_variable(false)) => InquireSpec::Exist(scalar_logical_variable)), // TODO false???
+        seq!((_: kw!(FORM), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Form(scalar_default_char_variable)),
+        seq!((_: kw!(FORMATTED), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Formatted(scalar_default_char_variable)),
+        seq!((_: kw!(ID), _: equals(), scalar_int_expr: int_expr) => InquireSpec::Id(scalar_int_expr)),
+        seq!((_: kw!(IOMSG), _: equals(), iomsg_variable: iomsg_variable) => InquireSpec::Iomsg(iomsg_variable)),
+        seq!((_: kw!(IOSTAT), _: equals(), stat_variable: stat_variable) => InquireSpec::Iostat(stat_variable)),
+        seq!((_: kw!(NAME), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Name(scalar_default_char_variable)),
+        seq!((_: kw!(NAMED), _: equals(), scalar_logical_variable: logical_variable(false)) => InquireSpec::Named(scalar_logical_variable)),
+        seq!((_: kw!(NEXTREC), _: equals(), scalar_int_variable: int_variable(false)) => InquireSpec::Nextrec(scalar_int_variable)),
+        seq!((_: kw!(NUMBER), _: equals(), scalar_int_variable: int_variable(false)) => InquireSpec::Number(scalar_int_variable)),
+        seq!((_: kw!(OPENED), _: equals(), scalar_logical_variable: logical_variable(false)) => InquireSpec::Opened(scalar_logical_variable)),
+        seq!((_: kw!(PAD), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Pad(scalar_default_char_variable)),
+        seq!((_: kw!(PENDING), _: equals(), scalar_logical_variable: logical_variable(false)) => InquireSpec::Pending(scalar_logical_variable)),
+        seq!((_: kw!(POS), _: equals(), scalar_int_variable: int_variable(false)) => InquireSpec::Pos(scalar_int_variable)),
+        seq!((_: kw!(POSITION), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Position(scalar_default_char_variable)),
+        seq!((_: kw!(READ), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Read(scalar_default_char_variable)),
+        seq!((_: kw!(READWRITE), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Readwrite(scalar_default_char_variable)),
+        seq!((_: kw!(RECL), _: equals(), scalar_int_variable: int_variable(false)) => InquireSpec::Recl(scalar_int_variable)),
+        seq!((_: kw!(ROUND), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Round(scalar_default_char_variable)),
+        seq!((_: kw!(SEQUENTIAL), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Sequential(scalar_default_char_variable)),
+        seq!((_: kw!(SIGN), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Sign(scalar_default_char_variable)),
+        seq!((_: kw!(SIZE), _: equals(), scalar_int_variable: int_variable(false)) => InquireSpec::Size(scalar_int_variable)),
+        seq!((_: kw!(STREAM), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Stream(scalar_default_char_variable)),
+        seq!((_: kw!(UNFORMATTED), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Unformatted(scalar_default_char_variable)),
+        seq!((_: kw!(WRITE), _: equals(), scalar_default_char_variable: default_char_variable(false)) => InquireSpec::Write(scalar_default_char_variable)),
     ).parse(source)
 }
 
@@ -2367,8 +2301,8 @@ pub enum BackspaceStmt<Span> {
 pub fn backspace_stmt_2<S: Lexed>(source: S) -> PResult<BackspaceStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (kw!(backspace), file_unit_number).map(|(_, file_unit_number)| BackspaceStmt::FileUnitNumber(file_unit_number)),
-        (kw!(backspace), delim('('), list(position_spec, 1..), delim(')')).map(|(_, _, position_spec_list, _)| BackspaceStmt::PositionSpecList(position_spec_list)),
+        seq!((_: kw!(backspace), file_unit_number: file_unit_number) => BackspaceStmt::FileUnitNumber(file_unit_number)),
+        seq!((_: kw!(backspace), _: delim('('), position_spec_list: list(position_spec, 1..), _: delim(')')) => BackspaceStmt::PositionSpecList(position_spec_list)),
     ).parse(source)
 }
 
@@ -2382,14 +2316,14 @@ pub struct ProcComponentRef<Span> {
     F18V007r1 rule "proc-component-ref" #1039 : "is scalar-variable % procedure-component-name",
 )]
 pub fn proc_component_ref<S: Lexed>(source: S) -> PResult<ProcComponentRef<MultilineSpan>, S> {
-    (variable(true), percent(), name())
-        .map(
-            |(scalar_variable, _, procedure_component_name)| ProcComponentRef {
-                scalar_variable,
-                procedure_component_name,
-            },
-        )
-        .parse(source)
+    seq!((
+        scalar_variable: variable(true),
+        _: percent(),
+        procedure_component_name: name(),
+    ) => ProcComponentRef {
+        scalar_variable,
+        procedure_component_name,
+    }).parse(source)
 }
 
 #[derive(Debug, Clone, EnumAsInner)]

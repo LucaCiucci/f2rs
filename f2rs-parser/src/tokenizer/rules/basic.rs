@@ -276,10 +276,10 @@ pub fn name<'a, S: TextSource + 'a>(drop_last_underscore: bool) -> impl Parser<S
                 .map(|m| Name(m))
                 .parse(source)
         } else {
-            (
-                letter,
-                many(alphanumeric_character, 0..),
-            ).map(move |(first, rest)| {
+            seq!((
+                first: letter,
+                rest: many(alphanumeric_character, 0..),
+            ) => {
                 Name(StringMatch::from_chars::<S>(
                     std::iter::once(first).chain(rest.into_iter().map(|c| c)),
                 ))

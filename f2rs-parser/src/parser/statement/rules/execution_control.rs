@@ -13,10 +13,10 @@ pub struct AssociateStmt<Span> {
 )]
 pub fn associate_stmt<S: Lexed>(source: S) -> PResult<AssociateStmt<MultilineSpan>, S> {
     seq!((
-        associate_construct_name: (
-            name(),
-            colon(),
-        ).map(|(name, _)| name).opt(),
+        associate_construct_name: seq!((
+            name: name(),
+            _: colon(),
+        ) => name).opt(),
         _: kw!(associate),
         _: delim('('),
         association_list: list(association, 0..),
@@ -191,7 +191,7 @@ pub struct EndChangeTeamStmt<Span> {
 )]
 pub fn end_change_team_stmt<S: Lexed>(source: S) -> PResult<EndChangeTeamStmt<MultilineSpan>, S> {
     seq!((
-        _: (kw!(end), kw!(team)),
+        _: seq!((_: kw!(end), _: kw!(team)) => ()),
         sync_stat_list: seq!((
             _: delim('('),
             sync_stat_list: list(sync_stat, 0..),

@@ -9,4 +9,5 @@ pub mod prelude {
     pub use super::tokenization::*;
     pub use super::provided::text::*;
     pub use super::provided::common::*;
+    pub use crate::seq;
 }

@@ -71,23 +71,23 @@ impl<Span> MapSpan<Span> for SignedIntLiteralConstant<Span> {
     F18V007r1 rule "signed-int-literal-constant" #707 : "is [ sign ] int-literal-constant",
 )]
 pub fn signed_int_literal_constant<S: TextSource>(source: S) -> PResult<SignedIntLiteralConstant<S::Span>, S> {
-    (
-        sign.opt(),
-        int_literal_constant,
-    )
-        .map(|(sign, int_literal_constant): (Option<Sign<<S as Source>::Span>>, IntLiteralConstant<<S as Source>::Span>)| {
-            let span = if let Some(sign) = &sign {
-                S::Span::merge(sign.span().clone(), int_literal_constant.span.clone())
-            } else {
-                int_literal_constant.span.clone()
-            };
-            SignedIntLiteralConstant {
-                span,
-                sign,
-                int_literal_constant,
-            }
-        })
-        .parse(source)
+    seq!((
+        sign: sign.opt(),
+        int_literal_constant: int_literal_constant,
+    ) => {
+        let span = if let Some(sign) = &sign {
+            let sign_span: &S::Span = sign.span();
+            let int_literal_constant_span: &S::Span = int_literal_constant.span();
+            S::Span::merge(sign_span.clone(), int_literal_constant_span.clone())
+        } else {
+            int_literal_constant.span.clone()
+        };
+        SignedIntLiteralConstant {
+            span,
+            sign,
+            int_literal_constant,
+        }
+    }).parse(source)
 }
 
 #[derive(Debug, Clone)]
@@ -122,16 +122,13 @@ pub fn int_literal_constant<S: TextSource>(source: S) -> PResult<IntLiteralConst
     // TODO maybe relax R708 to allow for trailing underscores if a kind param is missing:
     //`digit-string [ _ kind-param ]` --> `digit-string [ _ ]  [ kind-param ]`
 
-    (
-        digit_string::<S>,
-        (
-            underscore::<S>,
-            kind_param(false),
-        )
-            .map(|(_, kind_param)| kind_param)
-            .opt(),
-    ).map(|(digits, kind_param)| {
-
+    seq!((
+        digits: digit_string::<S>,
+        kind_param: seq!((
+            _: underscore::<S>,
+            kind_param: kind_param(false),
+        ) => kind_param).opt(),
+    ) => {
         let span = if let Some(kind_param) = &kind_param {
             S::Span::merge(
                 digits.span.clone(),
@@ -149,8 +146,7 @@ pub fn int_literal_constant<S: TextSource>(source: S) -> PResult<IntLiteralConst
             digits,
             kind_param,
         }
-    })
-    .parse(source)
+    }).parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.1 R709
@@ -215,24 +211,22 @@ impl<Span> MapSpan<Span> for SignedDigitString<Span> {
     F18V007r1 rule "signed-digit-string" #710 : "is [ sign ] digit-string",
 )]
 pub fn signed_digit_string<S: TextSource>(source: S) -> PResult<SignedDigitString<S::Span>, S> {
-    (
-        sign::<S>.opt(),
-        digit_string,
-    )
-        .map(|(sign, digits)| {
-            let span = if let Some(sign) = &sign {
-                S::Span::merge(sign.span().clone(), digits.span.clone())
-            } else {
-                digits.span.clone()
-            };
+    seq!((
+        sign: sign::<S>.opt(),
+        digits: digit_string,
+    ) => {
+        let span = if let Some(sign) = &sign {
+            S::Span::merge(sign.span().clone(), digits.span.clone())
+        } else {
+            digits.span.clone()
+        };
 
-            SignedDigitString {
-                span,
-                sign,
-                digits,
-            }
-        })
-        .parse(source)
+        SignedDigitString {
+            span,
+            sign,
+            digits,
+        }
+    }).parse(source)
 }
 
 #[doc = s_rule!(
@@ -263,15 +257,13 @@ pub struct SignedRealLiteralConstant<Span> {
     F18V007r1 rule "signed-real-literal-constant" #713 : "is [ sign ] real-literal-constant",
 )]
 pub fn signed_real_literal_constant<S: TextSource>(source: S) -> PResult<SignedRealLiteralConstant<S::Span>, S> {
-    (
-        sign.opt(),
+    seq!((
+        sign: sign.opt(),
+        real_literal_constant: real_literal_constant,
+    ) => SignedRealLiteralConstant {
+        sign,
         real_literal_constant,
-    )
-        .map(|(sign, real_literal_constant)| SignedRealLiteralConstant {
-            sign,
-            real_literal_constant,
-        })
-        .parse(source)
+    }).parse(source)
 }
 
 /// As defined in J3/18-007r1 §7.4.3.2 R714
@@ -333,22 +325,21 @@ pub fn real_literal_constant<S: TextSource>(source: S) -> PResult<RealLiteralCon
 
     alt!(
         for S =>
-        (
-            significand,
-            (
-                exponent_letter,
-                exponent,
-            ).opt(),
-            (
-                underscore,
-                kind_param(false),
-            ).map(|(_, k)| k).opt(),
-        )
-            .map(|(significand, exponent_letter_and_exponent, kind_param): (Significand<S::Span>, Option<(ExponentLetter<S::Span>, SignedDigitString<S::Span>)>, Option<KindParam<S::Span>>)| {
-                let mut span = significand.span().clone();
+        seq!((
+            significand: significand,
+            exponent_letter_and_exponent: seq!((
+                exponent_letter: exponent_letter,
+                exponent: exponent,
+            ) => (exponent_letter, exponent)).opt(),
+            kind_param: seq!((
+                _: underscore,
+                k: kind_param(false),
+            ) => k).opt(),
+        ) => {
+                let mut span: S::Span = (&significand.span() as &S::Span).clone();
                 if let Some((exponent_letter, exponent)) = &exponent_letter_and_exponent {
-                    span = S::Span::merge(span, exponent_letter.span().clone());
-                    span = S::Span::merge(span, exponent.span.clone());
+                    span = S::Span::merge(span, (exponent_letter.span() as &S::Span).clone());
+                    span = S::Span::merge(span, (&exponent.span as &S::Span).clone());
                 }
                 RealLiteralConstant::StartsWithSignificand {
                     significand,
@@ -357,31 +348,30 @@ pub fn real_literal_constant<S: TextSource>(source: S) -> PResult<RealLiteralCon
                     span,
                 }
             }),
-        (
-            digit_string,
-            exponent_letter,
-            exponent,
-            (
-                underscore,
-                kind_param(false),
-            ).map(|(_, k)| k).opt(),
-        )
-            .map(|(digits_string, exponent_letter, exponent, kind_param): (StringMatch<S::Span>, ExponentLetter<S::Span>, SignedDigitString<S::Span>, Option<KindParam<S::Span>>)| {
-                let span = S::Span::merge(
-                    digits_string.span.clone(),
-                    S::Span::merge(
-                        exponent_letter.span().clone(),
-                        exponent.span.clone(),
-                    ),
-                );
-                RealLiteralConstant::StartsWithDigits {
-                    digits_string,
-                    exponent_letter,
-                    exponent,
-                    kind_param,
-                    span,
-                }
-            }),
+        seq!((
+            digits_string: digit_string,
+            exponent_letter: exponent_letter,
+            exponent: exponent,
+            kind_param: seq!((
+                _: underscore,
+                k: kind_param(false),
+            ) => k).opt(),
+        ) => {
+            let span = S::Span::merge(
+                (&digits_string.span as &S::Span).clone(),
+                S::Span::merge(
+                    (exponent_letter.span() as &S::Span).clone(),
+                    (&exponent.span as &S::Span).clone(),
+                ),
+            );
+            RealLiteralConstant::StartsWithDigits {
+                digits_string,
+                exponent_letter,
+                exponent,
+                kind_param,
+                span,
+            }
+        }),
     ).parse(source)
 }
 
@@ -471,21 +461,21 @@ impl<Span> MapSpan<Span> for Significand<Span> {
 pub fn significand<S: TextSource>(source: S) -> PResult<Significand<S::Span>, S> {
     alt! {
         for S =>
-        (
-            digit_string,
-            '.',
-            digit_string.opt(),
-        ).map(|(first, _, second): (StringMatch<S::Span>, Char<S::Span>, Option<StringMatch<S::Span>>)| {
-            let mut span = first.span.clone();
+        seq!((
+            first: digit_string,
+            _: '.',
+            second: digit_string.opt(),
+        ) => {
+            let mut span = (&first.span as &S::Span).clone();
             if let Some(second) = &second {
-                span = S::Span::merge(span, second.span.clone());
+                span = S::Span::merge(span, (&second.span as &S::Span).clone());
             }
             Significand::DotAfter(first, second, span)
         }),
-        (
-            '.',
-            digit_string,
-        ).map(|(_, second)| Significand::DotBefore(second)),
+        seq!((
+            _: '.',
+            second: digit_string,
+        ) => Significand::DotBefore(second)),
     }.parse(source)
 }
 

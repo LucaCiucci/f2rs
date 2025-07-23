@@ -33,14 +33,19 @@ impl<Span> MapSpan<Span> for LogicalLiteralConstant<Span> {
     "or .FALSE. [ _ kind-param ]",
 )]
 pub fn logical_literal_constant<S: TextSource>(source: S) -> PResult<LogicalLiteralConstant<S::Span>, S> {
-    (
-        alt!(
+    seq!((
+        value: alt!(
             for S =>
             StringMatch::exact(".TRUE.", false).map(|m| (m, true)),
             StringMatch::exact(".FALSE.", false).map(|m| (m, false)),
         ),
-        (space(0), underscore, space(0), kind_param(true)).map(|(_, _, _, k)| k).opt(),
-    ).map(|(value, kind): ((StringMatch<S::Span>, bool), Option<KindParam<S::Span>>)| {
+        kind: seq!((
+            _: space(0),
+            _: underscore,
+            _: space(0),
+            k: kind_param(true),
+        ) => k).opt(),
+    ) => {
         let mut span = value.0.span.clone();
         if let Some(kind) = &kind {
             span = S::Span::merge(span, kind.span().clone());

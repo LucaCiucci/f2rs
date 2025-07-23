@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use super::*;
 
-mod import_stmt; pub use import_stmt::*;
+mod import_stmt; use f2rs_parser_combinator::seq;
+pub use import_stmt::*;
 mod attribute_specification_statements; pub use attribute_specification_statements::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumAsInner)]
@@ -61,10 +62,10 @@ pub struct ExplicitShapeSpec<Span> {
     "is [ lower-bound : ] upper-bound",
 )]
 pub fn explicit_shape_spec<S: Lexed>(source: S) -> PResult<ExplicitShapeSpec<MultilineSpan>, S> {
-    (
-        (lower_bound, colon()).map(|(lower_bound, _)| lower_bound).opt(),
-        upper_bound,
-    ).map(|(lower_bound, upper_bound)| ExplicitShapeSpec {
+    seq!((
+        lower_bound: seq!((b: lower_bound, _: colon()) => b).opt(),
+        upper_bound: upper_bound,
+    ) => ExplicitShapeSpec {
         lower_bound,
         upper_bound,
     }).parse(source)
@@ -81,10 +82,10 @@ pub struct AssumedShapeSpec<Span> {
 )]
 pub fn assumed_shape_spec<S: Lexed>(source: S) -> PResult<AssumedShapeSpec<MultilineSpan>, S> {
     // TODO test
-    (
-        lower_bound.opt(),
-        colon(),
-    ).map(|(lower_bound, _)| AssumedShapeSpec {
+    seq!((
+        lower_bound: lower_bound.opt(),
+        _: colon(),
+    ) => AssumedShapeSpec {
         lower_bound,
     }).parse(source)
 }
@@ -112,13 +113,13 @@ pub struct AssumedImpliedSpec<Span> {
 )]
 pub fn assumed_implied_spec<S: Lexed>(source: S) -> PResult<AssumedImpliedSpec<MultilineSpan>, S> {
     // TODO test
-    (
-        (
-            lower_bound,
-            colon(),
-        ).map(|(lower_bound, _, )| lower_bound).opt(),
-        asterisk(),
-    ).map(|(lower_bound, _)| AssumedImpliedSpec {
+    seq!((
+        lower_bound: seq!((
+            b: lower_bound,
+            _: colon(),
+        ) => b).opt(),
+        _: asterisk(),
+    ) => AssumedImpliedSpec {
         lower_bound,
     }).parse(source)
 }
