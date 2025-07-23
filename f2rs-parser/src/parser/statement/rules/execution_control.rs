@@ -542,13 +542,14 @@ pub struct IfThenStmt<Span> {
     F18V007r1 rule "if-then-stmt" #1135 : "is [ if-construct-name : ] IF ( scalar-logical-expr ) THEN",
 )]
 pub fn if_then_stmt<S: Lexed>(source: S) -> PResult<IfThenStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        kw!(if), delim('('),
-        logical_expr,
-        delim(')'),
-        kw!(then),
-    ).map(|(if_construct_name, _, _, scalar_logical_expr, _, _)| IfThenStmt {
+    seq!((
+        if_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: kw!(if),
+        _: delim('('),
+        scalar_logical_expr: logical_expr,
+        _: delim(')'),
+        _: kw!(then),
+    ) => IfThenStmt {
         if_construct_name,
         scalar_logical_expr,
     }).parse(source)
@@ -564,13 +565,13 @@ pub struct ElseIfStmt<Span> {
     F18V007r1 rule "else-if-stmt" #1136 : "is ELSE IF ( scalar-logical-expr ) THEN [ if-construct-name ]",
 )]
 pub fn else_if_stmt<S: Lexed>(source: S) -> PResult<ElseIfStmt<MultilineSpan>, S> {
-    (
-        (kw!(else), kw!(if), delim('(')),
-        logical_expr,
-        delim(')'),
-        kw!(then),
-        name().opt(),
-    ).map(|(_, scalar_logical_expr, _, _, if_construct_name)| ElseIfStmt {
+    seq!((
+        _: (kw!(else), kw!(if), delim('(')),
+        scalar_logical_expr: logical_expr,
+        _: delim(')'),
+        _: kw!(then),
+        if_construct_name: name().opt(),
+    ) => ElseIfStmt {
         scalar_logical_expr,
         if_construct_name,
     }).parse(source)
@@ -585,10 +586,10 @@ pub struct ElseStmt<Span> {
     F18V007r1 rule "else-stmt" #1137 : "is ELSE [ if-construct-name ]",
 )]
 pub fn else_stmt<S: Lexed>(source: S) -> PResult<ElseStmt<MultilineSpan>, S> {
-    (
-        kw!(else),
-        name().opt(),
-    ).map(|(_, if_construct_name)| ElseStmt {
+    seq!((
+        _: kw!(else),
+        if_construct_name: name().opt(),
+    ) => ElseStmt {
         if_construct_name,
     }).parse(source)
 }
@@ -602,10 +603,10 @@ pub struct EndIfStmt<Span> {
     F18V007r1 rule "end-if-stmt" #1138 : "is END IF [ if-construct-name ]",
 )]
 pub fn end_if_stmt<S: Lexed>(source: S) -> PResult<EndIfStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(if)),
-        name().opt(),
-    ).map(|(_, if_construct_name)| EndIfStmt {
+    seq!((
+        _: seq!((_: kw!(end), _: kw!(if)) => ()),
+        if_construct_name: name().opt(),
+    ) => EndIfStmt {
         if_construct_name,
     }).parse(source)
 }
@@ -620,13 +621,17 @@ pub struct IfStmt<Span> {
     F18V007r1 rule "if-stmt" #1139 : "is IF ( scalar-logical-expr ) action-stmt",
 )]
 pub fn if_stmt<S: Lexed>(source: S) -> PResult<IfStmt<MultilineSpan>, S> {
-    let ((_, _, scalar_logical_expr, _), source) = (
-        kw!(if), delim('('),
-        logical_expr,
-        delim(')'),
-    ).parse(source)?;
+    let (scalar_logical_expr, source) = seq!((
+        _: kw!(if),
+        _: delim('('),
+        scalar_logical_expr: logical_expr,
+        _: delim(')'),
+    ) => scalar_logical_expr).parse(source)?;
 
-    let possible_actions = action_stmt(source.clone()).into_iter().map(|(action, _)| action).collect::<Vec<_>>();
+    let possible_actions = action_stmt(source.clone())
+        .into_iter()
+        .map(|(action, _)| action)
+        .collect::<Vec<_>>();
 
     if possible_actions.is_empty() {
         return None;
@@ -648,12 +653,12 @@ pub struct SelectCaseStmt<Span> {
     F18V007r1 rule "select-case-stmt" #1141 : "is [ case-construct-name : ] SELECT CASE ( case-expr )",
 )]
 pub fn select_case_stmt<S: Lexed>(source: S) -> PResult<SelectCaseStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        (kw!(select), kw!(case), delim('(')),
-        expr,
-        delim(')'),
-    ).map(|(case_construct_name, _, case_expr, _)| SelectCaseStmt {
+    seq!((
+        case_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: (kw!(select), kw!(case), delim('(')),
+        case_expr: expr,
+        _: delim(')'),
+    ) => SelectCaseStmt {
         case_construct_name,
         case_expr,
     }).parse(source)
@@ -669,11 +674,11 @@ pub struct CaseStmt<Span> {
     F18V007r1 rule "case-stmt" #1142 : "is CASE case-selector [case-construct-name]",
 )]
 pub fn case_stmt<S: Lexed>(source: S) -> PResult<CaseStmt<MultilineSpan>, S> {
-    (
-        kw!(case),
-        case_selector,
-        name().opt(),
-    ).map(|(_, case_selector, case_construct_name)| CaseStmt {
+    seq!((
+        _: kw!(case),
+        case_selector: case_selector,
+        case_construct_name: name().opt(),
+    ) => CaseStmt {
         case_selector,
         case_construct_name,
     }).parse(source)
@@ -688,10 +693,10 @@ pub struct EndSelectStmt<Span> {
     F18V007r1 rule "end-select-stmt" #1143 : "is END SELECT [ case-construct-name ]",
 )]
 pub fn end_select_stmt<S: Lexed>(source: S) -> PResult<EndSelectStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(select)),
-        name().opt(),
-    ).map(|(_, case_construct_name)| EndSelectStmt {
+    seq!((
+        _: seq!((_: kw!(end), _: kw!(select)) => ()),
+        case_construct_name: name().opt(),
+    ) => EndSelectStmt {
         case_construct_name,
     }).parse(source)
 }
@@ -720,11 +725,11 @@ pub enum CaseSelector<Span> {
 pub fn case_selector<S: Lexed>(source: S) -> PResult<CaseSelector<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            delim('('),
-            list(case_value_range, 1..),
-            delim(')'),
-        ).map(|(_, value_range_list, _)| CaseSelector::ValueRangeList(value_range_list)),
+        seq!((
+            _: delim('('),
+            value_range_list: list(case_value_range, 1..),
+            _: delim(')'),
+        ) => CaseSelector::ValueRangeList(value_range_list)),
         kw!(default).map(|_| CaseSelector::Default),
     ).parse(source)
 }
@@ -748,15 +753,19 @@ pub fn case_value_range<S: Lexed>(source: S) -> PResult<CaseValueRange<Multiline
     alt!(
         for S =>
         case_value.map(CaseValueRange::Singe),
-        (
-            case_value, colon()
-        ).map(|(value, _)| CaseValueRange::Lower(value)),
-        (
-            colon(), case_value,
-        ).map(|(_, value)| CaseValueRange::Upper(value)),
-        (
-            case_value, colon(), case_value,
-        ).map(|(value1, _, value2)| CaseValueRange::Range(value1, value2)),
+        seq!((
+            value: case_value,
+            _: colon()
+        ) => CaseValueRange::Lower(value)),
+        seq!((
+            _: colon(),
+            value: case_value,
+        ) => CaseValueRange::Upper(value)),
+        seq!((
+            value1: case_value,
+            _: colon(),
+            value2: case_value,
+        ) => CaseValueRange::Range(value1, value2)),
     ).parse(source)
 }
 
@@ -782,13 +791,13 @@ pub struct SelectRankStmt<Span> {
     "    ( [ associate-name => ] selector )",
 )]
 pub fn select_rank_stmt<S: Lexed>(source: S) -> PResult<SelectRankStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        (kw!(select), kw!(rank), delim('(')),
-        (name(), arrow()).map(|(name, _)| name).opt(),
-        selector,
-        delim(')'),
-    ).map(|(select_construct_name, _, associate_name, selector, _)| SelectRankStmt {
+    seq!((
+        select_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: (kw!(select), kw!(rank), delim('(')),
+        associate_name: seq!((n: name(), _: arrow()) => n).opt(),
+        selector: selector,
+        _: delim(')'),
+    ) => SelectRankStmt {
         select_construct_name,
         associate_name,
         selector,
@@ -811,23 +820,26 @@ pub enum SelectRankCaseStmt<Span> {
 pub fn select_rank_case_stmt<S: Lexed>(source: S) -> PResult<SelectRankCaseStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            kw!(rank), delim('('),
-            int_constant_expr,
-            delim(')'),
-            name().opt(),
-        ).map(|(_, _, rank, _, select_construct_name)| SelectRankCaseStmt::Rank(rank, select_construct_name)),
-        (
-            kw!(rank), delim('('),
-            asterisk(),
-            delim(')'),
-            name().opt(),
-        ).map(|(_, _, _, _, select_construct_name)| SelectRankCaseStmt::RankStar(select_construct_name)),
-        (
-            kw!(rank), kw!(default),
-            delim(')'),
-            name().opt(),
-        ).map(|(_, _, _, select_construct_name)| SelectRankCaseStmt::RankDefault(select_construct_name)),
+        seq!((
+            _: kw!(rank),
+            _: delim('('),
+            rank: int_constant_expr,
+            _: delim(')'),
+            select_construct_name: name().opt(),
+        ) => SelectRankCaseStmt::Rank(rank, select_construct_name)),
+        seq!((
+            _: kw!(rank),
+            _: delim('('),
+            _: asterisk(),
+            _: delim(')'),
+            select_construct_name: name().opt(),
+        ) => SelectRankCaseStmt::RankStar(select_construct_name)),
+        seq!((
+            _: kw!(rank),
+            _: kw!(default),
+            _: delim(')'),
+            select_construct_name: name().opt(),
+        ) => SelectRankCaseStmt::RankDefault(select_construct_name)),
     ).parse(source)
 }
 
@@ -840,10 +852,10 @@ pub struct EndSelectRankStmt<Span> {
     F18V007r1 rule "end-select-rank-stmt" #1151 : "is END SELECT [ select-construct-name ]",
 )]
 pub fn end_select_rank_stmt<S: Lexed>(source: S) -> PResult<EndSelectRankStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(select)),
-        name().opt(),
-    ).map(|(_, select_construct_name)| EndSelectRankStmt {
+    seq!((
+        _: seq!((_: kw!(end), _: kw!(select)) => ()),
+        select_construct_name: name().opt(),
+    ) => EndSelectRankStmt {
         select_construct_name,
     }).parse(source)
 }
@@ -861,13 +873,13 @@ pub struct SelectTypeStmt<Span> {
     "    ( [ associate-name => ] selector )",
 )]
 pub fn select_type_stmt<S: Lexed>(source: S) -> PResult<SelectTypeStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).opt(),
-        (kw!(select), kw!(type), delim('(')),
-        (name(), arrow()).map(|(name, _)| name).opt(),
-        selector,
-        delim(')'),
-    ).map(|(select_construct_name, _, associate_name, selector, _)| SelectTypeStmt {
+    seq!((
+        select_construct_name: seq!((n: name(), _: colon()) => n).opt(),
+        _: (kw!(select), kw!(type), delim('(')),
+        associate_name: seq!((n: name(), _: arrow()) => n).opt(),
+        selector: selector,
+        _: delim(')'),
+    ) => SelectTypeStmt {
         select_construct_name,
         associate_name,
         selector,
@@ -890,22 +902,24 @@ pub enum TypeGuardStmt<Span> {
 pub fn type_guard_stmt<S: Lexed>(source: S) -> PResult<TypeGuardStmt<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            (kw!(type), kw!(is), delim('(')),
-            type_spec,
-            delim(')'),
-            name().opt(),
-        ).map(|(_, type_spec, _, select_construct_name)| TypeGuardStmt::TypeIs(type_spec, select_construct_name)),
-        (
-            (kw!(class), kw!(is), delim('(')),
-            derived_type_spec,
-            delim(')'),
-            name().opt(),
-        ).map(|(_, derived_type_spec, _, select_construct_name)| TypeGuardStmt::ClassIs(derived_type_spec, select_construct_name)),
-        (
-            (kw!(class), kw!(default)),
-            name().opt(),
-        ).map(|(_, select_construct_name)| TypeGuardStmt::ClassDefault(select_construct_name)),
+        seq!((
+            _: kw!(type), _: kw!(is),
+            _: delim('('),
+            type_spec: type_spec,
+            _: delim(')'),
+            select_construct_name: name().opt(),
+        ) => TypeGuardStmt::TypeIs(type_spec, select_construct_name)),
+        seq!((
+            _: kw!(class), _: kw!(is),
+            _: delim('('),
+            derived_type_spec: derived_type_spec,
+            _: delim(')'),
+            select_construct_name: name().opt(),
+        ) => TypeGuardStmt::ClassIs(derived_type_spec, select_construct_name)),
+        seq!((
+            _: kw!(class), _: kw!(default),
+            select_construct_name: name().opt(),
+        ) => TypeGuardStmt::ClassDefault(select_construct_name)),
     ).parse(source)
 }
 
@@ -918,10 +932,10 @@ pub struct EndSelectTypeStmt<Span> {
     F18V007r1 rule "end-select-type-stmt" #1155 : "is END SELECT [ select-construct-name ]",
 )]
 pub fn end_select_type_stmt<S: Lexed>(source: S) -> PResult<EndSelectTypeStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(select)),
-        name().opt(),
-    ).map(|(_, select_construct_name)| EndSelectTypeStmt {
+    seq!((
+        _: kw!(end), _: kw!(select),
+        select_construct_name: name().opt(),
+    ) => EndSelectTypeStmt {
         select_construct_name,
     }).parse(source)
 }
@@ -935,10 +949,10 @@ pub struct ExitStmt<Span> {
     F18V007r1 rule "exit-stmt" #1156 : "is EXIT [ construct-name ]",
 )]
 pub fn exit_stmt<S: Lexed>(source: S) -> PResult<ExitStmt<MultilineSpan>, S> {
-    (
-        kw!(exit),
-        name().opt(),
-    ).map(|(_, construct_name)| ExitStmt {
+    seq!((
+        _: kw!(exit),
+        construct_name: name().opt(),
+    ) => ExitStmt {
         construct_name,
     }).parse(source)
 }
@@ -952,11 +966,11 @@ pub struct GotoStmt<Span> {
     F18V007r1 rule "goto-stmt" #1157 : "is GO TO label",
 )]
 pub fn goto_stmt<S: Lexed>(source: S) -> PResult<GotoStmt<MultilineSpan>, S> {
-    (
-        kw!(go),
-        kw!(to),
-        label(),
-    ).map(|(_, _, label)| GotoStmt {
+    seq!((
+        _: kw!(go),
+        _: kw!(to),
+        label: label(),
+    ) => GotoStmt {
         label,
     }).parse(source)
 }
@@ -971,15 +985,15 @@ pub struct ComputedGotoStmt<Span> {
     F18V007r1 rule "computed-goto-stmt" #1158 : "is GO TO ( label-list ) [ , ] scalar-int-expression",
 )]
 pub fn computed_goto_stmt<S: Lexed>(source: S) -> PResult<ComputedGotoStmt<MultilineSpan>, S> {
-    (
-        kw!(go),
-        kw!(to),
-        delim('('),
-        list(label(), 1..),
-        delim(')'),
-        comma().opt(),
-        expr,
-    ).map(|(_, _, _, label_list, _, _, scalar_int_expression)| ComputedGotoStmt {
+    seq!((
+        _: kw!(go),
+        _: kw!(to),
+        _: delim('('),
+        label_list: list(label(), 1..),
+        _: delim(')'),
+        _: comma().opt(),
+        scalar_int_expression: expr,
+    ) => ComputedGotoStmt {
         label_list,
         scalar_int_expression,
     }).parse(source)
@@ -1015,10 +1029,12 @@ pub fn stop_stmt<S: Lexed>(source: S) -> PResult<StopStmt<MultilineSpan>, S> {
     seq!((
         _: kw!(stop),
         stop_code: stop_code.opt(),
-        quiet: (
-            (comma(), kw!(quiet), equals()),
-            logical_expr
-        ).map(|(_, quiet)| quiet).opt(),
+        quiet: seq!((
+            _: comma(),
+            _: kw!(quiet),
+            _: equals(),
+            quiet: logical_expr
+        ) => quiet).opt(),
     ) => StopStmt {
         stop_code,
         quiet,
@@ -1035,13 +1051,15 @@ pub struct ErrorStopStmt<Span> {
     F18V007r1 rule "error-stop-stmt" #1161 : "is ERROR STOP [ stop-code ] [ , QUIET = scalar-logical-expr",
 )]
 pub fn error_stop_stmt<S: Lexed>(source: S) -> PResult<ErrorStopStmt<MultilineSpan>, S> {
-    (
-        kw!(error),
-        kw!(stop),
-        stop_code.opt(),
-        (comma(), kw!(quiet), equals()),
-        logical_expr.opt(),
-    ).map(|(_, _, stop_code, _, quiet)| ErrorStopStmt {
+    seq!((
+        _: kw!(error),
+        _: kw!(stop),
+        stop_code: stop_code.opt(),
+        _: comma(),
+        _: kw!(quiet),
+        _: equals(),
+        quiet: logical_expr.opt(),
+    ) => ErrorStopStmt {
         stop_code,
         quiet,
     }).parse(source)
@@ -1075,10 +1093,10 @@ pub struct FailImageStmt<Span> {
     F18V007r1 rule "fail-image-stmt" #1163 : "is FAIL IMAGE",
 )]
 pub fn fail_image_stmt<S: Lexed>(source: S) -> PResult<FailImageStmt<MultilineSpan>, S> {
-    (
-        kw!(fail),
-        kw!(image),
-    ).map(|_| FailImageStmt {
+    seq!((
+        _: kw!(fail),
+        _: kw!(image),
+    ) => FailImageStmt {
         _p: std::marker::PhantomData,
     }).parse(source)
 }
@@ -1092,15 +1110,15 @@ pub struct SyncAllStmt<Span> {
     F18V007r1 rule "sync-all-stmt" #1164 : "is SYNC ALL [ ( [ sync-stat-list ] ) ]",
 )]
 pub fn sync_all_stmt<S: Lexed>(source: S) -> PResult<SyncAllStmt<MultilineSpan>, S> {
-    (
-        kw!(sync),
-        kw!(all),
-        (
-            delim('('),
-            list(sync_stat, 0..),
-            delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).opt(),
-    ).map(|(_, _, sync_stat_list)| SyncAllStmt {
+    seq!((
+        _: kw!(sync),
+        _: kw!(all),
+        sync_stat_list: seq!((
+            _: delim('('),
+            sync_stat_list: list(sync_stat, 0..),
+            _: delim(')'),
+        ) => sync_stat_list).opt(),
+    ) => SyncAllStmt {
         sync_stat_list,
     }).parse(source)
 }
@@ -1119,14 +1137,16 @@ pub enum SyncStat<Span> {
 pub fn sync_stat<S: Lexed>(source: S) -> PResult<SyncStat<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            kw!(stat), equals(),
-            stat_variable,
-        ).map(|(_, _, stat_variable)| SyncStat::Stat(stat_variable)),
-        (
-            kw!(errmsg), equals(),
-            errmsg_variable,
-        ).map(|(_, _, errmsg_variable)| SyncStat::ErrMsg(errmsg_variable)),
+        seq!((
+            _: kw!(stat),
+            _: equals(),
+            stat_variable: stat_variable,
+        ) => SyncStat::Stat(stat_variable)),
+        seq!((
+            _: kw!(errmsg),
+            _: equals(),
+            errmsg_variable: errmsg_variable,
+        ) => SyncStat::ErrMsg(errmsg_variable)),
     ).parse(source)
 }
 
@@ -1140,17 +1160,17 @@ pub struct SyncImagesStmt<Span> {
     F18V007r1 rule "sync-images-stmt" #1166 : "is SYNC IMAGES ( image-set [ , sync-stat-list ] )",
 )]
 pub fn sync_images_stmt<S: Lexed>(source: S) -> PResult<SyncImagesStmt<MultilineSpan>, S> {
-    (
-        kw!(sync),
-        kw!(images),
-        delim('('),
-        image_set,
-        (
-            comma(),
-            list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
-        delim(')'),
-    ).map(|(_, _, _, image_set, sync_stat_list, _)| SyncImagesStmt {
+    seq!((
+        _: kw!(sync),
+        _: kw!(images),
+        _: delim('('),
+        image_set: image_set,
+        sync_stat_list: seq!((
+            _: comma(),
+            sync_stat_list: list(sync_stat, 0..),
+        ) => sync_stat_list).opt(),
+        _: delim(')'),
+    ) => SyncImagesStmt {
         image_set,
         sync_stat_list,
     }).parse(source)
@@ -1184,15 +1204,15 @@ pub struct SyncMemoryStmt<Span> {
     F18V007r1 rule "sync-memory-stmt" #1168 : "is SYNC MEMORY [ ( [ sync-stat-list ] ) ]",
 )]
 pub fn sync_memory_stmt<S: Lexed>(source: S) -> PResult<SyncMemoryStmt<MultilineSpan>, S> {
-    (
-        kw!(sync),
-        kw!(memory),
-        (
-            delim('('),
-            list(sync_stat, 0..),
-            delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).opt(),
-    ).map(|(_, _, sync_stat_list)| SyncMemoryStmt {
+    seq!((
+        _: kw!(sync),
+        _: kw!(memory),
+        sync_stat_list: seq!((
+            _: delim('('),
+            sync_stat_list: list(sync_stat, 0..),
+            _: delim(')'),
+        ) => sync_stat_list).opt(),
+    ) => SyncMemoryStmt {
         sync_stat_list,
     }).parse(source)
 }
@@ -1207,17 +1227,17 @@ pub struct SyncTeamStmt<Span> {
     F18V007r1 rule "sync-team-stmt" #1169 : "is SYNC TEAM ( team-value [ , sync-stat-list ] )",
 )]
 pub fn sync_team_stmt<S: Lexed>(source: S) -> PResult<SyncTeamStmt<MultilineSpan>, S> {
-    (
-        kw!(sync),
-        kw!(team),
-        delim('('),
-        team_value,
-        (
-            comma(),
-            list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
-        delim(')'),
-    ).map(|(_, _, _, team_value, sync_stat_list, _)| SyncTeamStmt {
+    seq!((
+        _: kw!(sync),
+        _: kw!(team),
+        _: delim('('),
+        team_value: team_value,
+        sync_stat_list: seq!((
+            _: comma(),
+            sync_stat_list: list(sync_stat, 0..),
+        ) => sync_stat_list).opt(),
+        _: delim(')'),
+    ) => SyncTeamStmt {
         team_value,
         sync_stat_list,
     }).parse(source)
@@ -1233,17 +1253,17 @@ pub struct EventPostStmt<Span> {
     F18V007r1 rule "event-post-stmt" #1170 : "is EVENT POST ( event-variable [ , sync-stat-list ] )",
 )]
 pub fn event_post_stmt<S: Lexed>(source: S) -> PResult<EventPostStmt<MultilineSpan>, S> {
-    (
-        kw!(event),
-        kw!(post),
-        delim('('),
-        event_variable,
-        (
-            comma(),
-            list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
-        delim(')'),
-    ).map(|(_, _, _, event_variable, sync_stat_list, _)| EventPostStmt {
+    seq!((
+        _: kw!(event),
+        _: kw!(post),
+        _: delim('('),
+        event_variable: event_variable,
+        sync_stat_list: seq!((
+            _: comma(),
+            sync_stat_list: list(sync_stat, 0..),
+        ) => sync_stat_list).opt(),
+        _: delim(')'),
+    ) => EventPostStmt {
         event_variable,
         sync_stat_list,
     }).parse(source)
@@ -1269,17 +1289,17 @@ pub struct EventWaitStmt<Span> {
     F18V007r1 rule "event-wait-stmt" #1172 : "is EVENT WAIT ( event-variable [ , event-wait-spec-list ] )",
 )]
 pub fn event_wait_stmt<S: Lexed>(source: S) -> PResult<EventWaitStmt<MultilineSpan>, S> {
-    (
-        kw!(event),
-        kw!(wait),
-        delim('('),
-        event_variable,
-        (
-            comma(),
-            list(event_wait_spec, 1..),
-        ).map(|(_, event_wait_spec_list)| event_wait_spec_list),
-        delim(')'),
-    ).map(|(_, _, _, event_variable, event_wait_spec_list, _)| EventWaitStmt {
+    seq!((
+        _: kw!(event),
+        _: kw!(wait),
+        _: delim('('),
+        event_variable: event_variable,
+        event_wait_spec_list: seq!((
+            _: comma(),
+            event_wait_spec_list: list(event_wait_spec, 1..),
+        ) => event_wait_spec_list),
+        _: delim(')'),
+    ) => EventWaitStmt {
         event_variable,
         event_wait_spec_list,
     }).parse(source)
@@ -1313,12 +1333,12 @@ pub struct UntilSpec<Span> {
     F18V007r1 rule "until-spec" #1174 : "is UNTIL_COUNT = scalar-int-expr",
 )]
 pub fn until_spec<S: Lexed>(source: S) -> PResult<UntilSpec<MultilineSpan>, S> {
-    (
-        kw!(until),
-        kw!(count),
-        equals(),
-        int_expr,
-    ).map(|(_, _, _, until_count)| UntilSpec {
+    seq!((
+        _: kw!(until),
+        _: kw!(count),
+        _: equals(),
+        until_count: int_expr,
+    ) => UntilSpec {
         until_count,
     }).parse(source)
 }
@@ -1336,18 +1356,19 @@ pub struct FormTeamStmt<Span> {
     "    [ , form-team-spec-list ] )",
 )]
 pub fn form_team_stmt<S: Lexed>(source: S) -> PResult<FormTeamStmt<MultilineSpan>, S> {
-    (
-        kw!(form),
-        kw!(team),
-        delim('('),
-        int_expr, comma(),
-        variable(false),
-        (
-            comma(),
-            list(form_team_spec, 1..),
-        ).map(|(_, form_team_spec_list)| form_team_spec_list).opt(),
-        delim(')'),
-    ).map(|(_, _, _, team_number, _, team_variable, form_team_spec_list, _)| FormTeamStmt {
+    seq!((
+        _: kw!(form),
+        _: kw!(team),
+        _: delim('('),
+        team_number: int_expr,
+        _: comma(),
+        team_variable: variable(false),
+        form_team_spec_list: seq!((
+            _: comma(),
+            form_team_spec_list: list(form_team_spec, 1..),
+        ) => form_team_spec_list).opt(),
+        _: delim(')'),
+    ) => FormTeamStmt {
         team_number,
         team_variable,
         form_team_spec_list,
@@ -1388,12 +1409,12 @@ pub enum FormTeamSpec<Span> {
 pub fn form_team_spec<S: Lexed>(source: S) -> PResult<FormTeamSpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            kw!(new),
-            kw!(index),
-            equals(),
-            int_expr,
-        ).map(|(_, _, _, new_index)| FormTeamSpec::NewIndex(new_index)),
+        seq!((
+            _: kw!(new),
+            _: kw!(index),
+            _: equals(),
+            new_index: int_expr,
+        ) => FormTeamSpec::NewIndex(new_index)),
         sync_stat.map(FormTeamSpec::SyncStat),
     ).parse(source)
 }
@@ -1408,16 +1429,16 @@ pub struct LockStmt<Span> {
     F18V007r1 rule "lock-stmt" #1179 : "is LOCK ( lock-variable [ , lock-stat-list ] )",
 )]
 pub fn lock_stmt<S: Lexed>(source: S) -> PResult<LockStmt<MultilineSpan>, S> {
-    (
-        kw!(lock),
-        delim('('),
-        variable(false),
-        (
-            comma(),
-            list(lock_stat, 1..),
-        ).map(|(_, lock_stat_list)| lock_stat_list).opt(),
-        delim(')'),
-    ).map(|(_, _, lock_variable, lock_stat_list, _)| LockStmt {
+    seq!((
+        _: kw!(lock),
+        _: delim('('),
+        lock_variable: variable(false),
+        lock_stat_list: seq!((
+            _: comma(),
+            lock_stat_list: list(lock_stat, 1..),
+        ) => lock_stat_list).opt(),
+        _: delim(')'),
+    ) => LockStmt {
         lock_variable,
         lock_stat_list,
     }).parse(source)
@@ -1437,12 +1458,12 @@ pub enum LockStat<Span> {
 pub fn lock_stat<S: Lexed>(source: S) -> PResult<LockStat<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            kw!(acquired),
-            kw!(lock),
-            equals(),
-            logical_variable(false),
-        ).map(|(_, _, _, acquired_lock)| LockStat::AcquiredLock(acquired_lock)),
+        seq!((
+            _: kw!(acquired),
+            _: kw!(lock),
+            _: equals(),
+            acquired_lock: logical_variable(false),
+        ) => LockStat::AcquiredLock(acquired_lock)),
         sync_stat.map(LockStat::SyncStat),
     ).parse(source)
 }
@@ -1457,20 +1478,18 @@ pub struct UnlockStmt<Span> {
     F18V007r1 rule "unlock-stmt" #1181 : "is UNLOCK ( lock-variable [ , sync-stat-list ] )",
 )]
 pub fn unlock_stmt<S: Lexed>(source: S) -> PResult<UnlockStmt<MultilineSpan>, S> {
-    (
-        kw!(UNLOCK),
-        delim('('),
+    seq!((
+        _: kw!(UNLOCK),
+        _: delim('('),
+        lock_variable: lock_variable,
+        sync_stat_list: seq!((
+            _: comma(),
+            sync_stat_list: list(sync_stat, 0..),
+        ) => sync_stat_list).opt(),
+        _: delim(')'),
+    ) => UnlockStmt {
         lock_variable,
-        (
-            comma(),
-            list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
-        delim(')'),
-    ).map(|(_, _, lock_variable, sync_stat_list, _)| {
-        UnlockStmt {
-            lock_variable,
-            sync_stat_list,
-        }
+        sync_stat_list,
     }).parse(source)
 }
 
