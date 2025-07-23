@@ -39,7 +39,7 @@ pub fn format_specification<S: Lexed>(source: S) -> PResult<FormatSpecification<
         for S =>
         (
             delim('('),
-            format_items.optional(),
+            format_items.opt(),
             delim(')'),
         ).map(|(_, format_items, _)| FormatSpecification::FormatItems {
             format_items: format_items.unwrap_or_else(|| FormatItems(Vec::new())),
@@ -94,7 +94,7 @@ pub fn format_item<S: Lexed>(source: S) -> PResult<FormatItem<MultilineSpan>, S>
     alt!(
         for S =>
         (
-            r.optional(),
+            r.opt(),
             data_edit_desc,
         ).map(|(r, data_edit_desc)| FormatItem::DataEditDesc {
             r,
@@ -103,7 +103,7 @@ pub fn format_item<S: Lexed>(source: S) -> PResult<FormatItem<MultilineSpan>, S>
         control_edit_desc.map(FormatItem::ControlEditDesc),
         char_string_edit_desc.map(FormatItem::CharStringEditDesc),
         (
-            r.optional(),
+            r.opt(),
             delim('('),
             format_items,
             delim(')'),
@@ -229,22 +229,22 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
         (
             kw!(I),
             w,
-            (dot(), m).map(|(_, m)| m).optional(),
+            (dot(), m).map(|(_, m)| m).opt(),
         ).map(|(_, w, m)| DataEditDesc::I { w, m }),
         (
             kw!(b),
             w,
-            (dot(), m).map(|(_, m)| m).optional(),
+            (dot(), m).map(|(_, m)| m).opt(),
         ).map(|(_, w, m)| DataEditDesc::B { w, m }),
         (
             kw!(o),
             w,
-            (dot(), m).map(|(_, m)| m).optional(),
+            (dot(), m).map(|(_, m)| m).opt(),
         ).map(|(_, w, m)| DataEditDesc::O { w, m }),
         (
             kw!(z),
             w,
-            (dot(), m).map(|(_, m)| m).optional(),
+            (dot(), m).map(|(_, m)| m).opt(),
         ).map(|(_, w, m)| DataEditDesc::Z { w, m }),
         (
             kw!(f),
@@ -260,7 +260,7 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
             (
                 kw!(e),
                 e,
-            ).map(|(_, e)| e).optional(),
+            ).map(|(_, e)| e).opt(),
         ).map(|(_, w, _, d, e)| DataEditDesc::E { w, d, e }),
         (
             kw!(en),
@@ -270,7 +270,7 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
             (
                 kw!(e),
                 e,
-            ).map(|(_, e)| e).optional(),
+            ).map(|(_, e)| e).opt(),
         ).map(|(_, w, _, d, e)| DataEditDesc::EN { w, d, e }),
         (
             kw!(es),
@@ -280,7 +280,7 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
             (
                 kw!(e),
                 e,
-            ).map(|(_, e)| e).optional(),
+            ).map(|(_, e)| e).opt(),
         ).map(|(_, w, _, d, e)| DataEditDesc::ES { w, d, e }),
         (
             kw!(ex),
@@ -290,7 +290,7 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
             (
                 kw!(e),
                 e,
-            ).map(|(_, e)| e).optional(),
+            ).map(|(_, e)| e).opt(),
         ).map(|(_, w, _, d, e)| DataEditDesc::EX { w, d, e }),
         (
             kw!(g),
@@ -301,8 +301,8 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
                 (
                     kw!(e),
                     e,
-                ).map(|(_, e)| e).optional(),
-            ).map(|(_, d, e)| (d, e)).optional(),
+                ).map(|(_, e)| e).opt(),
+            ).map(|(_, d, e)| (d, e)).opt(),
         ).map(|(_, w, d_e)| {
             let (d, e) = if let Some((d, e)) = d_e {
                 (Some(d), e)
@@ -317,7 +317,7 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
         ).map(|(_, w)| DataEditDesc::L { w }),
         (
             kw!(a),
-            w.optional(),
+            w.opt(),
         ).map(|(_, w)| DataEditDesc::A { w }),
         (
             kw!(d),
@@ -327,12 +327,12 @@ pub fn data_edit_desc<S: Lexed>(source: S) -> PResult<DataEditDesc<MultilineSpan
         ).map(|(_, w, _, d)| DataEditDesc::D { w, d }),
         (
             kw!(dt),
-            char_literal_constant().optional(),
+            char_literal_constant().opt(),
             (
                 delim('('),
                 list(v, 0..),
                 delim(')'),
-            ).map(|(_, v_list, _)| v_list).optional(),
+            ).map(|(_, v_list, _)| v_list).opt(),
         ).map(|(_, char_literal_constant, v_list)| DataEditDesc::DT {
             char_literal_constant,
             v_list,
@@ -420,7 +420,7 @@ pub fn control_edit_desc<S: Lexed>(source: S) -> PResult<ControlEditDesc<Multili
         for S =>
         position_edit_desc.map(ControlEditDesc::PositionEditDesc),
         (
-            r.optional(),
+            r.opt(),
             op("/"),
         ).map(|(r, _)| ControlEditDesc::Slash(r)),
         colon().map(|_| ControlEditDesc::Colon),

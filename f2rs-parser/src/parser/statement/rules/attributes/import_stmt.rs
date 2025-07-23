@@ -76,9 +76,9 @@ pub fn import_stmt<S: Lexed>(source: S) -> PResult<ImportStmt<MultilineSpan>, S>
         (
             kw!(import),
             (
-                double_colon().optional(),
+                double_colon().opt(),
                 list(name(), 1..),
-            ).map(|(_, import_name_list)| import_name_list).optional(),
+            ).map(|(_, import_name_list)| import_name_list).opt(),
         ).map(|(kw, import_name_list)| ImportStmt { kw, data: ImportStmtVariant::List(import_name_list) }),
     ).parse(source)
 }

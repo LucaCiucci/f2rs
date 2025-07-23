@@ -45,9 +45,9 @@ pub fn enum_def_stmt<S: Lexed>(source: S) -> PResult<EnumDefStmt<MultilineSpan>,
     (
         kw!(enum),
         (// NOTE: this is not optional in the standard, but we allow it to be
-            comma().optional(),
+            comma().opt(),
             kw!(bind), delim('('), kw!(C), delim(')'),
-        ).optional(),
+        ).opt(),
     ).map(|(_, _)| EnumDefStmt {
         _phantom: PhantomData,
     }).parse(source)
@@ -64,7 +64,7 @@ pub struct EnumeratorDefStmt<Span> {
 pub fn enumerator_def_stmt<S: Lexed>(source: S) -> PResult<EnumeratorDefStmt<MultilineSpan>, S> {
     (
         kw!(enumerator),
-        double_colon().optional(),
+        double_colon().opt(),
         list(enumerator, 0..),
     ).map(|(_, _, list)| EnumeratorDefStmt {
         list,
@@ -86,7 +86,7 @@ pub fn enumerator<S: Lexed>(source: S) -> PResult<Enumerator<MultilineSpan>, S> 
         (
             equals(),
             int_constant_expr,
-        ).map(|(_, value)| value).optional(),
+        ).map(|(_, value)| value).opt(),
     ).map(|(name, value)| Enumerator {
         name,
         value,

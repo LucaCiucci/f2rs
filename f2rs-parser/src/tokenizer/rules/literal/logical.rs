@@ -39,7 +39,7 @@ pub fn logical_literal_constant<S: TextSource>(source: S) -> PResult<LogicalLite
             StringMatch::exact(".TRUE.", false).map(|m| (m, true)),
             StringMatch::exact(".FALSE.", false).map(|m| (m, false)),
         ),
-        (space(0), underscore, space(0), kind_param(true)).map(|(_, _, _, k)| k).optional(),
+        (space(0), underscore, space(0), kind_param(true)).map(|(_, _, _, k)| k).opt(),
     ).map(|(value, kind): ((StringMatch<S::Span>, bool), Option<KindParam<S::Span>>)| {
         let mut span = value.0.span.clone();
         if let Some(kind) = &kind {

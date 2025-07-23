@@ -72,7 +72,7 @@ impl<Span> MapSpan<Span> for SignedIntLiteralConstant<Span> {
 )]
 pub fn signed_int_literal_constant<S: TextSource>(source: S) -> PResult<SignedIntLiteralConstant<S::Span>, S> {
     (
-        sign.optional(),
+        sign.opt(),
         int_literal_constant,
     )
         .map(|(sign, int_literal_constant): (Option<Sign<<S as Source>::Span>>, IntLiteralConstant<<S as Source>::Span>)| {
@@ -129,7 +129,7 @@ pub fn int_literal_constant<S: TextSource>(source: S) -> PResult<IntLiteralConst
             kind_param(false),
         )
             .map(|(_, kind_param)| kind_param)
-            .optional(),
+            .opt(),
     ).map(|(digits, kind_param)| {
 
         let span = if let Some(kind_param) = &kind_param {
@@ -216,7 +216,7 @@ impl<Span> MapSpan<Span> for SignedDigitString<Span> {
 )]
 pub fn signed_digit_string<S: TextSource>(source: S) -> PResult<SignedDigitString<S::Span>, S> {
     (
-        sign::<S>.optional(),
+        sign::<S>.opt(),
         digit_string,
     )
         .map(|(sign, digits)| {
@@ -264,7 +264,7 @@ pub struct SignedRealLiteralConstant<Span> {
 )]
 pub fn signed_real_literal_constant<S: TextSource>(source: S) -> PResult<SignedRealLiteralConstant<S::Span>, S> {
     (
-        sign.optional(),
+        sign.opt(),
         real_literal_constant,
     )
         .map(|(sign, real_literal_constant)| SignedRealLiteralConstant {
@@ -338,11 +338,11 @@ pub fn real_literal_constant<S: TextSource>(source: S) -> PResult<RealLiteralCon
             (
                 exponent_letter,
                 exponent,
-            ).optional(),
+            ).opt(),
             (
                 underscore,
                 kind_param(false),
-            ).map(|(_, k)| k).optional(),
+            ).map(|(_, k)| k).opt(),
         )
             .map(|(significand, exponent_letter_and_exponent, kind_param): (Significand<S::Span>, Option<(ExponentLetter<S::Span>, SignedDigitString<S::Span>)>, Option<KindParam<S::Span>>)| {
                 let mut span = significand.span().clone();
@@ -364,7 +364,7 @@ pub fn real_literal_constant<S: TextSource>(source: S) -> PResult<RealLiteralCon
             (
                 underscore,
                 kind_param(false),
-            ).map(|(_, k)| k).optional(),
+            ).map(|(_, k)| k).opt(),
         )
             .map(|(digits_string, exponent_letter, exponent, kind_param): (StringMatch<S::Span>, ExponentLetter<S::Span>, SignedDigitString<S::Span>, Option<KindParam<S::Span>>)| {
                 let span = S::Span::merge(
@@ -474,7 +474,7 @@ pub fn significand<S: TextSource>(source: S) -> PResult<Significand<S::Span>, S>
         (
             digit_string,
             '.',
-            digit_string.optional(),
+            digit_string.opt(),
         ).map(|(first, _, second): (StringMatch<S::Span>, Char<S::Span>, Option<StringMatch<S::Span>>)| {
             let mut span = first.span.clone();
             if let Some(second) = &second {
@@ -557,13 +557,13 @@ pub fn binary_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>
             Char::any_of("bB".chars()),
             Char::exact('\''),
             binary_digits(),
-            Char::exact('\'').optional(),
+            Char::exact('\'').opt(),
         ),
         (
             Char::any_of("bB".chars()),
             Char::exact('"'),
             binary_digits(),
-            Char::exact('"').optional(),
+            Char::exact('"').opt(),
         ),
     }.map(|(_, _, digits, _)| digits)
     .parse(source)
@@ -591,13 +591,13 @@ pub fn octal_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>,
             Char::any_of("oO".chars()),
             Char::exact('\''),
             octal_digits(),
-            Char::exact('\'').optional(),
+            Char::exact('\'').opt(),
         ),
         (
             Char::any_of("oO".chars()),
             Char::exact('"'),
             octal_digits(),
-            Char::exact('"').optional(),
+            Char::exact('"').opt(),
         ),
     }.map(|(_, _, digits, _)| digits)
     .parse(source)
@@ -625,13 +625,13 @@ pub fn hex_constant<S: TextSource>(source: S) -> PResult<StringMatch<S::Span>, S
             Char::any_of("zZ".chars()),
             Char::exact('\''),
             hex_digits(),
-            Char::exact('\'').optional(),
+            Char::exact('\'').opt(),
         ),
         (
             Char::any_of("zZ".chars()),
             Char::exact('"'),
             hex_digits(),
-            Char::exact('"').optional(),
+            Char::exact('"').opt(),
         ),
     }.map(|(_, _, digits, _)| digits)
     .parse(source)

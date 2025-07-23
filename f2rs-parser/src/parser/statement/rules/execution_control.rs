@@ -1,3 +1,5 @@
+use f2rs_parser_combinator::seq;
+
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -10,16 +12,16 @@ pub struct AssociateStmt<Span> {
     F18V007r1 rule "associate-stmt" #1103 : "is [ associate-construct-name : ] ASSOCIATE (association-list )",
 )]
 pub fn associate_stmt<S: Lexed>(source: S) -> PResult<AssociateStmt<MultilineSpan>, S> {
-    (
-        (
+    seq!((
+        associate_construct_name: (
             name(),
             colon(),
-        ).map(|(name, _)| name).optional(),
-        kw!(associate),
-        delim('('),
-        list(association, 0..),
-        delim(')'),
-    ).map(|(associate_construct_name, _, _, association_list, _)| AssociateStmt {
+        ).map(|(name, _)| name).opt(),
+        _: kw!(associate),
+        _: delim('('),
+        association_list: list(association, 0..),
+        _: delim(')'),
+    ) => AssociateStmt {
         associate_construct_name,
         association_list,
     }).parse(source)
@@ -35,11 +37,11 @@ pub struct Association<Span> {
     F18V007r1 rule "association" #1104 : "is associate-name => selector",
 )]
 pub fn association<S: Lexed>(source: S) -> PResult<Association<MultilineSpan>, S> {
-    (
-        name(),
-        arrow(),
-        selector,
-    ).map(|(associate_name, _, selector)| Association {
+    seq!((
+        associate_name: name(),
+        _: arrow(),
+        selector: selector,
+    ) => Association {
         associate_name,
         selector,
     }).parse(source)
@@ -73,13 +75,13 @@ pub struct EndAssociateStmt<Span> {
     F18V007r1 rule "end-associate-stmt" #1106 : "is END ASSOCIATE [ associate-construct-name ]",
 )]
 pub fn end_associate_stmt<S: Lexed>(source: S) -> PResult<EndAssociateStmt<MultilineSpan>, S> {
-    (
-        (
-            kw!(end),
-            kw!(associate),
-        ),
-        name().optional(),
-    ).map(|(_, associate_construct_name)| EndAssociateStmt {
+    seq!((
+        _: seq!((
+            _: kw!(end),
+            _: kw!(associate),
+        ) => ()),
+        associate_construct_name: name().opt(),
+    ) => EndAssociateStmt {
         associate_construct_name,
     }).parse(source)
 }
@@ -93,13 +95,13 @@ pub struct BlockStmt<Span> {
     F18V007r1 rule "block-stmt" #1108 : "is [ block-construct-name : ] BLOCK",
 )]
 pub fn block_stmt<S: Lexed>(source: S) -> PResult<BlockStmt<MultilineSpan>, S> {
-    (
-        (
-            name(),
-            colon(),
-        ).map(|(name, _)| name).optional(),
-        kw!(block),
-    ).map(|(block_construct_name, _)| BlockStmt {
+    seq!((
+        block_construct_name: seq!((
+            name: name(),
+            _: colon(),
+        ) => name).opt(),
+        _: kw!(block),
+    ) => BlockStmt {
         block_construct_name,
     }).parse(source)
 }
@@ -113,13 +115,13 @@ pub struct EndBlockStmt<Span> {
     F18V007r1 rule "end-block-stmt" #1110 : "is END BLOCK [ block-construct-name ]",
 )]
 pub fn end_block_stmt<S: Lexed>(source: S) -> PResult<EndBlockStmt<MultilineSpan>, S> {
-    (
-        (
-            kw!(end),
-            kw!(block),
-        ),
-        name().optional(),
-    ).map(|(_, block_construct_name)| EndBlockStmt {
+    seq!((
+        _: seq!((
+            _: kw!(end),
+            _: kw!(block),
+        ) => ()),
+        block_construct_name: name().opt(),
+    ) => EndBlockStmt {
         block_construct_name,
     }).parse(source)
 }
@@ -138,20 +140,20 @@ pub struct ChangeTeamStmt<Span> {
     "    [ , coarray-association-list ] [ , sync-stat-list ] )",
 )]
 pub fn change_team_stmt<S: Lexed>(source: S) -> PResult<ChangeTeamStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).optional(),
-        (kw!(change), kw!(team), delim('(')),
-        team_value,
-        (
-            comma(),
-            list(coarray_association, 0..),
-        ).map(|(_, coarray_association_list)| coarray_association_list).optional(),
-        (
-            comma(),
-            list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
-        delim(')')
-    ).map(|(team_construct_name, _, team_value, coarray_association_list, sync_stat_list, _)| ChangeTeamStmt {
+    seq!((
+        team_construct_name: seq!((name: name(), _: colon()) => name).opt(),
+        _: (kw!(change), kw!(team), delim('(')),
+        team_value: team_value,
+        coarray_association_list: seq!((
+            _: comma(),
+            coarray_association_list: list(coarray_association, 0..),
+        ) => coarray_association_list).opt(),
+        sync_stat_list: seq!((
+            _: comma(),
+            sync_stat_list: list(sync_stat, 0..),
+        ) => sync_stat_list).opt(),
+        _: delim(')')
+    ) => ChangeTeamStmt {
         team_construct_name,
         team_value,
         coarray_association_list,
@@ -169,11 +171,11 @@ pub struct CoarrayAssociation<Span> {
     F18V007r1 rule "coarray-association" #1113 : "is codimension-decl => selector",
 )]
 pub fn coarray_association<S: Lexed>(source: S) -> PResult<CoarrayAssociation<MultilineSpan>, S> {
-    (
-        codimension_decl,
-        arrow(),
-        selector,
-    ).map(|(codimension_decl, _, selector)| CoarrayAssociation {
+    seq!((
+        codimension_decl: codimension_decl,
+        _: arrow(),
+        selector: selector,
+    ) => CoarrayAssociation {
         codimension_decl,
         selector,
     }).parse(source)
@@ -188,15 +190,15 @@ pub struct EndChangeTeamStmt<Span> {
     F18V007r1 rule "end-change-team-stmt" #1114 : "is END TEAM [ ( [ sync-stat-list ] ) ] [ team-construct-name ]",
 )]
 pub fn end_change_team_stmt<S: Lexed>(source: S) -> PResult<EndChangeTeamStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(team)),
-        (
-            delim('('),
-            list(sync_stat, 0..),
-            delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).optional(),
-        name().optional(),
-    ).map(|(_, sync_stat_list, team_construct_name)| EndChangeTeamStmt {
+    seq!((
+        _: (kw!(end), kw!(team)),
+        sync_stat_list: seq!((
+            _: delim('('),
+            sync_stat_list: list(sync_stat, 0..),
+            _: delim(')'),
+        ) => sync_stat_list).opt(),
+        team_construct_name: name().opt(),
+    ) => EndChangeTeamStmt {
         sync_stat_list,
         team_construct_name,
     }).parse(source)
@@ -212,15 +214,15 @@ pub struct CriticalStmt<Span> {
     F18V007r1 rule "critical-stmt" #1117 : "is [ critical-construct-name : ] CRITICAL [ ( [ sync-stat-list ] ) ]",
 )]
 pub fn critical_stmt<S: Lexed>(source: S) -> PResult<CriticalStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).optional(),
-        kw!(critical),
-        (
-            delim('('),
-            list(sync_stat, 0..),
-            delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).optional(),
-    ).map(|(critical_construct_name, _, sync_stat_list)| CriticalStmt {
+    seq!((
+        critical_construct_name: seq!((name: name(), _: colon()) => name).opt(),
+        _: kw!(critical),
+        sync_stat_list: seq!((
+            _: delim('('),
+            sync_stat_list: list(sync_stat, 0..),
+            _: delim(')'),
+        ) => sync_stat_list).opt(),
+    ) => CriticalStmt {
         critical_construct_name,
         sync_stat_list,
     }).parse(source)
@@ -235,10 +237,10 @@ pub struct EndCriticalStmt<Span> {
     F18V007r1 rule "end-critical-stmt" #1118 : "is END CRITICAL [ critical-construct-name ]",
 )]
 pub fn end_critical_stmt<S: Lexed>(source: S) -> PResult<EndCriticalStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(critical)),
-        name().optional(),
-    ).map(|(_, critical_construct_name)| EndCriticalStmt {
+    seq!((
+        _: seq!((_: kw!(end), _: kw!(critical)) => ()),
+        critical_construct_name: name().opt(),
+    ) => EndCriticalStmt {
         critical_construct_name,
     }).parse(source)
 }
@@ -273,12 +275,12 @@ pub struct LabelDoStmt<Span> {
     F18V007r1 rule "label-do-stmt" #1121 : "is [ do-construct-name : ] DO label [ loop-control ]",
 )]
 pub fn label_do_stmt<S: Lexed>(source: S) -> PResult<LabelDoStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).optional(),
-        kw!(do),
-        label(),
-        loop_control.optional(),
-    ).map(|(do_construct_name, _, label, loop_control)| LabelDoStmt {
+    seq!((
+        do_construct_name: seq!((name: name(), _: colon()) => name).opt(),
+        _: kw!(do),
+        label: label(),
+        loop_control: loop_control.opt(),
+    ) => LabelDoStmt {
         do_construct_name,
         label,
         loop_control,
@@ -295,11 +297,11 @@ pub struct NonlabelDoStmt<Span> {
     F18V007r1 rule "nonlabel-do-stmt" #1122 : "is [ do-construct-name : ] DO [ loop-control ]",
 )]
 pub fn nonlabel_do_stmt<S: Lexed>(source: S) -> PResult<NonlabelDoStmt<MultilineSpan>, S> {
-    (
-        (name(), colon()).map(|(name, _)| name).optional(),
-        kw!(do),
-        loop_control,
-    ).map(|(do_construct_name, _, loop_control)| NonlabelDoStmt {
+    seq!((
+        do_construct_name: seq!((name: name(), _: colon()) => name).opt(),
+        _: kw!(do),
+        loop_control: loop_control,
+    ) => NonlabelDoStmt {
         do_construct_name,
         loop_control,
     }).parse(source)
@@ -330,29 +332,27 @@ pub enum LoopControl<Span> {
 pub fn loop_control<S: Lexed>(source: S) -> PResult<LoopControl<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            comma().optional(),
-            do_variable, equals(),
-            int_expr, comma(),
-            int_expr,
-            (comma(), int_expr).map(|(_,c)| c).optional(),
-        ).map(|(_, do_variable, _, a, _, b, c)| LoopControl::DoVariable {
-            do_variable,
-            a,
-            b,
-            c,
-        }),
-        (
-            comma().optional(),
-            kw!(while), delim('('),
-            logical_expr,
-            delim(')'),
-        ).map(|(_, _, _, expr, _)| LoopControl::While(expr)),
-        (
-            comma().optional(),
-            concurrent_header,
-            concurrent_locality.optional(),
-        ).map(|(_, concurrent_header, concurrent_locality)| LoopControl::Concurrent {
+        seq!((
+            _: comma().opt(),
+            do_variable: do_variable,
+            _: equals(),
+            a: int_expr,
+            _: comma(),
+            b: int_expr,
+            c: seq!((_: comma(), c: int_expr) => c).opt(),
+        ) => LoopControl::DoVariable { do_variable, a, b, c }),
+        seq!((
+            _: comma().opt(),
+            _: kw!(while),
+            _: delim('('),
+            expr: logical_expr,
+            _: delim(')'),
+        ) => LoopControl::While(expr)),
+        seq!((
+            _: comma().opt(),
+            concurrent_header: concurrent_header,
+            concurrent_locality: concurrent_locality.opt(),
+        ) => LoopControl::Concurrent {
             concurrent_header,
             concurrent_locality,
         }),
@@ -380,16 +380,16 @@ pub struct ConcurrentHeader<Span> {
     F18V007r1 rule "concurrent-header" #1125 : "is ( [ integer-type-spec :: ] concurrent-control-list [ , scalar-mask-expr ] )",
 )]
 pub fn concurrent_header<S: Lexed>(source: S) -> PResult<ConcurrentHeader<MultilineSpan>, S> {
-    (
-        delim('('),
-        (
-            integer_type_spec,
-            double_colon(),
-        ).map(|(integer_type_spec, _)| integer_type_spec).optional(),
-        list(concurrent_control, 1..),
-        (comma(), mask_expr).map(|(_, scalar_mask_expr)| scalar_mask_expr).optional(),
-        delim(')'),
-    ).map(|(_, integer_type_spec, concurrent_control_list, scalar_mask_expr, _)| ConcurrentHeader {
+    seq!((
+        _: delim('('),
+        integer_type_spec: seq!((
+            integer_type_spec: integer_type_spec,
+            _: double_colon(),
+        ) => integer_type_spec).opt(),
+        concurrent_control_list: list(concurrent_control, 1..),
+        scalar_mask_expr: seq!((_: comma(), scalar_mask_expr: mask_expr) => scalar_mask_expr).opt(),
+        _: delim(')'),
+    ) => ConcurrentHeader {
         integer_type_spec,
         concurrent_control_list,
         scalar_mask_expr,
@@ -400,6 +400,7 @@ pub fn concurrent_header<S: Lexed>(source: S) -> PResult<ConcurrentHeader<Multil
 pub struct ConcurrentControl<Span> {
     pub index_name: Name<Span>,
     pub concurrent_limit: IntExpr<Span>,
+    pub concurrent_limit_2: IntExpr<Span>,
     pub concurrent_step: Option<IntExpr<Span>>,
 }
 
@@ -407,16 +408,17 @@ pub struct ConcurrentControl<Span> {
     F18V007r1 rule "concurrent-control" #1126 : "is index-name = concurrent-limit : concurrent-limit [ : concurrent-step ]",
 )]
 pub fn concurrent_control<S: Lexed>(source: S) -> PResult<ConcurrentControl<MultilineSpan>, S> {
-    (
-        name(),
-        equals(),
-        int_expr,
-        colon(),
-        int_expr,
-        (colon(), int_expr).map(|(_, concurrent_step)| concurrent_step).optional(),
-    ).map(|(index_name, _, concurrent_limit, _, _, concurrent_step)| ConcurrentControl {
+    seq!((
+        index_name: name(),
+        _: equals(),
+        concurrent_limit: int_expr,
+        _: colon(),
+        concurrent_limit_2: int_expr,
+        concurrent_step: seq!((_: colon(), s: int_expr) => s).opt(),
+    ) => ConcurrentControl {
         index_name,
         concurrent_limit,
+        concurrent_limit_2,
         concurrent_step,
     }).parse(source)
 }
@@ -469,26 +471,30 @@ pub enum LocalitySpec<Span> {
 pub fn locality_spec<S: Lexed>(source: S) -> PResult<LocalitySpec<MultilineSpan>, S> {
     alt!(
         for S =>
-        (
-            kw!(local), delim('('),
-            list(name(), 0..),
-            delim(')'),
-        ).map(|(_, _, names, _)| LocalitySpec::Local(names)),
-        (
-            kw!(local_init), delim('('),
-            list(name(), 0..),
-            delim(')'),
-        ).map(|(_, _, names, _)| LocalitySpec::LocalInit(names)),
-        (
-            kw!(shared), delim('('),
-            list(name(), 0..),
-            delim(')'),
-        ).map(|(_, _, names, _)| LocalitySpec::Shared(names)),
-        (
-            kw!(default), delim('('),
-            kw!(none),
-            delim(')'),
-        ).map(|(_, _, _, _)| LocalitySpec::DefaultNone),
+        seq!((
+            _: kw!(local),
+            _: delim('('),
+            names: list(name(), 0..),
+            _: delim(')'),
+        ) => LocalitySpec::Local(names)),
+        seq!((
+            _: kw!(local_init),
+            _: delim('('),
+            names: list(name(), 0..),
+            _: delim(')'),
+        ) => LocalitySpec::LocalInit(names)),
+        seq!((
+            _: kw!(shared),
+            _: delim('('),
+            names: list(name(), 0..),
+            _: delim(')'),
+        ) => LocalitySpec::Shared(names)),
+        seq!((
+            _: kw!(default),
+            _: delim('('),
+            _: kw!(none),
+            _: delim(')'),
+        ) => LocalitySpec::DefaultNone),
     ).parse(source)
 }
 
@@ -501,10 +507,10 @@ pub struct EndDoStmt<Span> {
     F18V007r1 rule "end-do-stmt" #1132 : "is END DO [ do-construct-name ]",
 )]
 pub fn end_do_stmt<S: Lexed>(source: S) -> PResult<EndDoStmt<MultilineSpan>, S> {
-    (
-        (kw!(end), kw!(do)),
-        name().optional(),
-    ).map(|(_, do_construct_name)| EndDoStmt {
+    seq!((
+        _: (kw!(end), kw!(do)),
+        do_construct_name: name().opt(),
+    ) => EndDoStmt {
         do_construct_name,
     }).parse(source)
 }
@@ -518,10 +524,10 @@ pub struct CycleStmt<Span> {
     F18V007r1 rule "cycle-stmt" #1133 : "is CYCLE [ do-construct-name ]",
 )]
 pub fn cycle_stmt<S: Lexed>(source: S) -> PResult<CycleStmt<MultilineSpan>, S> {
-    (
-        kw!(cycle),
-        name().optional(),
-    ).map(|(_, do_construct_name)| CycleStmt {
+    seq!((
+        _: kw!(cycle),
+        do_construct_name: name().opt(),
+    ) => CycleStmt {
         do_construct_name,
     }).parse(source)
 }
@@ -537,7 +543,7 @@ pub struct IfThenStmt<Span> {
 )]
 pub fn if_then_stmt<S: Lexed>(source: S) -> PResult<IfThenStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         kw!(if), delim('('),
         logical_expr,
         delim(')'),
@@ -563,7 +569,7 @@ pub fn else_if_stmt<S: Lexed>(source: S) -> PResult<ElseIfStmt<MultilineSpan>, S
         logical_expr,
         delim(')'),
         kw!(then),
-        name().optional(),
+        name().opt(),
     ).map(|(_, scalar_logical_expr, _, _, if_construct_name)| ElseIfStmt {
         scalar_logical_expr,
         if_construct_name,
@@ -581,7 +587,7 @@ pub struct ElseStmt<Span> {
 pub fn else_stmt<S: Lexed>(source: S) -> PResult<ElseStmt<MultilineSpan>, S> {
     (
         kw!(else),
-        name().optional(),
+        name().opt(),
     ).map(|(_, if_construct_name)| ElseStmt {
         if_construct_name,
     }).parse(source)
@@ -598,7 +604,7 @@ pub struct EndIfStmt<Span> {
 pub fn end_if_stmt<S: Lexed>(source: S) -> PResult<EndIfStmt<MultilineSpan>, S> {
     (
         (kw!(end), kw!(if)),
-        name().optional(),
+        name().opt(),
     ).map(|(_, if_construct_name)| EndIfStmt {
         if_construct_name,
     }).parse(source)
@@ -643,7 +649,7 @@ pub struct SelectCaseStmt<Span> {
 )]
 pub fn select_case_stmt<S: Lexed>(source: S) -> PResult<SelectCaseStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         (kw!(select), kw!(case), delim('(')),
         expr,
         delim(')'),
@@ -666,7 +672,7 @@ pub fn case_stmt<S: Lexed>(source: S) -> PResult<CaseStmt<MultilineSpan>, S> {
     (
         kw!(case),
         case_selector,
-        name().optional(),
+        name().opt(),
     ).map(|(_, case_selector, case_construct_name)| CaseStmt {
         case_selector,
         case_construct_name,
@@ -684,7 +690,7 @@ pub struct EndSelectStmt<Span> {
 pub fn end_select_stmt<S: Lexed>(source: S) -> PResult<EndSelectStmt<MultilineSpan>, S> {
     (
         (kw!(end), kw!(select)),
-        name().optional(),
+        name().opt(),
     ).map(|(_, case_construct_name)| EndSelectStmt {
         case_construct_name,
     }).parse(source)
@@ -777,9 +783,9 @@ pub struct SelectRankStmt<Span> {
 )]
 pub fn select_rank_stmt<S: Lexed>(source: S) -> PResult<SelectRankStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         (kw!(select), kw!(rank), delim('(')),
-        (name(), arrow()).map(|(name, _)| name).optional(),
+        (name(), arrow()).map(|(name, _)| name).opt(),
         selector,
         delim(')'),
     ).map(|(select_construct_name, _, associate_name, selector, _)| SelectRankStmt {
@@ -809,18 +815,18 @@ pub fn select_rank_case_stmt<S: Lexed>(source: S) -> PResult<SelectRankCaseStmt<
             kw!(rank), delim('('),
             int_constant_expr,
             delim(')'),
-            name().optional(),
+            name().opt(),
         ).map(|(_, _, rank, _, select_construct_name)| SelectRankCaseStmt::Rank(rank, select_construct_name)),
         (
             kw!(rank), delim('('),
             asterisk(),
             delim(')'),
-            name().optional(),
+            name().opt(),
         ).map(|(_, _, _, _, select_construct_name)| SelectRankCaseStmt::RankStar(select_construct_name)),
         (
             kw!(rank), kw!(default),
             delim(')'),
-            name().optional(),
+            name().opt(),
         ).map(|(_, _, _, select_construct_name)| SelectRankCaseStmt::RankDefault(select_construct_name)),
     ).parse(source)
 }
@@ -836,7 +842,7 @@ pub struct EndSelectRankStmt<Span> {
 pub fn end_select_rank_stmt<S: Lexed>(source: S) -> PResult<EndSelectRankStmt<MultilineSpan>, S> {
     (
         (kw!(end), kw!(select)),
-        name().optional(),
+        name().opt(),
     ).map(|(_, select_construct_name)| EndSelectRankStmt {
         select_construct_name,
     }).parse(source)
@@ -856,9 +862,9 @@ pub struct SelectTypeStmt<Span> {
 )]
 pub fn select_type_stmt<S: Lexed>(source: S) -> PResult<SelectTypeStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         (kw!(select), kw!(type), delim('(')),
-        (name(), arrow()).map(|(name, _)| name).optional(),
+        (name(), arrow()).map(|(name, _)| name).opt(),
         selector,
         delim(')'),
     ).map(|(select_construct_name, _, associate_name, selector, _)| SelectTypeStmt {
@@ -888,17 +894,17 @@ pub fn type_guard_stmt<S: Lexed>(source: S) -> PResult<TypeGuardStmt<MultilineSp
             (kw!(type), kw!(is), delim('(')),
             type_spec,
             delim(')'),
-            name().optional(),
+            name().opt(),
         ).map(|(_, type_spec, _, select_construct_name)| TypeGuardStmt::TypeIs(type_spec, select_construct_name)),
         (
             (kw!(class), kw!(is), delim('(')),
             derived_type_spec,
             delim(')'),
-            name().optional(),
+            name().opt(),
         ).map(|(_, derived_type_spec, _, select_construct_name)| TypeGuardStmt::ClassIs(derived_type_spec, select_construct_name)),
         (
             (kw!(class), kw!(default)),
-            name().optional(),
+            name().opt(),
         ).map(|(_, select_construct_name)| TypeGuardStmt::ClassDefault(select_construct_name)),
     ).parse(source)
 }
@@ -914,7 +920,7 @@ pub struct EndSelectTypeStmt<Span> {
 pub fn end_select_type_stmt<S: Lexed>(source: S) -> PResult<EndSelectTypeStmt<MultilineSpan>, S> {
     (
         (kw!(end), kw!(select)),
-        name().optional(),
+        name().opt(),
     ).map(|(_, select_construct_name)| EndSelectTypeStmt {
         select_construct_name,
     }).parse(source)
@@ -931,7 +937,7 @@ pub struct ExitStmt<Span> {
 pub fn exit_stmt<S: Lexed>(source: S) -> PResult<ExitStmt<MultilineSpan>, S> {
     (
         kw!(exit),
-        name().optional(),
+        name().opt(),
     ).map(|(_, construct_name)| ExitStmt {
         construct_name,
     }).parse(source)
@@ -971,7 +977,7 @@ pub fn computed_goto_stmt<S: Lexed>(source: S) -> PResult<ComputedGotoStmt<Multi
         delim('('),
         list(label(), 1..),
         delim(')'),
-        comma().optional(),
+        comma().opt(),
         expr,
     ).map(|(_, _, _, label_list, _, _, scalar_int_expression)| ComputedGotoStmt {
         label_list,
@@ -981,20 +987,18 @@ pub fn computed_goto_stmt<S: Lexed>(source: S) -> PResult<ComputedGotoStmt<Multi
 
 #[derive(Debug, Clone)]
 pub struct ContinueStmt<Span> {
-    label: Option<Label<Span>>,
-    _p: std::marker::PhantomData<Span>,
+    pub label: Option<Label<Span>>,
 }
 
 #[doc = s_rule!(
     F18V007r1 rule "continue-stmt" #1159 : "is CONTINUE",
 )]
 pub fn continue_stmt<S: Lexed>(source: S) -> PResult<ContinueStmt<MultilineSpan>, S> {
-    (
-        kw!(continue),
-        label().optional()
-    ).map(|(_, label)| ContinueStmt {
-        label,
-        _p: std::marker::PhantomData,
+    seq!((
+        _: kw!(continue),
+        label: label().opt()
+    ) => ContinueStmt {
+        label
     }).parse(source)
 }
 
@@ -1008,14 +1012,14 @@ pub struct StopStmt<Span> {
     F18V007r1 rule "stop-stmt" #1160 : "is STOP [ stop-code ] [ , QUIET = scalar-logical-expr]",
 )]
 pub fn stop_stmt<S: Lexed>(source: S) -> PResult<StopStmt<MultilineSpan>, S> {
-    (
-        kw!(stop),
-        stop_code.optional(),
-        (
+    seq!((
+        _: kw!(stop),
+        stop_code: stop_code.opt(),
+        quiet: (
             (comma(), kw!(quiet), equals()),
             logical_expr
-        ).map(|(_, quiet)| quiet).optional(),
-    ).map(|(_, stop_code, quiet)| StopStmt {
+        ).map(|(_, quiet)| quiet).opt(),
+    ) => StopStmt {
         stop_code,
         quiet,
     }).parse(source)
@@ -1034,9 +1038,9 @@ pub fn error_stop_stmt<S: Lexed>(source: S) -> PResult<ErrorStopStmt<MultilineSp
     (
         kw!(error),
         kw!(stop),
-        stop_code.optional(),
+        stop_code.opt(),
         (comma(), kw!(quiet), equals()),
-        logical_expr.optional(),
+        logical_expr.opt(),
     ).map(|(_, _, stop_code, _, quiet)| ErrorStopStmt {
         stop_code,
         quiet,
@@ -1095,7 +1099,7 @@ pub fn sync_all_stmt<S: Lexed>(source: S) -> PResult<SyncAllStmt<MultilineSpan>,
             delim('('),
             list(sync_stat, 0..),
             delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list, _)| sync_stat_list).opt(),
     ).map(|(_, _, sync_stat_list)| SyncAllStmt {
         sync_stat_list,
     }).parse(source)
@@ -1144,7 +1148,7 @@ pub fn sync_images_stmt<S: Lexed>(source: S) -> PResult<SyncImagesStmt<Multiline
         (
             comma(),
             list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
         delim(')'),
     ).map(|(_, _, _, image_set, sync_stat_list, _)| SyncImagesStmt {
         image_set,
@@ -1187,7 +1191,7 @@ pub fn sync_memory_stmt<S: Lexed>(source: S) -> PResult<SyncMemoryStmt<Multiline
             delim('('),
             list(sync_stat, 0..),
             delim(')'),
-        ).map(|(_, sync_stat_list, _)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list, _)| sync_stat_list).opt(),
     ).map(|(_, _, sync_stat_list)| SyncMemoryStmt {
         sync_stat_list,
     }).parse(source)
@@ -1211,7 +1215,7 @@ pub fn sync_team_stmt<S: Lexed>(source: S) -> PResult<SyncTeamStmt<MultilineSpan
         (
             comma(),
             list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
         delim(')'),
     ).map(|(_, _, _, team_value, sync_stat_list, _)| SyncTeamStmt {
         team_value,
@@ -1237,7 +1241,7 @@ pub fn event_post_stmt<S: Lexed>(source: S) -> PResult<EventPostStmt<MultilineSp
         (
             comma(),
             list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
         delim(')'),
     ).map(|(_, _, _, event_variable, sync_stat_list, _)| EventPostStmt {
         event_variable,
@@ -1341,7 +1345,7 @@ pub fn form_team_stmt<S: Lexed>(source: S) -> PResult<FormTeamStmt<MultilineSpan
         (
             comma(),
             list(form_team_spec, 1..),
-        ).map(|(_, form_team_spec_list)| form_team_spec_list).optional(),
+        ).map(|(_, form_team_spec_list)| form_team_spec_list).opt(),
         delim(')'),
     ).map(|(_, _, _, team_number, _, team_variable, form_team_spec_list, _)| FormTeamStmt {
         team_number,
@@ -1411,7 +1415,7 @@ pub fn lock_stmt<S: Lexed>(source: S) -> PResult<LockStmt<MultilineSpan>, S> {
         (
             comma(),
             list(lock_stat, 1..),
-        ).map(|(_, lock_stat_list)| lock_stat_list).optional(),
+        ).map(|(_, lock_stat_list)| lock_stat_list).opt(),
         delim(')'),
     ).map(|(_, _, lock_variable, lock_stat_list, _)| LockStmt {
         lock_variable,
@@ -1460,7 +1464,7 @@ pub fn unlock_stmt<S: Lexed>(source: S) -> PResult<UnlockStmt<MultilineSpan>, S>
         (
             comma(),
             list(sync_stat, 0..),
-        ).map(|(_, sync_stat_list)| sync_stat_list).optional(),
+        ).map(|(_, sync_stat_list)| sync_stat_list).opt(),
         delim(')'),
     ).map(|(_, _, lock_variable, sync_stat_list, _)| {
         UnlockStmt {

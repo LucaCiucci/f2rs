@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use colored::Color;
 use enum_as_inner::EnumAsInner;
-use f2rs_parser_combinator::prelude::*;
+use f2rs_parser_combinator::{seq, prelude::*};
 
 use super::rules::*;
 
@@ -257,19 +257,6 @@ impl<Span> TokenizedFreeLine<Span> {
     }
 }
 
-macro_rules! parser_seq {
-    (
-        ( $($capture:tt : $parser:expr),+$(,)? ) =>  $body:expr ) => {
-        move |source| {
-            $(
-                let ($capture, source) = $parser.parse(source)?;
-            )*
-            let r = $body;
-            Some((r, source))
-        }
-    };
-}
-
 // TODO where is this defined?
 //#[syntax_rule(
 //    F18V007r1 rule 
@@ -282,18 +269,18 @@ pub fn tokenized_free_line<S: TextSource>() -> impl Parser<S, Token = TokenizedF
         .condition(|c, _| c.character.is_ampersand());
 
     let line_token = || (lexical_token, space(0)).map(|(t, _)| t);
-    let continuation = || parser_seq!((c: SpecialCharacter::Ampersand, _: space(0)) => c);
-    let tail = move || parser_seq!((
-        continuation: continuation().optional(),
-        comment: line_comment.optional(),
+    let continuation = || seq!((c: SpecialCharacter::Ampersand, _: space(0)) => c);
+    let tail = move || seq!((
+        continuation: continuation().opt(),
+        comment: line_comment.opt(),
         _: eol,
     ) => (continuation, comment));
 
-    parser_seq!((
+    seq!((
         _: space(0),
-        label: label.optional(),
+        label: label.opt(),
         _: space(0),
-        continuation_start_sign: continuation_start().optional(),
+        continuation_start_sign: continuation_start().opt(),
         _: space(0),
         (tokens, tail): many_until(line_token(), tail(), 0..),
     ) => {

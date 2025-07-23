@@ -20,7 +20,7 @@ pub fn interface_stmt_2<S: Lexed>(source: S) -> PResult<InterfaceStmt<MultilineS
         for S =>
         (
             kw!(INTERFACE),
-            generic_spec.optional(),
+            generic_spec.opt(),
         ).map(|(_, generic_spec)| InterfaceStmt::Interface {
             generic_spec,
         }),
@@ -45,7 +45,7 @@ pub fn end_interface_stmt_2<S: Lexed>(source: S) -> PResult<EndInterfaceStmt<Mul
     (
         kw!(END),
         kw!(INTERFACE),
-        generic_spec.optional(),
+        generic_spec.opt(),
     ).map(|(_, _, generic_spec)| EndInterfaceStmt {
         generic_spec,
     }).parse(source)
@@ -63,9 +63,9 @@ pub struct ProcedureStmt<Span> {
 )]
 pub fn procedure_stmt_2<S: Lexed>(source: S) -> PResult<ProcedureStmt<MultilineSpan>, S> {
     (
-        kw!(MODULE).optional(),
+        kw!(MODULE).opt(),
         kw!(PROCEDURE),
-        double_colon().optional(),
+        double_colon().opt(),
         list(specific_procedure, 1..),
     ).map(|(module, _, _, specific_procedure_list)| ProcedureStmt {
         module: module.is_some(),
@@ -154,7 +154,7 @@ pub fn generic_stmt<S: Lexed>(source: S) -> PResult<GenericStmt<MultilineSpan>, 
         (
             comma(),
             access_spec,
-        ).map(|(_, access_spec)| access_spec).optional(),
+        ).map(|(_, access_spec)| access_spec).opt(),
         double_colon(),
         generic_spec,
         arrow(),
@@ -177,7 +177,7 @@ pub struct ExternalStmt<Span> {
 pub fn external_stmt_2<S: Lexed>(source: S) -> PResult<ExternalStmt<MultilineSpan>, S> {
     (
         kw!(external),
-        double_colon().optional(),
+        double_colon().opt(),
         list(name(), 1..),
     ).map(|(_, _, external_name_list)| ExternalStmt {
         external_name_list,
@@ -198,7 +198,7 @@ pub struct ProcedureDeclarationStmt<Span> {
 pub fn procedure_declaration_stmt<S: Lexed>(source: S) -> PResult<ProcedureDeclarationStmt<MultilineSpan>, S> {
     (
         (kw!(procedure), delim('(')),
-        proc_interface.optional(),
+        proc_interface.opt(),
         delim(')'),
         (
             comma(),
@@ -207,7 +207,7 @@ pub fn procedure_declaration_stmt<S: Lexed>(source: S) -> PResult<ProcedureDecla
                 0..,
             ),
             double_colon(),
-        ).map(|(_, proc_attr_spec_list, _)| proc_attr_spec_list).optional(),
+        ).map(|(_, proc_attr_spec_list, _)| proc_attr_spec_list).opt(),
         list(proc_decl, 1..),
     ).map(|(_, proc_interface, _, proc_attr_spec_list, proc_decl_list)| ProcedureDeclarationStmt {
         proc_interface,
@@ -284,7 +284,7 @@ pub fn proc_decl<S: Lexed>(source: S) -> PResult<ProcDecl<MultilineSpan>, S> {
         (
             arrow(),
             proc_pointer_init.map(Some),
-        ).map(|(_, proc_pointer_init)| proc_pointer_init).optional(),
+        ).map(|(_, proc_pointer_init)| proc_pointer_init).opt(),
     ).map(|(procedure_entity_name, proc_pointer_init)| ProcDecl {
         procedure_entity_name,
         proc_pointer_init: proc_pointer_init.flatten(),
@@ -341,7 +341,7 @@ pub struct IntrinsicStmt<Span> {
 pub fn intrinsic_stmt_2<S: Lexed>(source: S) -> PResult<IntrinsicStmt<MultilineSpan>, S> {
     (
         kw!(intrinsic),
-        double_colon().optional(),
+        double_colon().opt(),
         list(name(), 1..),
     ).map(|(_, _, intrinsic_procedure_name_list)| IntrinsicStmt {
         intrinsic_procedure_name_list,
@@ -364,7 +364,7 @@ pub fn function_reference<S: Lexed>(source: S) -> PResult<FunctionReference<Mult
             (delim('(')),
             list(actual_arg_spec, 0..),
             delim(')'),
-        ).map(|(_, list, _)| list).optional(),
+        ).map(|(_, list, _)| list).opt(),
     ).map(|(procedure_designator, actual_arg_spec_list)| FunctionReference {
         procedure_designator,
         actual_arg_spec_list,
@@ -388,7 +388,7 @@ pub fn call_stmt<S: Lexed>(source: S) -> PResult<CallStmt<MultilineSpan>, S> {
             delim('('),
             list(actual_arg_spec, 0..),
             delim(')'),
-        ).map(|(_, list, _)| list).optional(),
+        ).map(|(_, list, _)| list).opt(),
     ).map(|(_, procedure_designator, actual_arg_spec_list)| CallStmt {
         procedure_designator,
         actual_arg_spec_list,
@@ -436,7 +436,7 @@ pub fn actual_arg_spec<S: Lexed>(source: S) -> PResult<ActualArgSpec<MultilineSp
         (
             name_as_keyword(),
             equals(),
-        ).map(|(keyword, _)| keyword).optional(),
+        ).map(|(keyword, _)| keyword).opt(),
         actual_arg,
     ).map(|(keyword, actual_arg)| ActualArgSpec {
         keyword,
@@ -562,13 +562,13 @@ pub struct FunctionStmt<Span> {
 )]
 pub fn function_stmt_2<S: Lexed>(source: S) -> PResult<FunctionStmt<MultilineSpan>, S> {
     (
-        prefix.optional(),
+        prefix.opt(),
         kw!(function),
         name(),
         delim('('),
         list(dummy_arg_name, 0..),
         delim(')'),
-        suffix.optional(),
+        suffix.opt(),
     ).map(|(prefix, _, function_name, _, dummy_arg_name_list, _, suffix)| FunctionStmt {
         prefix,
         function_name,
@@ -607,7 +607,7 @@ pub fn suffix<S: Lexed>(source: S) -> PResult<Suffix<MultilineSpan>, S> {
         ).map(|(proc_language_binding_spec, (_, _, result_name, _))| Suffix::Form1(proc_language_binding_spec, Some(result_name))),
         (
             kw!(result), delim('('), name(), delim(')'),
-            proc_language_binding_spec.optional(),
+            proc_language_binding_spec.opt(),
         ).map(|(_, _, result_name, _, proc_language_binding_spec)| Suffix::Form2(result_name, proc_language_binding_spec)),
     ).parse(source)
 }
@@ -625,8 +625,8 @@ pub fn end_function_stmt<S: Lexed>(source: S) -> PResult<EndFunctionStmt<Multili
         kw!(end),
         (
             kw!(function),
-            name().optional(),
-        ).map(|(_, name)| name).optional(),
+            name().opt(),
+        ).map(|(_, name)| name).opt(),
     ).map(|(_, function_name)| EndFunctionStmt {
         function_name: function_name.flatten(),
     }).parse(source)
@@ -646,15 +646,15 @@ pub struct SubroutineStmt<Span> {
 )]
 pub fn subroutine_stmt<S: Lexed>(source: S) -> PResult<SubroutineStmt<MultilineSpan>, S> {
     (
-        prefix.optional(),
+        prefix.opt(),
         kw!(subroutine),
         name(),
         (
             delim('('),
             list(dummy_arg, 0..),
             delim(')'),
-            proc_language_binding_spec.optional(),
-        ).map(|(_, list, _, proc_language_binding_spec)| (list, proc_language_binding_spec)).optional()
+            proc_language_binding_spec.opt(),
+        ).map(|(_, list, _, proc_language_binding_spec)| (list, proc_language_binding_spec)).opt()
     ).map(|(prefix, _, subroutine_name, dummy_arg_list_proc_language_binding_spec)| {
         let (dummy_arg_list, proc_language_binding_spec) = match dummy_arg_list_proc_language_binding_spec {
             Some((dummy_arg_list, proc_language_binding_spec)) => (dummy_arg_list, proc_language_binding_spec),
@@ -701,8 +701,8 @@ pub fn end_subroutine_stmt<S: Lexed>(source: S) -> PResult<EndSubroutineStmt<Mul
         kw!(END),
         (
             kw!(SUBROUTINE),
-            name().optional(),
-        ).map(|(_, name)| name).optional(),
+            name().opt(),
+        ).map(|(_, name)| name).opt(),
     ).map(|(_, subroutine_name)| EndSubroutineStmt {
         subroutine_name: subroutine_name.flatten(),
     }).parse(source)
@@ -739,8 +739,8 @@ pub fn end_mp_subprogram_stmt<S: Lexed>(source: S) -> PResult<EndMpSubprogramStm
         kw!(END),
         (
             kw!(PROCEDURE),
-            name().optional(),
-        ).map(|(_, name)| name).optional(),
+            name().opt(),
+        ).map(|(_, name)| name).opt(),
     ).map(|(_, procedure_name)| EndMpSubprogramStmt {
         procedure_name: procedure_name.flatten(),
     }).parse(source)
@@ -766,8 +766,8 @@ pub fn entry_stmt_2<S: Lexed>(source: S) -> PResult<EntryStmt<MultilineSpan>, S>
             delim('('),
             list(dummy_arg, 0..),
             delim(')'),
-            suffix.optional(),
-        ).map(|(_, list, _, suffix)| (list, suffix)).optional(),
+            suffix.opt(),
+        ).map(|(_, list, _, suffix)| (list, suffix)).opt(),
     ).map(|(_, entry_name, dummy_arg_list_suffix)| {
         let (dummy_arg_list, suffix) = match dummy_arg_list_suffix {
             Some((dummy_arg_list, suffix)) => (dummy_arg_list, suffix),
@@ -793,7 +793,7 @@ pub struct ReturnStmt<Span> {
 pub fn return_stmt<S: Lexed>(source: S) -> PResult<ReturnStmt<MultilineSpan>, S> {
     (
         kw!(RETURN),
-        int_expr.optional(),
+        int_expr.opt(),
     ).map(|(_, expr)| ReturnStmt {
         expr,
     }).parse(source)

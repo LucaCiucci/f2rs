@@ -145,11 +145,11 @@ pub fn derived_type_stmt<S: Lexed>(source: S) -> PResult<DerivedTypeStmt<Multili
     (
         kw!(TYPE),
         (
-            type_attr_spec_list().optional().map(|l| l.unwrap_or(vec![])),
+            type_attr_spec_list().opt().map(|l| l.unwrap_or(vec![])),
             double_colon(),
         )
             .map(|(spec_list, _)| spec_list)
-            .optional()
+            .opt()
             .map(|spec_list| spec_list.unwrap_or(vec![])),
         name(),
         (
@@ -158,7 +158,7 @@ pub fn derived_type_stmt<S: Lexed>(source: S) -> PResult<DerivedTypeStmt<Multili
             delim(')'),
         )
             .map(|(_, names, _)| names)
-            .optional()
+            .opt()
             .map(|names| names.unwrap_or(vec![])),
     ).map(|(_, attrs, name, type_param_names)| DerivedTypeStmt {
         name,
@@ -239,7 +239,7 @@ pub fn type_param_decl<S: Lexed>(source: S) -> PResult<TypeParamDecl<MultilineSp
         (
             equals(),
             int_constant_expr,
-        ).map(|(_, expr)| expr).optional(),
+        ).map(|(_, expr)| expr).opt(),
     ).map(|(name, init)| TypeParamDecl {
         name,
         init,
@@ -317,17 +317,17 @@ pub fn component_decl<S: Lexed>(source: S) -> PResult<ComponentDecl<MultilineSpa
             delim('('),
             component_array_spec,
             delim(')'),
-        ).map(|(_, a, _)| a).optional(),
+        ).map(|(_, a, _)| a).opt(),
         (
             delim('['),
             coarray_spec,
             delim(']'),
-        ).map(|(_, a, _)| a).optional(),
+        ).map(|(_, a, _)| a).opt(),
         (
             asterisk(),
             char_length,
-        ).map(|(_, a)| a).optional(),
-        component_initialization.optional(),
+        ).map(|(_, a)| a).opt(),
+        component_initialization.opt(),
     ).map(|(name, array_spec, coarray_spec, char_length, component_initialization)| ComponentDecl {
         name,
         array_spec,
@@ -410,11 +410,11 @@ pub fn data_component_def_stmt<S: Lexed>(source: S) -> PResult<DataComponentDefS
             (
                 comma(),
                 list(component_attr_spec, 1..),
-            ).map(|(_, l)| l).optional().map(|l| l.unwrap_or(vec![])),
+            ).map(|(_, l)| l).opt().map(|l| l.unwrap_or(vec![])),
             double_colon(),
         )
             .map(|(attrs, _)| attrs)
-            .optional()
+            .opt()
             .map(|attrs| attrs.unwrap_or(vec![])),
         separated(
             component_decl,
@@ -482,7 +482,7 @@ pub fn proc_component_def_stmt<S: Lexed>(source: S) -> PResult<ProcComponentDefS
     (
         kw!(PROCEDURE),
         delim('('),
-        proc_interface.optional(),
+        proc_interface.opt(),
         delim(')'),
         comma(),
         separated(
@@ -665,10 +665,10 @@ pub fn type_bound_procedure_stmt<S: Lexed>(source: S) -> PResult<TypeBoundProced
             (
                 comma(),
                 list(binding_attr, 1..),
-            ).map(|(_, l)| l).optional().map(|l| l.unwrap_or(vec![])),
+            ).map(|(_, l)| l).opt().map(|l| l.unwrap_or(vec![])),
             double_colon(),
         ).map(|(attrs, _)| attrs)
-            .optional()
+            .opt()
             .map(|attrs| attrs.unwrap_or(vec![])),
         list(type_bound_proc_decl, 1..),
     ).map(|(_, attrs, decls)| TypeBoundProcedureStmt::Form1(attrs, decls));
@@ -720,7 +720,7 @@ pub fn binding_attr<S: Lexed>(source: S) -> PResult<BindingAttr<MultilineSpan>, 
                 delim('('),
                 name(),
                 delim(')'),
-            ).map(|(_, name, _)| name).optional(),
+            ).map(|(_, name, _)| name).opt(),
         ).map(|(_, name)| BindingAttr::Pass(name)),
     ).parse(source)
 }
@@ -758,7 +758,7 @@ pub fn type_bound_proc_decl<S: Lexed>(source: S) -> PResult<TypeBoundProcDecl<Mu
         (
             arrow(),
             name(),
-        ).map(|(_, name)| name).optional(),
+        ).map(|(_, name)| name).opt(),
     ).map(|(binding_name, procedure_name)| TypeBoundProcDecl {
         binding_name,
         procedure_name,
@@ -774,7 +774,7 @@ pub struct EndTypeStmt<Span>(Option<Name<Span>>);// TODO
 pub fn end_type_stmt<S: Lexed>(source: S) -> PResult<EndTypeStmt<MultilineSpan>, S> {
     (
         kw!(END TYPE),
-        name().optional(),
+        name().opt(),
     ).map(|(_, _name)| EndTypeStmt(_name)).parse(source)
 }
 
@@ -800,7 +800,7 @@ pub fn type_bound_generic_stmt<S: Lexed>(source: S) -> PResult<TypeBoundGenericS
         (
             comma(),
             access_spec,
-        ).map(|(_, a)| a).optional(),
+        ).map(|(_, a)| a).opt(),
         double_colon(),
         generic_spec,
         arrow(),
@@ -827,7 +827,7 @@ pub fn derived_type_spec<S: Lexed>(source: S) -> PResult<DerivedTypeSpec<Multili
                 0..,
             ),
             delim(')'),
-        ).map(|(_, specs, _)| specs).optional(),
+        ).map(|(_, specs, _)| specs).opt(),
     ).map(|(name, type_param_specifiers)| DerivedTypeSpec {
         name,
         type_param_specifiers: type_param_specifiers,
@@ -849,7 +849,7 @@ pub fn type_param_spec<S: Lexed>(source: S) -> PResult<TypeParamSpec<MultilineSp
         (
             name(), // TODO keyword
             equals(),
-        ).map(|(k, _)| k).optional(),
+        ).map(|(k, _)| k).opt(),
         type_param_value,
     ).map(|(keyword, value)| TypeParamSpec {
         keyword,
@@ -902,7 +902,7 @@ pub fn component_spec<S: Lexed>(source: S) -> PResult<ComponentSpec<MultilineSpa
         (
             name_as_keyword(),
             equals(),
-        ).map(|(k, _)| k).optional(),
+        ).map(|(k, _)| k).opt(),
         component_data_source,
     ).map(|(keyword, value)| ComponentSpec {
         keyword,

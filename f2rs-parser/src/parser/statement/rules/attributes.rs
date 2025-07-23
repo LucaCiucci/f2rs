@@ -62,7 +62,7 @@ pub struct ExplicitShapeSpec<Span> {
 )]
 pub fn explicit_shape_spec<S: Lexed>(source: S) -> PResult<ExplicitShapeSpec<MultilineSpan>, S> {
     (
-        (lower_bound, colon()).map(|(lower_bound, _)| lower_bound).optional(),
+        (lower_bound, colon()).map(|(lower_bound, _)| lower_bound).opt(),
         upper_bound,
     ).map(|(lower_bound, upper_bound)| ExplicitShapeSpec {
         lower_bound,
@@ -82,7 +82,7 @@ pub struct AssumedShapeSpec<Span> {
 pub fn assumed_shape_spec<S: Lexed>(source: S) -> PResult<AssumedShapeSpec<MultilineSpan>, S> {
     // TODO test
     (
-        lower_bound.optional(),
+        lower_bound.opt(),
         colon(),
     ).map(|(lower_bound, _)| AssumedShapeSpec {
         lower_bound,
@@ -116,7 +116,7 @@ pub fn assumed_implied_spec<S: Lexed>(source: S) -> PResult<AssumedImpliedSpec<M
         (
             lower_bound,
             colon(),
-        ).map(|(lower_bound, _, )| lower_bound).optional(),
+        ).map(|(lower_bound, _, )| lower_bound).opt(),
         asterisk(),
     ).map(|(lower_bound, _)| AssumedImpliedSpec {
         lower_bound,
@@ -141,7 +141,7 @@ pub fn assumed_size_spec<S: Lexed>(source: S) -> PResult<AssumedSizeSpec<Multili
             comma(),
         )
             .map(|(explicit, _)| explicit)
-            .optional()
+            .opt()
             .map(|explicit| explicit.unwrap_or(vec![])),
         assumed_implied_spec,
     ).map(|(explicit, implied)| AssumedSizeSpec {
@@ -332,7 +332,7 @@ pub fn explicit_coshape_spec<S: Lexed>(source: S) -> PResult<ExplicitCoshapeSpec
     (
         many(
             (
-                (lower_cobound, colon()).map(|(lower_cobound, _)| lower_cobound).optional(),
+                (lower_cobound, colon()).map(|(lower_cobound, _)| lower_cobound).opt(),
                 upper_cobound,
                 comma(),
             ).map(|(lower_cobound, upper_cobound, _)| (lower_cobound, upper_cobound)),
@@ -343,7 +343,7 @@ pub fn explicit_coshape_spec<S: Lexed>(source: S) -> PResult<ExplicitCoshapeSpec
             colon(),
         )
             .map(|(lower_cobound, _)| lower_cobound)
-            .optional(),
+            .opt(),
         asterisk(),
     ).map(|(list, last, _, )| ExplicitCoshapeSpec {
         list,
@@ -414,7 +414,7 @@ pub fn type_declaration_stmt<S: Lexed>(source: S) -> PResult<TypeDeclarationStmt
                 0..,
             ),
             double_colon(),
-        ).map(|(attr_spec_list, _)| attr_spec_list).optional(),
+        ).map(|(attr_spec_list, _)| attr_spec_list).opt(),
         list(entity_decl, 1..),
     ).map(|(declaration_type_spec, attr_spec_list, entity_decl_list)| TypeDeclarationStmt {
         declaration_type_spec,
@@ -515,17 +515,17 @@ pub fn entity_decl<S: Lexed>(source: S) -> PResult<EntityDecl<MultilineSpan>, S>
         object_name,
         (
             delim('('), array_spec, delim(')'),
-        ).map(|(_, array_spec, _)| array_spec).optional(),
+        ).map(|(_, array_spec, _)| array_spec).opt(),
         (
             delim('['),
             coarray_spec,
             delim(']'),
-        ).map(|(_, coarray_spec, _)| coarray_spec).optional(),
+        ).map(|(_, coarray_spec, _)| coarray_spec).opt(),
         (
             asterisk(),
             char_length,
-        ).map(|(_, char_length)| char_length).optional(),
-        initialization.optional(),
+        ).map(|(_, char_length)| char_length).opt(),
+        initialization.opt(),
     ).map(|(object_name, array_spec, coarray_spec, char_length, initialization)| EntityDecl::Form1 {
         object_name,
         array_spec,
@@ -539,7 +539,7 @@ pub fn entity_decl<S: Lexed>(source: S) -> PResult<EntityDecl<MultilineSpan>, S>
         (
             asterisk(),
             char_length,
-        ).map(|(_, char_length)| char_length).optional(),
+        ).map(|(_, char_length)| char_length).opt(),
     ).map(|(function_name, char_length)| EntityDecl::Form2 {
         function_name,
         char_length,
@@ -617,7 +617,7 @@ pub fn language_binding_spec<S: Lexed>(source: S) -> PResult<LanguageBindingSpec
             kw!(NAME),
             equals(),
             default_char_constant_expr,
-        ).map(|(_, _, _, name)| name).optional(),
+        ).map(|(_, _, _, name)| name).opt(),
         delim(')'),
     ).map(|(_, _, _, name, _)| LanguageBindingSpec {
         name,
@@ -673,7 +673,7 @@ pub struct TargetStmt<Span> {
 pub fn target_stmt_2<S: Lexed>(source: S) -> PResult<TargetStmt<MultilineSpan>, S> {
     (
         kw!(TARGET),
-        double_colon().optional(),
+        double_colon().opt(),
         list(target_decl, 1..),
     ).map(|(_, _, target_decl_list)| TargetStmt {
         target_decl_list,
@@ -696,12 +696,12 @@ pub fn target_decl<S: Lexed>(source: S) -> PResult<TargetDecl<MultilineSpan>, S>
         object_name,
         (
             delim('('), array_spec, delim(')'),
-        ).map(|(_, array_spec, _)| array_spec).optional(),
+        ).map(|(_, array_spec, _)| array_spec).opt(),
         (
             delim('['),
             coarray_spec,
             delim(']'),
-        ).map(|(_, coarray_spec, _)| coarray_spec).optional(),
+        ).map(|(_, coarray_spec, _)| coarray_spec).opt(),
     ).map(|(object_name, array_spec, coarray_spec)| TargetDecl {
         object_name,
         array_spec,
@@ -720,7 +720,7 @@ pub struct ValueStmt<Span> {
 pub fn value_stmt_2<S: Lexed>(source: S) -> PResult<ValueStmt<MultilineSpan>, S> {
     (
         kw!(VALUE),
-        double_colon().optional(),
+        double_colon().opt(),
         list(dummy_arg_name, 1..),
     ).map(|(_, _, dummy_arg_name_list)| ValueStmt {
         dummy_arg_name_list,
@@ -738,7 +738,7 @@ pub struct VolatileStmt<Span> {
 pub fn volatile_stmt_2<S: Lexed>(source: S) -> PResult<VolatileStmt<MultilineSpan>, S> {
     (
         kw!(VOLATILE),
-        double_colon().optional(),
+        double_colon().opt(),
         list(object_name, 1..),
     ).map(|(_, _, object_name_list)| VolatileStmt {
         object_name_list,
@@ -776,7 +776,7 @@ pub fn implicit_stmt_2<S: Lexed>(source: S) -> PResult<ImplicitStmt<MultilineSpa
                 delim('('),
                 list(implicit_none_spec, 0..),
                 delim(')'),
-            ).map(|(_, implicit_none_spec_list, _)| implicit_none_spec_list).optional(),
+            ).map(|(_, implicit_none_spec_list, _)| implicit_none_spec_list).opt(),
         ).map(|(_, _, implicit_none_spec_list)| ImplicitStmt::ImplicitNone {
             implicit_none_spec_list,
         }),
@@ -819,7 +819,7 @@ pub fn letter_spec<S: Lexed>(source: S) -> PResult<LetterSpec<MultilineSpan>, S>
         (
             op("-"),
             letter(),
-        ).map(|(_, letter)| letter).optional(),
+        ).map(|(_, letter)| letter).opt(),
     ).map(|(first, second)| LetterSpec {
         first,
         second,
@@ -971,13 +971,13 @@ pub fn common_stmt_2<S: Lexed>(source: S) -> PResult<CommonStmt<MultilineSpan>, 
             op("/"),
             name(),
             op("/"),
-        ).map(|(_, name, _)| name).optional(),
+        ).map(|(_, name, _)| name).opt(),
         list(common_block_object, 1..),
         many(
             (
-                comma().optional(),
+                comma().opt(),
                 op("/"),
-                name().optional(),
+                name().opt(),
                 op("/"),
                 list(common_block_object, 1..),
             ).map(|(_, _, name, _, common_block_object_list)| (name, common_block_object_list)),
@@ -1004,7 +1004,7 @@ pub fn common_block_object<S: Lexed>(source: S) -> PResult<CommonBlockObject<Mul
         variable_name,
         (
             delim('('), array_spec, delim(')'),
-        ).map(|(_, array_spec, _)| array_spec).optional(),
+        ).map(|(_, array_spec, _)| array_spec).opt(),
     ).map(|(variable_name, array_spec)| CommonBlockObject {
         variable_name,
         array_spec,

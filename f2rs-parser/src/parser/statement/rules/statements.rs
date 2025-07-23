@@ -114,7 +114,7 @@ pub fn deallocate_stmt<S: Lexed>(source: S) -> PResult<DeallocateStmt<MultilineS
         (
             comma(),
             list(dealloc_opt, 0..),
-        ).map(|(_, dealloc_opt_list)| dealloc_opt_list).optional(),
+        ).map(|(_, dealloc_opt_list)| dealloc_opt_list).opt(),
         delim(')'),
     ).map(|(_, allocate_object_list, dealloc_opt_list, _)| DeallocateStmt {
         allocate_object_list,
@@ -175,7 +175,7 @@ pub struct ForallStmt<Span> {
 pub fn forall_stmt<S: Lexed>(source: S) -> PResult<ForallStmt<MultilineSpan>, S> {
     (
         kw!(FORALL),
-        concurrent_header.optional(),
+        concurrent_header.opt(),
         forall_assignment_stmt,
     ).map(|(_, concurrent_header, forall_assignment_stmt)| ForallStmt {
         concurrent_header,

@@ -179,7 +179,7 @@ pub struct Level1Expr<Span> {
 )]
 pub fn level_1_expr<S: Lexed>(source: S) -> PResult<Level1Expr<MultilineSpan>, S> {
     (
-        defined_unary_or_binary_op().optional(), // TODO unary
+        defined_unary_or_binary_op().opt(), // TODO unary
         primary,
     )
         .map(|(operator, primary)| Level1Expr {
@@ -203,7 +203,7 @@ pub fn mult_operand<S: Lexed>(source: S) -> PResult<MultOperand<MultilineSpan>, 
         level_1_expr,
         (power_op(), mult_operand)
             .map(|(power_op, mult_operand)| (power_op, Box::new(mult_operand)))
-            .optional(),
+            .opt(),
     )
         .map(|(expr, exp)| MultOperand { expr, exp })
         .parse(source)
@@ -367,7 +367,7 @@ pub struct AndOperand<Span> {
     F18V007r1 rule "and-operand" #1014 : "is [ not-op ] level-4-expr",
 )]
 pub fn and_operand<S: Lexed>(source: S) -> PResult<AndOperand<MultilineSpan>, S> {
-    (not_op().optional(), level_4_expr)
+    (not_op().opt(), level_4_expr)
         .map(|(operator, expr)| AndOperand { operator, expr })
         .parse(source)
 }
@@ -646,7 +646,7 @@ pub struct SubstringRange<Span> {
     F18V007r1 rule "substring-range" #910 : "is [ scalar-int-expr ] : [ scalar-int-expr ]",
 )]
 pub fn substring_range<S: Lexed>(source: S) -> PResult<SubstringRange<MultilineSpan>, S> {
-    (int_expr.optional(), colon(), int_expr.optional())
+    (int_expr.opt(), colon(), int_expr.opt())
         .map(|(left, _, right)| SubstringRange { left, right })
         .parse(source)
 }
@@ -684,8 +684,8 @@ pub fn part_ref<S: Lexed>(source: S) -> PResult<PartRef<MultilineSpan>, S> {
         name(),
         (delim('('), list(subscript, 0..), delim(')'))
             .map(|(_, list, _)| list)
-            .optional(),
-        image_selector.optional(),
+            .opt(),
+        image_selector.opt(),
     )
         .map(
             |(part_name, section_subscript_list, image_selector)| PartRef {
@@ -791,7 +791,7 @@ pub fn array_section<S: Lexed>(
                 delim('('),
                 substring_range,
                 delim(')'),
-            ).map(|(_, range, _)| range).optional(),
+            ).map(|(_, range, _)| range).opt(),
         ).map(|(data_ref, range)| ArraySection::Data(data_ref, range)),
         complex_part_designator.map(ArraySection::ComplexPartDesignator).if_(!not_complex_part_designator),
     )
@@ -842,10 +842,10 @@ pub struct SubscriptTriplet<Span> {
 )]
 pub fn subscript_triplet<S: Lexed>(source: S) -> PResult<SubscriptTriplet<MultilineSpan>, S> {
     (
-        subscript.optional(),
+        subscript.opt(),
         colon(),
-        subscript.optional(),
-        (colon(), stride).map(|(_, subscript)| subscript).optional(),
+        subscript.opt(),
+        (colon(), stride).map(|(_, subscript)| subscript).opt(),
     )
         .map(|(lower, _, upper, stride)| SubscriptTriplet {
             lower,
@@ -960,11 +960,11 @@ pub fn allocate_stmt_2<S: Lexed>(source: S) -> PResult<AllocateStmt<MultilineSpa
         delim('('),
         (type_spec, double_colon())
             .map(|(type_spec, _)| type_spec)
-            .optional(),
+            .opt(),
         list(allocation, 1..),
         (comma(), list(alloc_opt, 0..))
             .map(|(_, alloc_opt_list)| alloc_opt_list)
-            .optional(),
+            .opt(),
         delim(')'),
     )
         .map(
@@ -1040,10 +1040,10 @@ pub fn allocation<S: Lexed>(source: S) -> PResult<Allocation<MultilineSpan>, S> 
         allocate_object,
         (delim('('), list(allocate_shape_spec, 0..), delim(')'))
             .map(|(_, allocate_shape_spec_list, _)| allocate_shape_spec_list)
-            .optional(),
+            .opt(),
         (delim('['), allocate_coarray_spec, delim(']'))
             .map(|(_, allocate_coarray_spec, _)| allocate_coarray_spec)
-            .optional(),
+            .opt(),
     )
         .map(
             |(object, allocate_shape_spec_list, allocate_coarray_spec)| Allocation {
@@ -1088,7 +1088,7 @@ pub fn allocate_shape_spec<S: Lexed>(source: S) -> PResult<AllocateShapeSpec<Mul
     (
         (lower_bound_expr, colon())
             .map(|(lower_bound, _)| lower_bound)
-            .optional(),
+            .opt(),
         upper_bound_expr,
     )
         .map(|(lower_bound, upper_bound)| AllocateShapeSpec {
@@ -1133,10 +1133,10 @@ pub fn allocate_coarray_spec<S: Lexed>(
     (
         (list(allocate_coshape_spec, 0..), comma())
             .map(|(allocate_coshape_spec_list, _)| allocate_coshape_spec_list)
-            .optional(),
+            .opt(),
         (lower_bound_expr, colon())
             .map(|(lower_bound, _)| lower_bound)
-            .optional(),
+            .opt(),
         asterisk(),
     )
         .map(
@@ -1163,7 +1163,7 @@ pub fn allocate_coshape_spec<S: Lexed>(
     (
         (lower_bound_expr, colon())
             .map(|(lower_bound, _)| lower_bound)
-            .optional(),
+            .opt(),
         upper_bound_expr,
     )
         .map(|(lower_bound, upper_bound)| AllocateCoshapeSpec {
@@ -1263,7 +1263,7 @@ pub fn pointer_assignment_stmt<S: Lexed>(
                 delim('('),
                 list(bounds_spec, 0..),
                 delim(')'),
-            ).map(|(_, bounds_spec_list, _)| bounds_spec_list).optional(),
+            ).map(|(_, bounds_spec_list, _)| bounds_spec_list).opt(),
             arrow(),
             data_target,
         ).map(|(data_pointer_object, bounds_spec_list, _, data_target)| PointerAssignmentStmt::Form1 {
@@ -1400,7 +1400,7 @@ pub struct WhereConstructStmt<Span> {
 )]
 pub fn where_construct_stmt<S: Lexed>(source: S) -> PResult<WhereConstructStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         (kw!(WHERE), delim('(')),
         mask_expr,
         delim(')'),
@@ -1446,7 +1446,7 @@ pub fn masked_elsewhere_stmt<S: Lexed>(
         (kw!(ELSEWHERE), delim('(')),
         mask_expr,
         delim(')'),
-        name().optional(),
+        name().opt(),
     )
         .map(
             |(_, mask_expr, _, where_construct_name)| MaskedElsewhereStmt {
@@ -1466,7 +1466,7 @@ pub struct ElsewhereStmt<Span> {
     F18V007r1 rule "elsewhere-stmt" #1048 : "is ELSEWHERE [where-construct-name]",
 )]
 pub fn elsewhere_stmt<S: Lexed>(source: S) -> PResult<ElsewhereStmt<MultilineSpan>, S> {
-    (kw!(ELSEWHERE), name().optional())
+    (kw!(ELSEWHERE), name().opt())
         .map(|(_, where_construct_name)| ElsewhereStmt {
             where_construct_name,
         })
@@ -1482,7 +1482,7 @@ pub struct EndWhereStmt<Span> {
     F18V007r1 rule "end-where-stmt" #1049 : "is END WHERE [where-construct-name]",
 )]
 pub fn end_where_stmt<S: Lexed>(source: S) -> PResult<EndWhereStmt<MultilineSpan>, S> {
-    (kw!(END), kw!(WHERE), name().optional())
+    (kw!(END), kw!(WHERE), name().opt())
         .map(|(_, _, where_construct_name)| EndWhereStmt {
             where_construct_name,
         })
@@ -1502,7 +1502,7 @@ pub fn forall_construct_stmt<S: Lexed>(
     source: S,
 ) -> PResult<ForallConstructStmt<MultilineSpan>, S> {
     (
-        (name(), colon()).map(|(name, _)| name).optional(),
+        (name(), colon()).map(|(name, _)| name).opt(),
         kw!(forall),
         concurrent_header,
     )
@@ -1625,7 +1625,7 @@ pub fn connect_spec<S: Lexed>(source: S) -> PResult<ConnectSpec<MultilineSpan>, 
     alt!(
         for S =>
         (
-            (kw!(unit), equals()).optional(),
+            (kw!(unit), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| ConnectSpec::FileUnitNumber(file_unit_number)),
         (kw!(access), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| ConnectSpec::Access(scalar_default_char_expr)),
@@ -1707,7 +1707,7 @@ pub fn close_spec<S: Lexed>(source: S) -> PResult<CloseSpec<MultilineSpan>, S> {
     alt!(
         for S =>
         (
-            (kw!(unit), equals()).optional(),
+            (kw!(unit), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| CloseSpec::FileUnitNumber(file_unit_number)),
         (kw!(iostat), equals(), stat_variable).map(|(_, _, stat_variable)| CloseSpec::Iostat(stat_variable)),
@@ -1743,7 +1743,7 @@ pub fn read_stmt<S: Lexed>(source: S) -> PResult<ReadStmt<MultilineSpan>, S> {
             (
                 comma(),
                 list(input_item, 0..),
-            ).map(|(_, input_item_list)| input_item_list).optional(),
+            ).map(|(_, input_item_list)| input_item_list).opt(),
         ).map(|(_, format, input_item_list)| ReadStmt::Format(format, input_item_list)),
     ).parse(source)
 }
@@ -1762,7 +1762,7 @@ pub fn write_stmt<S: Lexed>(source: S) -> PResult<WriteStmt<MultilineSpan>, S> {
         (kw!(write), delim('(')),
         list(io_control_spec, 1..),
         delim(')'),
-        list(output_item, 1..).optional(),
+        list(output_item, 1..).opt(),
     )
         .map(|(_, io_control_spec_list, _, output_item_list)| WriteStmt {
             io_control_spec_list,
@@ -1786,7 +1786,7 @@ pub fn print_stmt<S: Lexed>(source: S) -> PResult<PrintStmt<MultilineSpan>, S> {
         format,
         (comma(), list(output_item, 1..))
             .map(|(_, output_item_list)| output_item_list)
-            .optional(),
+            .opt(),
     )
         .map(|(_, format, output_item_list)| PrintStmt {
             format,
@@ -1846,15 +1846,15 @@ pub fn io_control_spec<S: Lexed>(source: S) -> PResult<IoControlSpec<MultilineSp
     alt!(
         for S =>
         (
-            (kw!(UNIT), equals()).optional(),
+            (kw!(UNIT), equals()).opt(),
             io_unit,
         ).map(|(_, io_unit)| IoControlSpec::Unit(io_unit)),
         (
-            (kw!(FMT), equals()).optional(),
+            (kw!(FMT), equals()).opt(),
             format,
         ).map(|(_, format)| IoControlSpec::Fmt(format)),
         (
-            (kw!(NML), equals()).optional(),
+            (kw!(NML), equals()).opt(),
             name(),
         ).map(|(_, namelist_group_name)| IoControlSpec::Nml(namelist_group_name)),
         (kw!(ADVANCE), equals(), default_char_expr).map(|(_, _, scalar_default_char_expr)| IoControlSpec::Advance(scalar_default_char_expr)),
@@ -2076,7 +2076,7 @@ pub fn wait_spec<S: Lexed>(source: S) -> PResult<WaitSpec<MultilineSpan>, S> {
     alt!(
         for S =>
         (
-            (kw!(UNIT), equals()).optional(),
+            (kw!(UNIT), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| WaitSpec::FileUnitNumber(file_unit_number)),
         (kw!(END), equals(), label()).map(|(_, _, label)| WaitSpec::End(label)),
@@ -2145,7 +2145,7 @@ pub fn position_spec<S: Lexed>(source: S) -> PResult<PositionSpec<MultilineSpan>
     alt!(
         for S =>
         (
-            (kw!(UNIT), equals()).optional(),
+            (kw!(UNIT), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| PositionSpec::FileUnitNumber(file_unit_number)),
         (kw!(IOMSG), equals(), iomsg_variable).map(|(_, _, iomsg_variable)| PositionSpec::Iomsg(iomsg_variable)),
@@ -2192,7 +2192,7 @@ pub fn flush_spec<S: Lexed>(source: S) -> PResult<FlushSpec<MultilineSpan>, S> {
     alt!(
         for S =>
         (
-            (kw!(UNIT), equals()).optional(),
+            (kw!(UNIT), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| FlushSpec::FileUnitNumber(file_unit_number)),
         (kw!(IOSTAT), equals(), stat_variable).map(|(_, _, stat_variable)| FlushSpec::Iostat(stat_variable)),
@@ -2312,7 +2312,7 @@ pub fn inquire_spec<S: Lexed>(source: S) -> PResult<InquireSpec<MultilineSpan>, 
     alt!(
         for S =>
         (
-            (kw!(unit), equals()).optional(),
+            (kw!(unit), equals()).opt(),
             file_unit_number,
         ).map(|(_, file_unit_number)| InquireSpec::FileUnitNumber(file_unit_number)),
         (kw!(FILE), equals(), file_name_expr).map(|(_, _, file_name_expr)| InquireSpec::File(file_name_expr)),

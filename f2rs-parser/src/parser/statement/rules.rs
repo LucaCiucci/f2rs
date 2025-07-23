@@ -126,7 +126,7 @@ pub struct SignedIntLiteralConstant<Span> {
 )]
 pub fn signed_int_literal_constant<S: Lexed>(source: S) -> PResult<SignedIntLiteralConstant<MultilineSpan>, S> {
     (
-        sign.optional(),
+        sign.opt(),
         int_literal_constant(),
     )
         .map(|(sign, int_literal_constant)| SignedIntLiteralConstant {

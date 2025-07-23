@@ -425,7 +425,7 @@ pub fn separated<S: Source, P1: Parser<S>>(
     range: impl std::ops::RangeBounds<usize> + Clone,
 ) -> impl Parser<S, Token = Vec<P1::Token>> {
     fold_many(
-        (parser, separator.optional()),
+        (parser, separator.opt()),
         || Vec::new(),
         |mut vec, (token, separator)| {
             vec.push(token);
@@ -519,3 +519,30 @@ impl_parser_for_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
 impl_parser_for_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10);
 impl_parser_for_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11);
 impl_parser_for_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12);
+
+/// Parse a sequence of parsers and capture their results.
+#[macro_export]
+macro_rules! parse_seq {
+    ($source:ident => {
+        $($capture:tt : $parser:expr),+$(,)?
+    }) => {
+        $(
+            let ($capture, $source) = $parser.parse($source)?;
+        )*
+    };
+}
+
+/// Create a sequence parser
+#[macro_export]
+macro_rules! seq {
+    (
+        ( $($capture:tt : $parser:expr),+$(,)? ) =>  $body:expr ) => {
+        move |source| {
+            $crate::parse_seq!(source => {
+                $($capture : $parser),+
+            });
+            let r = $body;
+            Some((r, source))
+        }
+    };
+}

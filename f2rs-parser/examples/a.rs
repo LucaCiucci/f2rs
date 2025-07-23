@@ -10,7 +10,6 @@ fn main() {
         .map(|(i, line)| line.expect(&format!("Failed to parse line: {i}")))
         .collect::<Vec<_>>();
 
-        
     let stmts = TokenizedFreeLine::group_stmt_lines(&lines);
     println!("Parsed {} lines", stmts);
 }

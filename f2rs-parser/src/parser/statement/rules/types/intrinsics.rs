@@ -38,7 +38,7 @@ pub fn kind_selector<S: Lexed>(source: S) -> PResult<KindSelector<MultilineSpan>
     // TODO support the alternate form as an extension
 
     let inner = || (
-        (kw!(KIND), equals()).optional(),
+        (kw!(KIND), equals()).opt(),
         int_constant_expr, // TODO the standard says this, but maybe kind_param should be used instead?
     ).map(|(_, expr)| KindSelector { value: expr });
 
@@ -69,7 +69,7 @@ pub struct IntegerTypeSpec<Span> {
 pub fn integer_type_spec<S: Lexed>(source: S) -> PResult<IntegerTypeSpec<MultilineSpan>, S> {
     (
         kw!(INTEGER),
-        kind_selector.optional(),
+        kind_selector.opt(),
     ).map(|(_, kind_selector)| IntegerTypeSpec { kind_selector })
     .parse(source)
 }
@@ -100,7 +100,7 @@ pub fn intrinsic_type_spec<S: Lexed>(source: S) -> PResult<IntrinsicTypeSpec<Mul
         integer_type_spec.map(IntrinsicTypeSpec::Integer),
         (
             kw!(real),
-            kind_selector.optional(),
+            kind_selector.opt(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Real(kind_selector)),
         (
             kw!(double),
@@ -108,15 +108,15 @@ pub fn intrinsic_type_spec<S: Lexed>(source: S) -> PResult<IntrinsicTypeSpec<Mul
         ).map(|_| IntrinsicTypeSpec::DoublePrecision),
         (
             kw!(complex),
-            kind_selector.optional(),
+            kind_selector.opt(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Complex(kind_selector)),
         (
             kw!(character),
-            char_selector.optional(),
+            char_selector.opt(),
         ).map(|(_, char_selector)| IntrinsicTypeSpec::Character(char_selector)),
         (
             kw!(logical),
-            kind_selector.optional(),
+            kind_selector.opt(),
         ).map(|(_, kind_selector)| IntrinsicTypeSpec::Logical(kind_selector)),
     ).parse(source)
 }
@@ -157,8 +157,8 @@ pub fn length_selector<S: Lexed>(source: S) -> PResult<LengthSelector<MultilineS
     alt!(
         for S =>
         (
-            delim('('), (kw!(len), equals()).optional(), type_param_value, delim(')')).map(|(_, _, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
-        (asterisk(), char_length, comma().optional()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
+            delim('('), (kw!(len), equals()).opt(), type_param_value, delim(')')).map(|(_, _, type_param_value, _)| LengthSelector::Parenthesized(type_param_value)),
+        (asterisk(), char_length, comma().opt()).map(|(_, char_length, _)| LengthSelector::Asterisk(char_length)),
     ).parse(source)
 }
 
@@ -204,7 +204,7 @@ pub fn char_selector<S: Lexed>(source: S) -> PResult<CharSelector<MultilineSpan>
                 (
                     kw!(kind),
                     equals(),
-                ).optional(),
+                ).opt(),
                 int_constant_expr
             ).map(|(_, kind)| kind),
             delim(')'),
@@ -221,7 +221,7 @@ pub fn char_selector<S: Lexed>(source: S) -> PResult<CharSelector<MultilineSpan>
                 kw!(len),
                 equals(),
                 type_param_value,
-            ).map(|(_, _, _, len)| len).optional(),
+            ).map(|(_, _, _, len)| len).opt(),
             delim(')'),
         ).map(|(_, kind, len, _)| match len {
             Some(len) => CharSelector::LenKind(len, kind),
@@ -277,7 +277,7 @@ pub fn ac_spec<S: Lexed>(source: S) -> PResult<AcSpec<MultilineSpan>, S> {
             (
                 type_spec,
                 double_colon(),
-            ).map(|(type_spec, _)| type_spec).optional(),
+            ).map(|(type_spec, _)| type_spec).opt(),
             separated(
                 ac_value,
                 comma(),
@@ -380,13 +380,13 @@ pub fn ac_implied_do_control<S: Lexed>(source: S) -> PResult<AcImpliedDoControl<
         (
             integer_type_spec,
             double_colon(),
-        ).map(|(spec, _)| spec).optional(),
+        ).map(|(spec, _)| spec).opt(),
         ac_do_variable,
         equals(),
         int_expr,
         comma(),
         int_expr,
-        (comma(), int_expr).map(|(_, stride)| stride).optional(),
+        (comma(), int_expr).map(|(_, stride)| stride).opt(),
     ).map(|(spec, variable, _, start, _, end, stride)| AcImpliedDoControl {
         spec,
         variable,

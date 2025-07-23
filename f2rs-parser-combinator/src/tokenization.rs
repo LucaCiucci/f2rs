@@ -137,7 +137,7 @@ pub trait Parser<S: Source>: ParserCore<S> + Clone {
         Or::new(self, p2)
     }
 
-    fn optional(self) -> Optional<Self>
+    fn opt(self) -> Optional<Self>
     where
         Self: Sized,
     {

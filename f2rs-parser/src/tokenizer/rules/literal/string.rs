@@ -86,7 +86,7 @@ pub fn char_literal_constant<S: TextSource>(source: S) -> PResult<CharLiteralCon
     alt! {
         for S =>
         (
-            (kind_param(true), underscore).map(|(k, _)| k).optional(),
+            (kind_param(true), underscore).map(|(k, _)| k).opt(),
             Char::<S::Span>::exact('\''),
             fold_many(
                 string_element('\'', "''", "'"),
@@ -97,7 +97,7 @@ pub fn char_literal_constant<S: TextSource>(source: S) -> PResult<CharLiteralCon
                 },
                 0..,
             ),
-            Char::<S::Span>::exact('\'').optional(),
+            Char::<S::Span>::exact('\'').opt(),
         )
             .map(|(kind_param, open_quote, content, close_quote)| {
                 let mut span = open_quote.span.clone();
@@ -116,7 +116,7 @@ pub fn char_literal_constant<S: TextSource>(source: S) -> PResult<CharLiteralCon
                 }
             }),
         (
-            (kind_param(true), underscore).map(|(k, _)| k).optional(),
+            (kind_param(true), underscore).map(|(k, _)| k).opt(),
             Char::<S::Span>::exact('"'),
             fold_many(
                 string_element('"', "\"\"", "\""),
@@ -127,7 +127,7 @@ pub fn char_literal_constant<S: TextSource>(source: S) -> PResult<CharLiteralCon
                 },
                 0..,
             ),
-            Char::<S::Span>::exact('"').optional(),
+            Char::<S::Span>::exact('"').opt(),
         )
             .map(|(kind_param, open_quote, content, close_quote)| {
                 let mut span = open_quote.span.clone();

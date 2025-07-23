@@ -18,7 +18,7 @@ pub fn access_stmt_2<S: Lexed>(source: S) -> PResult<AccessStmt<MultilineSpan>, 
             list(access_id, 0..),
         )
             .map(|(_, access_id_list)| access_id_list)
-            .optional(),
+            .opt(),
     ).map(|(access_spec, access_id_list)| AccessStmt {
         access_spec,
         access_id_list,
@@ -55,7 +55,7 @@ pub struct AllocatableStmt<Span> {
 pub fn allocatable_stmt_2<S: Lexed>(source: S) -> PResult<AllocatableStmt<MultilineSpan>, S> {
     (
         kw!(allocatable),
-        double_colon().optional(),
+        double_colon().opt(),
         list(allocatable_decl, 1..),
     ).map(|(_, _, allocatable_decl_list)| AllocatableStmt {
         allocatable_decl_list,
@@ -80,12 +80,12 @@ pub fn allocatable_decl<S: Lexed>(source: S) -> PResult<AllocatableDecl<Multilin
             delim('('),
             array_spec,
             delim(')'),
-        ).map(|(_, array_spec, _)| array_spec).optional(),
+        ).map(|(_, array_spec, _)| array_spec).opt(),
         (
             delim('['),
             coarray_spec,
             delim(']'),
-        ).map(|(_, coarray_spec, _)| coarray_spec).optional(),
+        ).map(|(_, coarray_spec, _)| coarray_spec).opt(),
     ).map(|(object_name, array_spec, coarray_spec)| AllocatableDecl {
         object_name,
         array_spec,
@@ -104,7 +104,7 @@ pub struct AsynchronousStmt<Span> {
 pub fn asynchronous_stmt_2<S: Lexed>(source: S) -> PResult<AsynchronousStmt<MultilineSpan>, S> {
     (
         kw!(asynchronous),
-        double_colon().optional(),
+        double_colon().opt(),
         list(object_name, 1..),
     ).map(|(_, _, object_name_list)| AsynchronousStmt {
         object_name_list,
@@ -123,7 +123,7 @@ pub struct BindStmt<Span> {
 pub fn bind_stmt_2<S: Lexed>(source: S) -> PResult<BindStmt<MultilineSpan>, S> {
     (
         language_binding_spec,
-        double_colon().optional(),
+        double_colon().opt(),
         list(bind_entity, 1..),
     ).map(|(language_binding_spec, _, bind_entity_list)| BindStmt {
         language_binding_spec,
@@ -165,7 +165,7 @@ pub struct CodimensionStmt<Span> {
 pub fn codimension_stmt_2<S: Lexed>(source: S) -> PResult<CodimensionStmt<MultilineSpan>, S> {
     (
         kw!(codimension),
-        double_colon().optional(),
+        double_colon().opt(),
         list(codimension_decl, 1..),
     ).map(|(_, _, codimension_decl_list)| CodimensionStmt {
         codimension_decl_list,
@@ -206,7 +206,7 @@ pub struct ContiguousStmt<Span> {
 pub fn contiguous_stmt_2<S: Lexed>(source: S) -> PResult<ContiguousStmt<MultilineSpan>, S> {
     (
         kw!(contiguous),
-        double_colon().optional(),
+        double_colon().opt(),
         list(name(), 1..),
     ).map(|(_, _, object_name_list)| ContiguousStmt {
         object_name_list,
@@ -315,7 +315,7 @@ pub struct DataImpliedDoControl<Span> {
 
 fn data_implied_do_control<S: Lexed>(source: S) -> PResult<DataImpliedDoControl<MultilineSpan>, S> {
     (
-        (integer_type_spec, double_colon()).map(|(integer_type_spec, _)| integer_type_spec).optional(),
+        (integer_type_spec, double_colon()).map(|(integer_type_spec, _)| integer_type_spec).opt(),
         data_i_do_variable,
         equals(),
         int_constant_expr,
@@ -324,7 +324,7 @@ fn data_implied_do_control<S: Lexed>(source: S) -> PResult<DataImpliedDoControl<
         (
             comma(),
             int_constant_expr,
-        ).map(|(_, int_constant_expr)| int_constant_expr).optional(),
+        ).map(|(_, int_constant_expr)| int_constant_expr).opt(),
     ).map(|(integer_type_spec, data_i_do_variable, _, int_constant_expr1, _, int_constant_expr2, int_constant_expr3)| DataImpliedDoControl {
         integer_type_spec,
         data_i_do_variable,
@@ -380,7 +380,7 @@ pub fn data_stmt_value<S: Lexed>(source: S) -> PResult<DataStmtValue<MultilineSp
         (
             data_stmt_repeat,
             asterisk(),
-        ).map(|(data_stmt_repeat, _)| data_stmt_repeat).optional(),
+        ).map(|(data_stmt_repeat, _)| data_stmt_repeat).opt(),
         data_stmt_constant,
     ).map(|(data_stmt_repeat, data_stmt_constant)| DataStmtValue {
         data_stmt_repeat,
@@ -473,7 +473,7 @@ pub struct DimensionStmt<Span> {
 pub fn dimension_stmt_2<S: Lexed>(source: S) -> PResult<DimensionStmt<MultilineSpan>, S> {
     (
         kw!(dimension),
-        double_colon().optional(),
+        double_colon().opt(),
         list(
             (
                 name(),
@@ -502,7 +502,7 @@ pub fn intent_stmt_2<S: Lexed>(source: S) -> PResult<IntentStmt<MultilineSpan>, 
         (kw!(intent), delim('(')),
         intent_spec,
         delim(')'),
-        double_colon().optional(),
+        double_colon().opt(),
         list(dummy_arg_name, 0..),
     ).map(|(_, intent_spec, _, _, dummy_arg_name_list)| IntentStmt {
         intent_spec,
@@ -521,7 +521,7 @@ pub struct OptionalStmt<Span> {
 pub fn optional_stmt_2<S: Lexed>(source: S) -> PResult<OptionalStmt<MultilineSpan>, S> {
     (
         kw!(optional),
-        double_colon().optional(),
+        double_colon().opt(),
         list(dummy_arg_name, 0..),
     ).map(|(_, _, dummy_arg_name_list)| OptionalStmt {
         dummy_arg_name_list,
@@ -539,7 +539,7 @@ pub struct PointerStmt<Span> {
 pub fn pointer_stmt_2<S: Lexed>(source: S) -> PResult<PointerStmt<MultilineSpan>, S> {
     (
         kw!(pointer),
-        double_colon().optional(),
+        double_colon().opt(),
         list(pointer_decl, 1..),
     ).map(|(_, _, pointer_decl_list)| PointerStmt {
         pointer_decl_list,
@@ -565,7 +565,7 @@ pub fn pointer_decl<S: Lexed>(source: S) -> PResult<PointerDecl<MultilineSpan>, 
             delim('('),
             list(deferred_shape_spec, 0..),
             delim(')'),
-        ).map(|(_, deferred_shape_spec_list, _)| deferred_shape_spec_list).optional(),
+        ).map(|(_, deferred_shape_spec_list, _)| deferred_shape_spec_list).opt(),
     ).map(|(name, deferred_shape_spec_list)| PointerDecl {
         name,
         deferred_shape_spec_list,
@@ -583,7 +583,7 @@ pub struct ProtectedStmt<Span> {
 pub fn protected_stmt_2<S: Lexed>(source: S) -> PResult<ProtectedStmt<MultilineSpan>, S> {
     (
         kw!(protected),
-        double_colon().optional(),
+        double_colon().opt(),
         list(name(), 1..),
     ).map(|(_, _, entity_name_list)| ProtectedStmt {
         entity_name_list,
@@ -602,9 +602,9 @@ pub fn save_stmt_2<S: Lexed>(source: S) -> PResult<SaveStmt<MultilineSpan>, S> {
     (
         kw!(save),
         (
-            double_colon().optional(),
+            double_colon().opt(),
             list(saved_entity, 0..),
-        ).map(|(_, saved_entity_list)| saved_entity_list).optional(),
+        ).map(|(_, saved_entity_list)| saved_entity_list).opt(),
     ).map(|(_, saved_entity_list)| SaveStmt {
         saved_entity_list,
     }).parse(source)
